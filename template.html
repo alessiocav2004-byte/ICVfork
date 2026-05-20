@@ -270,7 +270,7 @@
                 /* Restore Grid behavior */
                 grid-template-columns: 1fr 1fr;
                 grid-template-areas:
-                    "rd tb"
+                    "tb rd"
                     "proxy jackett"
                     "search search";
             }
@@ -281,7 +281,7 @@
             .config-grid {
                 grid-template-columns: 1fr 1fr 1fr;
                 grid-template-areas:
-                    "rd tb search"
+                    "tb rd search"
                     "proxy jackett search";
             }
         }
@@ -289,10 +289,12 @@
         /* Grid Area Assignments */
         .area-rd {
             grid-area: rd;
+            order: 2;
         }
 
         .area-tb {
             grid-area: tb;
+            order: 1;
         }
 
         .area-proxy {
@@ -2210,9 +2212,9 @@
             (function () {
                 const BASE_COLOR = 0x2a1d5e;       // viola scuro costante
                 const SHININESS = 90.00;
-                const MOUSE_AMP_X = 4.0;           // amplificazione orizzontale
-                const MOUSE_AMP_Y_UP = 4.0;        // amplificazione quando il mouse sale
-                const MOUSE_AMP_Y_DOWN = 2.2;      // amplificazione ridotta quando il mouse scende
+                const MOUSE_AMP_X = 3.4;           // amplificazione orizzontale
+                const MOUSE_AMP_Y_UP = 3.4;        // amplificazione quando il mouse sale
+                const MOUSE_AMP_Y_DOWN = 1.9;      // amplificazione ridotta quando il mouse scende
                 const MAX_DOWN_Y_RATIO = 0.62;     // limite in basso per evitare effetto "sotto l'immagine"
 
                 let vantaEffect = null;
