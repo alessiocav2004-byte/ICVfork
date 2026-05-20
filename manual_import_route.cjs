@@ -515,14 +515,14 @@ router.get('/', (req, res) => {
             justify-content: center;
         }
 
-        #bg-canvas {
+        #bg-vanta {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             z-index: -1;
-            background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #050507 100%);
+            background: radial-gradient(circle at 50% 50%, #120a2b 0%, #050507 100%);
         }
 
         .container {
@@ -851,9 +851,11 @@ router.get('/', (req, res) => {
             }
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.waves.min.js"></script>
 </head>
 <body>
-    <canvas id="bg-canvas"></canvas>
+    <div id="bg-vanta"></div>
 
     <div class="container">
         <div class="header-section">
@@ -987,75 +989,32 @@ router.get('/', (req, res) => {
     </div>
 
     <script>
-        // --- ADVANCED NEURAL PARTICLES ---
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-
-        function initCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-
-        window.addEventListener('resize', initCanvas);
-        initCanvas();
-
-        class Node {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.8;
-                this.vy = (Math.random() - 0.5) * 0.8;
-                this.radius = Math.random() * 2 + 1;
-                this.color = Math.random() > 0.5 ? '#a855f7' : '#06b6d4';
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-                // Glow
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = this.color;
-            }
-        }
-
-        for (let i = 0; i < 70; i++) particles.push(new Node());
-
-        function drawScene() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.shadowBlur = 0; // Reset for lines
-            
-            for (let i = 0; i < particles.length; i++) {
-                const p1 = particles[i];
-                p1.update();
-                p1.draw();
-
-                for (let j = i + 1; j < particles.length; j++) {
-                    const p2 = particles[j];
-                    const dx = p1.x - p2.x;
-                    const dy = p1.y - p2.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-
-                    if (dist < 180) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = 'rgba(148, 163, 184, ' + (1 - dist / 180 * 0.5) + ')';
-                        ctx.lineWidth = 0.5;
-                        ctx.moveTo(p1.x, p1.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        ctx.stroke();
-                    }
+        // --- VANTA WAVES BACKGROUND (darker + lighter than neural canvas) ---
+        (function initVantaBackground() {
+            function run() {
+                if (typeof VANTA === 'undefined' || !VANTA.WAVES) {
+                    return setTimeout(run, 100);
                 }
+
+                VANTA.WAVES({
+                    el: '#bg-vanta',
+                    mouseControls: true,
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    scale: 1.00,
+                    scaleMobile: 1.00,
+                    color: 0x22124a,
+                    shininess: 28.00,
+                    waveHeight: 18.00,
+                    waveSpeed: 0.45,
+                    zoom: 0.90
+                });
             }
-            requestAnimationFrame(drawScene);
-        }
-        drawScene();
+
+            run();
+        })();
 
         // --- CORE LOGIC ---
         const modeSelector = document.getElementById('modeSelector');
