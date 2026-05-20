@@ -26,7 +26,7 @@
             padding: 0;
         }
 
-        /* Three.js container */
+        /* Three.js / Vanta background container */
         #container {
             position: fixed;
             top: 0;
@@ -37,12 +37,12 @@
             min-height: -webkit-fill-available;
             z-index: 0;
             touch-action: none;
-            pointer-events: none;
+            pointer-events: auto;
             overflow: hidden;
         }
 
         #container canvas {
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         /* Remove old elements */
@@ -270,7 +270,7 @@
                 /* Restore Grid behavior */
                 grid-template-columns: 1fr 1fr;
                 grid-template-areas:
-                    "rd tb"
+                    "tb rd"
                     "proxy jackett"
                     "search search";
             }
@@ -281,7 +281,7 @@
             .config-grid {
                 grid-template-columns: 1fr 1fr 1fr;
                 grid-template-areas:
-                    "rd tb search"
+                    "tb rd search"
                     "proxy jackett search";
             }
         }
@@ -289,10 +289,12 @@
         /* Grid Area Assignments */
         .area-rd {
             grid-area: rd;
+            order: 2;
         }
 
         .area-tb {
             grid-area: tb;
+            order: 1;
         }
 
         .area-proxy {
@@ -505,82 +507,14 @@
             font-size: clamp(0.7rem, 1.5vw, 0.875rem);
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/88/three.min.js"></script>
-    <script id="vertexShader" type="x-shader/x-vertex">
-        void main() {
-            gl_Position = vec4( position, 1.0 );
+    <style>
+        /* Vanta WAVES background container */
+        #container {
+            transition: filter 0.4s ease;
         }
-    </script>
-    <script id="fragmentShader" type="x-shader/x-fragment">
-        uniform vec2 u_resolution;
-        uniform vec2 u_mouse;
-        uniform float u_time;
-        uniform sampler2D u_noise;
-        
-        #define PI 3.141592653589793
-        #define TAU 6.283185307179586
-        
-        const float multiplier = 20.0;
-        const float zoomSpeed = 15.;
-        const float mouseRadius = 0.25;
-        const float mouseStrength = 0.3;
-        
-        vec2 hash2(vec2 p) {
-            vec2 o = texture2D(u_noise, (p+0.5)/256.0, -100.0).xy;
-            return o;
-        }
-        
-        void main() {
-            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-            uv = uv * 2. - 1.;
-            uv.x *= u_resolution.x / u_resolution.y;
-            
-            vec3 color = vec3(0.05, 0.02, 0.1);
-            
-            float t = u_time * 0.1;
-            
-            // Convert mouse to same coordinate system as uv
-            vec2 mouse = u_mouse * 2.0 - 1.0;
-            mouse.x *= u_resolution.x / u_resolution.y;
-            
-            for(float i = 0.; i < 3.; i++) {
-                vec2 uv2 = uv * (1.0 + i * 0.5);
-                vec2 uv2_animated = uv2;
-                uv2_animated.y += t * (0.3 + i * 0.1);
-                
-                vec2 hash = hash2(floor(uv2_animated * multiplier));
-                vec2 offset = fract(uv2_animated * multiplier);
-                
-                // Mouse interaction using screen-space distance
-                float distToMouse = length(uv - mouse);
-                
-                // Base particle color (purple)
-                vec3 particleColor = vec3(0.5, 0.2, 0.8);
-                
-                if(distToMouse < mouseRadius) {
-                    // Push AWAY from mouse (repel)
-                    vec2 pushDir = normalize(uv - mouse);
-                    float pushForce = (1.0 - distToMouse / mouseRadius) * mouseStrength;
-                    offset += pushDir * pushForce * 3.0;
-                    
-                    // Change to yellow when near mouse
-                    float colorMix = 1.0 - (distToMouse / mouseRadius);
-                    particleColor = mix(vec3(0.5, 0.2, 0.8), vec3(1.0, 0.9, 0.2), colorMix);
-                }
-                
-                float d = length(offset - hash);
-                // Particles size: smaller but sharper
-                float brightness = smoothstep(0.15, 0.0, d);
-                
-                // Add glow effect
-                float glow = smoothstep(0.3, 0.0, d) * 0.3;
-                
-                color += particleColor * (brightness + glow) * (1.0 - i * 0.2);
-            }
-            
-            gl_FragColor = vec4(color, 1.0);
-        }
-    </script>
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.waves.min.js"></script>
 </head>
 
 <body>
@@ -634,6 +568,123 @@
                     <div id="status" style="text-align: center;">✓ 🚀 Configurazione pronta (Solo P2P) | Siti:
                         CorsaroNero,
                         Knaben</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TorBox Referral Card (1 card, 3 buttons) -->
+        <div class="torbox-referrals" style="margin-bottom: 24px;">
+            <style>
+                .torbox-ref-card {
+                    background: rgba(20, 20, 40, 0.35);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(0, 184, 148, 0.35);
+                    border-radius: 12px;
+                    padding: 26px 22px;
+                    color: #fff;
+                    text-align: center;
+                    transition: all 0.3s ease;
+                    box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                }
+                .torbox-ref-card:hover {
+                    border-color: rgba(0, 184, 148, 0.7);
+                    box-shadow: 0 8px 32px rgba(0, 184, 148, 0.2);
+                }
+                .torbox-ref-card h3 {
+                    margin: 0;
+                    font-size: 1.4em;
+                    font-weight: 700;
+                    line-height: 1.3;
+                    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+                }
+                .torbox-ref-card .tb-accent { color: #00b894; }
+                .torbox-ref-card .tb-sub {
+                    margin: 12px 0 22px 0;
+                    font-size: 1em;
+                    line-height: 1.5;
+                    opacity: 0.9;
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                }
+                .torbox-ref-card .tb-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    margin-bottom: 4px;
+                    flex-wrap: wrap;
+                }
+                .torbox-ref-card .tb-logo {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+                }
+                .torbox-ref-card .tb-btns {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                    justify-content: center;
+                    align-items: stretch;
+                }
+                .torbox-ref-card .tb-btn {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+                    color: #fff;
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    font-size: 0.95em;
+                    font-weight: 700;
+                    text-decoration: none;
+                    box-shadow: 0 4px 12px rgba(0,185,148,0.2);
+                    transition: all 0.2s ease-in-out;
+                    letter-spacing: 0.3px;
+                    flex: 1 1 220px;
+                    max-width: 280px;
+                    min-width: 220px;
+                    box-sizing: border-box;
+                }
+                .torbox-ref-card .tb-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(0,185,148,0.4);
+                }
+                .torbox-ref-card .tb-btn small {
+                    display: block;
+                    font-size: 0.78em;
+                    font-weight: 500;
+                    opacity: 0.95;
+                    margin-top: 4px;
+                    color: rgba(255,255,255,0.9);
+                    letter-spacing: 0;
+                }
+            </style>
+
+            <div class="torbox-ref-card">
+                <div class="tb-header">
+                    <img src="https://torbox.app/favicon.ico" alt="TorBox" class="tb-logo">
+                    <h3><span class="tb-accent">Potenzia</span> la tua esperienza con <span class="tb-accent" style="text-shadow: 0 0 20px rgba(0,185,148,0.3);">IlCorsaroViola</span></h3>
+                </div>
+                <p class="tb-sub">
+                    Migliora il tuo streaming con il servizio debrid ultra-veloce di <span class="tb-accent" style="font-weight:600;">TorBox</span>.<br>
+                    Ottieni fino a <strong>84 giorni gratis</strong> usando uno dei Referral code della community:
+                </p>
+                <div class="tb-btns">
+                    <a href="https://torbox.app/subscription?referral=b63d0556-82e8-4297-b19c-74249c95a19d" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @absinth987, @BigRedMachine0 e @PrisonMike8</small>
+                    </a>
+                    <a href="https://torbox.app/subscription?referral=9edfca40-041f-4f29-81bd-da2d89b09aeb" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @francescoaracu e @MassimoC24</small>
+                    </a>
+                    <a href="https://torbox.app/subscription?referral=19a1af53-424e-4efa-a24b-4583c944ae41" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @realbestia</small>
+                    </a>
                 </div>
             </div>
         </div>
@@ -1555,7 +1606,7 @@
                     .replace(/\+/g, '-')
                     .replace(/\//g, '_')
                     .replace(/=+$/g, '');
-                const installUrl = `stremio://${window.location.host}/${encodedConfigUrl}/manifest.json`;
+                const installUrl = `https://${window.location.host}/${encodedConfigUrl}/manifest.json`;
 
                 installLinkDisplay.value = installUrl;
                 linkContainer.classList.add('show');
@@ -2155,77 +2206,63 @@
             });
         </script>
         <script>
-            // Ashfall Three.js effect
-            let container;
-            let camera, scene, renderer;
-            let uniforms;
-            let loader = new THREE.TextureLoader();
-            let texture;
+            // Vanta.WAVES animated background (html5up-vantajs style)
+            // Amplifica l'effetto nativo di Vanta al movimento del mouse
+            // sovrascrivendo mouseX/mouseY con offset moltiplicati rispetto al centro.
+            (function () {
+                const BASE_COLOR = 0x2a1d5e;       // viola scuro costante
+                const SHININESS = 90.00;
+                const MOUSE_AMP_X = 3.4;           // amplificazione orizzontale
+                const MOUSE_AMP_Y_UP = 3.4;        // amplificazione quando il mouse sale
+                const MOUSE_AMP_Y_DOWN = 1.9;      // amplificazione ridotta quando il mouse scende
+                const MAX_DOWN_Y_RATIO = 0.62;     // limite in basso per evitare effetto "sotto l'immagine"
 
-            loader.setCrossOrigin("anonymous");
-            loader.load(
-                'https://s3-us-west-2.amazonaws.com/s.cdpn.io/982762/noise.png',
-                function (tex) {
-                    texture = tex;
-                    texture.wrapS = THREE.RepeatWrapping;
-                    texture.wrapT = THREE.RepeatWrapping;
-                    texture.minFilter = THREE.LinearFilter;
-                    init();
-                    animate();
+                let vantaEffect = null;
+
+                function initVanta() {
+                    if (typeof VANTA === 'undefined' || !VANTA.WAVES) {
+                        return setTimeout(initVanta, 100);
+                    }
+                    vantaEffect = VANTA.WAVES({
+                        el: '#container',
+                        mouseControls: true,
+                        touchControls: true,
+                        gyroControls: false,
+                        minHeight: 200.00,
+                        minWidth: 200.00,
+                        scale: 1.00,
+                        scaleMobile: 1.00,
+                        color: BASE_COLOR,
+                        shininess: SHININESS,
+                        waveHeight: 40.00,
+                        waveSpeed: 1.20,
+                        zoom: 0.72
+                    });
                 }
-            );
+                initVanta();
 
-            function init() {
-                container = document.getElementById('container');
-
-                camera = new THREE.Camera();
-                camera.position.z = 1;
-
-                scene = new THREE.Scene();
-
-                var geometry = new THREE.PlaneBufferGeometry(2, 2);
-
-                uniforms = {
-                    u_time: { type: "f", value: 1.0 },
-                    u_resolution: { type: "v2", value: new THREE.Vector2() },
-                    u_noise: { type: "t", value: texture },
-                    u_mouse: { type: "v2", value: new THREE.Vector2() }
-                };
-
-                var material = new THREE.ShaderMaterial({
-                    uniforms: uniforms,
-                    vertexShader: document.getElementById('vertexShader').textContent,
-                    fragmentShader: document.getElementById('fragmentShader').textContent
-                });
-
-                var mesh = new THREE.Mesh(geometry, material);
-                scene.add(mesh);
-
-                renderer = new THREE.WebGLRenderer();
-                renderer.setPixelRatio(window.devicePixelRatio);
-
-                container.appendChild(renderer.domElement);
-
-                onWindowResize();
-                window.addEventListener('resize', onWindowResize, false);
-
-                document.addEventListener('mousemove', function (e) {
-                    uniforms.u_mouse.value.x = e.clientX / window.innerWidth;
-                    uniforms.u_mouse.value.y = 1.0 - (e.clientY / window.innerHeight);
-                });
-            }
-
-            function onWindowResize() {
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                uniforms.u_resolution.value.x = renderer.domElement.width;
-                uniforms.u_resolution.value.y = renderer.domElement.height;
-            }
-
-            function animate(time) {
-                requestAnimationFrame(animate);
-                uniforms.u_time.value = time * 0.001;
-                renderer.render(scene, camera);
-            }
+                // Amplifica l'effetto mouse nativo: sovrascrive mouseX/mouseY dopo
+                // che Vanta li ha aggiornati, con controllo separato dell'asse Y.
+                window.addEventListener('mousemove', function (e) {
+                    if (!vantaEffect || !vantaEffect.el) return;
+                    const rect = vantaEffect.el.getBoundingClientRect();
+                    const cx = rect.width / 2;
+                    const cy = rect.height / 2;
+                    const dx = (e.clientX - rect.left) - cx;
+                    const dy = (e.clientY - rect.top) - cy;
+                    const ampY = dy < 0 ? MOUSE_AMP_Y_UP : MOUSE_AMP_Y_DOWN;
+                    const amplifiedX = cx + dx * MOUSE_AMP_X;
+                    const amplifiedY = cy + dy * ampY;
+                    const maxDownY = cy + rect.height * MAX_DOWN_Y_RATIO;
+                    vantaEffect.mouseX = amplifiedX;
+                    vantaEffect.mouseY = Math.min(amplifiedY, maxDownY);
+                    if (typeof vantaEffect.triggerMouseMove === 'function') {
+                        try {
+                            vantaEffect.triggerMouseMove(vantaEffect.mouseX, vantaEffect.mouseY);
+                        } catch (_) {}
+                    }
+                }, { passive: true });
+            })();
         </script>
         <!-- Info Modal -->
         <div id="info_modal"
