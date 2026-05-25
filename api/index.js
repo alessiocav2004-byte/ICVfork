@@ -26,6 +26,11 @@ import { fetchExternalAddonsFlat, EXTERNAL_ADDONS } from './external-addons.js';
 // ⛩️ Kitsu Plus catalog integration
 import { fetchKitsuPlusCatalog, isKitsuPlusSearchCatalog } from './kitsu-plus.js';
 
+// 🏴‍☠️ ILCORSARONERO KILL-SWITCH
+// Set env ILCORSARONERO=enable to turn on. Anything else (including unset) = disabled.
+// When disabled: direct site scraping (fetchCorsaroNeroSingle/Data) and VPS enrichment webhook are skipped.
+const ILCORSARONERO_ENABLED = process.env.ILCORSARONERO === 'enable';
+
 // 🚀 SEEDER UPDATE WEBHOOK HELPER
 const TRIGGER_SEEDER_UPDATE_URL = process.env.SEEDER_UPDATE_URL; // e.g. 'http://my-vps-ip:3005/update'
 const TRIGGER_API_KEY = process.env.ENRICHMENT_API_KEY || 'change-me-in-production'; // Reusing existing key for internal services
@@ -1881,6 +1886,9 @@ function isGoodShortQueryMatch(torrentTitle, searchQuery) {
 const CORSARO_BASE_URL = "https://ilcorsaronero.link";
 
 async function fetchCorsaroNeroSingle(searchQuery, type = 'movie') {
+    if (!ILCORSARONERO_ENABLED) {
+        return [];
+    }
     console.log(`🏴‍☠️ [Single Query] Searching Il Corsaro Nero for: "${searchQuery}" (type: ${type})`);
 
     try {
@@ -2083,6 +2091,9 @@ async function fetchCorsaroNeroSingle(searchQuery, type = 'movie') {
 }
 
 async function fetchCorsaroNeroData(originalQuery, type = 'movie') {
+    if (!ILCORSARONERO_ENABLED) {
+        return [];
+    }
     const searchStrategies = [];
 
     // Strategy 1: Original query, cleaned
@@ -8914,11 +8925,16 @@ async function handleStream(type, id, config, workerOrigin) {
                             let cleanProvider = providerCandidate.replace(/^[^a-zA-Z0-9]+/, '').trim();
                             // 🔍 Jackett: never store the indexer suffix in DB - just "Jackett"
                             if (/^jackett\b/i.test(cleanProvider)) cleanProvider = 'Jackett';
+                            // 🔧 FIX [SIZE]: external-addons.js esporta `mainFileSize` (non `sizeInBytes`),
+                            // mentre il path DB rehydrate e i resolver fileInfo usano `sizeInBytes`.
+                            // Senza fallback, tutti i torrent da Comet/Torrentio/MediaFusion/Knaben/RARBG/Meteor
+                            // venivano salvati con size=NULL. Coalesce su entrambi i campi + file_size.
+                            const sizeForDb = r.sizeInBytes || r.mainFileSize || r.file_size || null;
                             return ({
                                 info_hash: r.infoHash.toLowerCase(),  // snake_case for DB
                                 title: cleanTitle,
                                 provider: cleanProvider,
-                                size: r.sizeInBytes || null,
+                                size: sizeForDb,
                                 type: type,
                                 seeders: r.seeders || 0,
                                 imdb_id: mediaDetails.imdbId || null,  // snake_case for DB
@@ -11474,7 +11490,7 @@ async function handleStream(type, id, config, workerOrigin) {
         // 🔥 ENRICHMENT: VPS webhook with load balancing (must complete BEFORE returning response)
         if (DEBUG_MODE) console.log(`🔍 [Background Check] dbEnabled=${dbEnabled}, mediaDetails=${!!mediaDetails}, tmdbId=${mediaDetails?.tmdbId}, imdbId=${mediaDetails?.imdbId}, kitsuId=${mediaDetails?.kitsuId}`);
 
-        if (dbEnabled && mediaDetails && (mediaDetails.tmdbId || mediaDetails.imdbId || mediaDetails.kitsuId)) {
+        if (ILCORSARONERO_ENABLED && dbEnabled && mediaDetails && (mediaDetails.tmdbId || mediaDetails.imdbId || mediaDetails.kitsuId)) {
             if (DEBUG_MODE) {
                 console.log(`🔍 [Enrichment] Preparing webhook for "${mediaDetails.title}"`);
                 console.log(`🔍 [Enrichment Titles] Italian: "${italianTitle || 'N/A'}", Original: "${originalTitle || 'N/A'}", English: "${mediaDetails.title}"`);
@@ -11487,9 +11503,8 @@ async function handleStream(type, id, config, workerOrigin) {
             ].filter(Boolean); // Remove undefined values
 
             if (enrichmentServers.length === 0) {
-                console.warn('⚠️ [Enrichment] No enrichment servers configured');
-                enrichmentServers.push('http://89.168.25.177:3001/enrich'); // Fallback
-            }
+                if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured (ENRICHMENT_SERVER_URL / ENRICHMENT_SERVER_URL_2), skipping webhook');
+            } else {
 
             // Simple round-robin counter (rotates between servers)
             if (!global.enrichmentServerIndex) {
@@ -11530,6 +11545,7 @@ async function handleStream(type, id, config, workerOrigin) {
             });
 
             // Proceed immediately without waiting
+            } // end else (enrichmentServers.length > 0)
         } else {
             if (DEBUG_MODE) console.log(`⏭️  [Background] Enrichment skipped (dbEnabled=${dbEnabled}, hasMediaDetails=${!!mediaDetails}, hasIds=${!!(mediaDetails?.tmdbId || mediaDetails?.imdbId || mediaDetails?.kitsuId)})`);
         }
