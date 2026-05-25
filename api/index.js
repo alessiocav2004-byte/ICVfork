@@ -8925,11 +8925,16 @@ async function handleStream(type, id, config, workerOrigin) {
                             let cleanProvider = providerCandidate.replace(/^[^a-zA-Z0-9]+/, '').trim();
                             // 🔍 Jackett: never store the indexer suffix in DB - just "Jackett"
                             if (/^jackett\b/i.test(cleanProvider)) cleanProvider = 'Jackett';
+                            // 🔧 FIX [SIZE]: external-addons.js esporta `mainFileSize` (non `sizeInBytes`),
+                            // mentre il path DB rehydrate e i resolver fileInfo usano `sizeInBytes`.
+                            // Senza fallback, tutti i torrent da Comet/Torrentio/MediaFusion/Knaben/RARBG/Meteor
+                            // venivano salvati con size=NULL. Coalesce su entrambi i campi + file_size.
+                            const sizeForDb = r.sizeInBytes || r.mainFileSize || r.file_size || null;
                             return ({
                                 info_hash: r.infoHash.toLowerCase(),  // snake_case for DB
                                 title: cleanTitle,
                                 provider: cleanProvider,
-                                size: r.sizeInBytes || null,
+                                size: sizeForDb,
                                 type: type,
                                 seeders: r.seeders || 0,
                                 imdb_id: mediaDetails.imdbId || null,  // snake_case for DB
