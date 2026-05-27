@@ -20,6 +20,9 @@ const aioFormatter = require('../aiostreams-formatter.cjs');
 const packFilesHandler = require('../pack-files-handler.cjs');
 const introSkip = require('../introskip.cjs');
 const customFormatter = require('../formatter.cjs');
+// ✅ NEW: Public torrent trackers (apibay, YTS, EZTV, SolidTorrents, Bitsearch)
+// .cjs because package.json has "type": "module" and the file uses CommonJS require()
+const publicTrackers = require('./public-trackers.cjs');
 
 // ✅ External Addon Integration (Torrentio, MediaFusion, Comet)
 import { fetchExternalAddonsFlat, EXTERNAL_ADDONS } from './external-addons.js';
@@ -6983,7 +6986,7 @@ async function handleStream(type, id, config, workerOrigin) {
             } else {
                 if (config.use_corsaronero !== false) selectedProviders.push('corsaro');  // Matches CorsaroNero, ilcorsaronero
                 if (config.use_knaben !== false) selectedProviders.push('knaben');        // Matches Knaben (1337x), etc.
-                if (config.use_torrentgalaxy === true) selectedProviders.push('torrentgalaxy');
+                if (config.use_torrentgalaxy !== false) selectedProviders.push('torrentgalaxy');
                 if (config.use_uindex !== false) selectedProviders.push('uindex');
                 if (config.use_stremthru_torz !== false) selectedProviders.push('stremthru_torz');
                 if (config.use_meteor !== false) selectedProviders.push('meteor');
@@ -7507,7 +7510,7 @@ async function handleStream(type, id, config, workerOrigin) {
                     config.use_corsaronero === false &&
                     config.use_uindex === false &&
                     config.use_knaben === false &&
-                    config.use_torrentgalaxy !== true &&
+                    config.use_torrentgalaxy === false &&
                     config.use_torrentio === false &&
                     config.use_mediafusion === false &&
                     config.use_comet === false &&
@@ -7683,7 +7686,8 @@ async function handleStream(type, id, config, workerOrigin) {
                 CorsaroNero: [],
                 Jackettio: [],
                 ExternalAddons: [], // ✅ Torrentio, MediaFusion, Comet
-                RARBG: []
+                RARBG: [],
+                PublicTrackers: [] // ✅ NEW: apibay, YTS, EZTV, Solid, Bitsearch (see api/public-trackers.js)
             };
 
             const searchType = kitsuId ? 'anime' : type;
@@ -7696,8 +7700,15 @@ async function handleStream(type, id, config, workerOrigin) {
             const useUIndex = !jackettOnly && config.use_uindex !== false;
             const useCorsaroNero = !jackettOnly && config.use_corsaronero !== false;
             const useKnaben = !jackettOnly && config.use_knaben !== false;
-            const useTorrentGalaxy = !jackettOnly && config.use_torrentgalaxy === true; // Default OFF (false) for new feature
+            const useTorrentGalaxy = !jackettOnly && config.use_torrentgalaxy !== false; // Default ON
             const useJackett = jackettOnly || config.use_jackett !== false; // Default ON (only matters if creds provided)
+            // ✅ NEW: Public trackers — default ON (so a fresh install in hybrid mode scrapes them in background)
+            const useApibay = !jackettOnly && config.use_apibay !== false;
+            const useYTS = !jackettOnly && config.use_yts !== false;
+            const useEZTV = !jackettOnly && config.use_eztv !== false;
+            const useSolid = !jackettOnly && config.use_solid !== false;
+            const useBitsearch = !jackettOnly && config.use_bitsearch !== false;
+            const anyPublicTrackerEnabled = useApibay || useYTS || useEZTV || useSolid || useBitsearch;
             const globalExternalEnabled = !jackettOnly && config.use_external_addons !== false;
             const enabledExternalAddons = [];
             if (globalExternalEnabled) {
@@ -7955,6 +7966,49 @@ async function handleStream(type, id, config, workerOrigin) {
                 }
             });
 
+            // 2️⃣bis TASK: Public Trackers (apibay/YTS/EZTV/Solid/Bitsearch) — skip in db_only or hybrid foreground
+            // Runs ONCE per request (orchestrator builds its own query variants internally from metadata).
+            // Background-friendly: rate-limited providers (Solid, Bitsearch) self-serialize via min-interval.
+            if (anyPublicTrackerEnabled && !config.db_only && !useHybridMode) {
+                parallelSearchTasks.push(async () => {
+                    try {
+                        const ptType = (searchType === 'anime') ? 'anime' : (searchType === 'series' ? 'series' : 'movie');
+                        const ptMetadata = {
+                            primaryTitle: italianTitle || mediaDetails.title,
+                            title: mediaDetails.title,
+                            italianTitle: italianTitle || undefined,
+                            titles: mediaDetails.titles || [italianTitle, mediaDetails.title].filter(Boolean),
+                            year: mediaDetails.year,
+                            imdbId: mediaDetails.imdbId,
+                        };
+                        const ptParsedId = {
+                            season: season ? parseInt(season, 10) : undefined,
+                            episode: episode ? parseInt(episode, 10) : undefined,
+                        };
+                        const ptEnabled = {
+                            apibay: useApibay,
+                            yts: useYTS,
+                            eztv: useEZTV,
+                            solid: useSolid,
+                            bitsearch: useBitsearch,
+                        };
+                        if (DEBUG_MODE) console.log(`🌐 [PublicTrackers] Starting (enabled: ${Object.entries(ptEnabled).filter(([,v])=>v).map(([k])=>k).join(',')})`);
+                        const ptResults = await publicTrackers.searchAllPublicTrackers({
+                            metadata: ptMetadata,
+                            parsedId: ptParsedId,
+                            type: ptType,
+                            enabled: ptEnabled,
+                        });
+                        if (ptResults && ptResults.length > 0) {
+                            rawResultsByProvider.PublicTrackers.push(...ptResults);
+                            if (DEBUG_MODE) console.log(`✅ [PublicTrackers] ${ptResults.length} results aggregated`);
+                        }
+                    } catch (err) {
+                        console.error('❌ [PublicTrackers] task failed:', err.message);
+                    }
+                });
+            }
+
             // 3️⃣ TASK: External Addons (skip in db_only or hybrid mode)
             if (DEBUG_MODE) console.log(`🔍 [External Addons Check] enabled=${enabledExternalAddons.length}, db_only=${config.db_only}, useHybridMode=${useHybridMode}`);
             if (enabledExternalAddons.length > 0 && !config.db_only && !useHybridMode) {
@@ -8042,7 +8096,8 @@ async function handleStream(type, id, config, workerOrigin) {
                 ...rawResultsByProvider.ExternalAddons,
                 ...rawResultsByProvider.RARBG,
                 ...rawResultsByProvider.UIndex,
-                ...rawResultsByProvider.Jackettio
+                ...rawResultsByProvider.Jackettio,
+                ...rawResultsByProvider.PublicTrackers // ✅ NEW: apibay/YTS/EZTV/Solid/Bitsearch
             ];
 
             if (DEBUG_MODE) console.log(`🔎 Found a total of ${allRawResults.length} raw results from all sources. Performing smart deduplication...`);
