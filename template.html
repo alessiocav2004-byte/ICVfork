@@ -867,7 +867,7 @@
                                 <span>🏴‍☠️ Il Corsaro Nero (Italiano)</span>
                             </label>
                             <label>
-                                <input type="checkbox" id="use_uindex">
+                                <input type="checkbox" id="use_uindex" checked>
                                 <span>📚 UIndex (Internazionale) ⚠️ Rate Limited</span>
                             </label>
                             <label>
@@ -875,8 +875,29 @@
                                 <span>🦉 Knaben (Internazionale)</span>
                             </label>
                             <label>
-                                <input type="checkbox" id="use_torrentgalaxy">
+                                <input type="checkbox" id="use_torrentgalaxy" checked>
                                 <span>🌌 TorrentGalaxy (Internazionale)</span>
+                            </label>
+                            <!-- ✅ NEW: Public trackers (default ON — in Hybrid Mode girano in background). -->
+                            <label>
+                                <input type="checkbox" id="use_apibay" checked>
+                                <span>🏴‍☠️ apibay / TPB (Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_yts" checked>
+                                <span>🎬 YTS (Film, Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_eztv" checked>
+                                <span>📺 EZTV (Serie TV, Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_solid" checked>
+                                <span>🟢 SolidTorrents (Internazionale) ⚠️ Rate Limited</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_bitsearch" checked>
+                                <span>🔎 Bitsearch (Internazionale) ⚠️ Rate Limited / HTML</span>
                             </label>
                             <label>
                                 <input type="checkbox" id="use_torrentio" checked>
@@ -1238,6 +1259,12 @@
             const useUIndexCheckbox = document.getElementById("use_uindex");
             const useKnabenCheckbox = document.getElementById("use_knaben");
             const useTorrentGalaxyCheckbox = document.getElementById("use_torrentgalaxy");
+            // ✅ NEW: Public trackers
+            const useApibayCheckbox = document.getElementById("use_apibay");
+            const useYTSCheckbox = document.getElementById("use_yts");
+            const useEZTVCheckbox = document.getElementById("use_eztv");
+            const useSolidCheckbox = document.getElementById("use_solid");
+            const useBitsearchCheckbox = document.getElementById("use_bitsearch");
             const useTorrentioCheckbox = document.getElementById("use_torrentio");
             const useMediaFusionCheckbox = document.getElementById("use_mediafusion");
             const useCometCheckbox = document.getElementById("use_comet");
@@ -1333,6 +1360,11 @@
                     useUIndexCheckbox,
                     useKnabenCheckbox,
                     useTorrentGalaxyCheckbox,
+                    useApibayCheckbox,
+                    useYTSCheckbox,
+                    useEZTVCheckbox,
+                    useSolidCheckbox,
+                    useBitsearchCheckbox,
                     useTorrentioCheckbox,
                     useMediaFusionCheckbox,
                     useCometCheckbox,
@@ -1510,6 +1542,12 @@
                 config.use_uindex = useUIndexCheckbox.checked;
                 config.use_knaben = useKnabenCheckbox.checked;
                 config.use_torrentgalaxy = useTorrentGalaxyCheckbox.checked;
+                // ✅ NEW: Public trackers — default ON, save only when EXPLICITLY unchecked to keep URL clean
+                if (useApibayCheckbox && !useApibayCheckbox.checked) config.use_apibay = false;
+                if (useYTSCheckbox && !useYTSCheckbox.checked) config.use_yts = false;
+                if (useEZTVCheckbox && !useEZTVCheckbox.checked) config.use_eztv = false;
+                if (useSolidCheckbox && !useSolidCheckbox.checked) config.use_solid = false;
+                if (useBitsearchCheckbox && !useBitsearchCheckbox.checked) config.use_bitsearch = false;
                 config.use_torrentio = useTorrentioCheckbox.checked;
                 config.use_mediafusion = useMediaFusionCheckbox.checked;
                 config.use_comet = useCometCheckbox.checked;
@@ -1576,6 +1614,11 @@
                 if (config.use_uindex) searchSites.push("UIndex");
                 if (config.use_knaben) searchSites.push("Knaben");
                 if (config.use_torrentgalaxy) searchSites.push("TorrentGalaxy");
+                if (config.use_apibay) searchSites.push("apibay");
+                if (config.use_yts) searchSites.push("YTS");
+                if (config.use_eztv) searchSites.push("EZTV");
+                if (config.use_solid) searchSites.push("SolidTorrents");
+                if (config.use_bitsearch) searchSites.push("Bitsearch");
                 if (config.use_torrentio) searchSites.push("Torrentio");
                 if (config.use_mediafusion) searchSites.push("MediaFusion");
                 if (config.use_comet) searchSites.push("Comet");
@@ -1775,6 +1818,27 @@
                             console.log('✅ Loaded use_torrentgalaxy:', cfg.use_torrentgalaxy);
                         }
                     }
+                    // ✅ NEW: Public trackers loaders
+                    if (cfg.use_apibay !== undefined) {
+                        const el = document.getElementById('use_apibay');
+                        if (el) el.checked = !!cfg.use_apibay;
+                    }
+                    if (cfg.use_yts !== undefined) {
+                        const el = document.getElementById('use_yts');
+                        if (el) el.checked = !!cfg.use_yts;
+                    }
+                    if (cfg.use_eztv !== undefined) {
+                        const el = document.getElementById('use_eztv');
+                        if (el) el.checked = !!cfg.use_eztv;
+                    }
+                    if (cfg.use_solid !== undefined) {
+                        const el = document.getElementById('use_solid');
+                        if (el) el.checked = !!cfg.use_solid;
+                    }
+                    if (cfg.use_bitsearch !== undefined) {
+                        const el = document.getElementById('use_bitsearch');
+                        if (el) el.checked = !!cfg.use_bitsearch;
+                    }
                     if (cfg.use_torrentio !== undefined) {
                         const el = document.getElementById('use_torrentio');
                         if (el) el.checked = cfg.use_torrentio;
@@ -1954,6 +2018,12 @@
             useUIndexCheckbox.addEventListener('change', updateInstallLink);
             useKnabenCheckbox.addEventListener('change', updateInstallLink);
             useTorrentGalaxyCheckbox.addEventListener('change', updateInstallLink);
+            // ✅ NEW: Public trackers listeners
+            if (useApibayCheckbox) useApibayCheckbox.addEventListener('change', updateInstallLink);
+            if (useYTSCheckbox) useYTSCheckbox.addEventListener('change', updateInstallLink);
+            if (useEZTVCheckbox) useEZTVCheckbox.addEventListener('change', updateInstallLink);
+            if (useSolidCheckbox) useSolidCheckbox.addEventListener('change', updateInstallLink);
+            if (useBitsearchCheckbox) useBitsearchCheckbox.addEventListener('change', updateInstallLink);
             useTorrentioCheckbox.addEventListener('change', updateInstallLink);
             useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
             useCometCheckbox.addEventListener('change', updateInstallLink);
