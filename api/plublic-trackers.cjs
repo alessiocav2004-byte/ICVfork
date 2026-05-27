@@ -385,10 +385,45 @@ async function searchYTS({ metadata }) {
 }
 
 // =============================================================================
-// PROVIDER 3: EZTV (eztvx.to JSON) — solo SERIE TV, lookup per imdbId
+// PROVIDER 3: EZTV (JSON) — solo SERIE TV, lookup per imdbId
+// Host con fallback: eztv.tf (preferito, meno blocchi CF) → eztvx.to (originale)
+// Override completo via env EZTV_HOST (singolo host, salta fallback).
 // =============================================================================
 
 const EZTV_TIMEOUT_MS = 7000;
+const EZTV_HOSTS = process.env.EZTV_HOST
+    ? [process.env.EZTV_HOST]
+    : ['eztv.tf', 'eztvx.to'];
+
+async function fetchEZTVTorrents(id) {
+    let lastErr = null;
+    for (const host of EZTV_HOSTS) {
+        try {
+            const url = `https://${host}/api/get-torrents?imdb_id=${id}&limit=100`;
+            const res = await fetchWithTimeout(url, {}, EZTV_TIMEOUT_MS);
+            if (res.status === 429) {
+                setCooldown('eztv', 60);
+                return { torrents: [], hardFail: true };
+            }
+            if (res.status === 403) {
+                // IP cloud bloccato su questo host → prova il prossimo
+                if (DEBUG_MODE) console.warn(`[EZTV] 403 da ${host}, fallback...`);
+                continue;
+            }
+            if (!res.ok) {
+                lastErr = `status ${res.status} da ${host}`;
+                continue;
+            }
+            const data = await res.json();
+            return { torrents: data?.torrents || [], hardFail: false };
+        } catch (e) {
+            lastErr = `${host}: ${e.message}`;
+            if (DEBUG_MODE) console.warn(`[EZTV] ${lastErr}, fallback...`);
+        }
+    }
+    if (DEBUG_MODE && lastErr) console.warn(`[EZTV] tutti gli host falliti — ultimo: ${lastErr}`);
+    return { torrents: [], hardFail: false };
+}
 
 async function searchEZTV({ metadata, parsedId }) {
     if (isOnCooldown('eztv')) return [];
@@ -400,12 +435,7 @@ async function searchEZTV({ metadata, parsedId }) {
     return cached(key, async () => {
         try {
             const id = String(imdbId).replace(/^tt/, '');
-            const url = `https://eztvx.to/api/get-torrents?imdb_id=${id}&limit=100`;
-            const res = await fetchWithTimeout(url, {}, EZTV_TIMEOUT_MS);
-            if (res.status === 429) { setCooldown('eztv', 60); return []; }
-            if (!res.ok) return [];
-            const data = await res.json();
-            const torrents = data?.torrents || [];
+            const { torrents } = await fetchEZTVTorrents(id);
             const out = [];
             for (const t of torrents) {
                 const hash = (t.hash || '').toLowerCase();
