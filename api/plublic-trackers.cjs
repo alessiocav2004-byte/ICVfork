@@ -338,10 +338,38 @@ async function searchApibay({ queries, metadata, parsedId, type }) {
 }
 
 // =============================================================================
-// PROVIDER 2: YTS (yts.mx JSON) — solo FILM
+// PROVIDER 2: YTS (JSON) — solo FILM
+// Host con fallback: yts.am (storico, stabile) → yts.mx (originale, spesso DNS-fail)
+// Override via env YTS_HOST.
 // =============================================================================
 
 const YTS_TIMEOUT_MS = 6000;
+const YTS_HOSTS = process.env.YTS_HOST
+    ? [process.env.YTS_HOST]
+    : ['yts.am', 'yts.mx'];
+
+async function fetchYTSMovies(query) {
+    let lastErr = null;
+    for (const host of YTS_HOSTS) {
+        try {
+            const url = `https://${host}/api/v2/list_movies.json?query_term=${query}&limit=20`;
+            const res = await fetchWithTimeout(url, { redirect: 'follow' }, YTS_TIMEOUT_MS);
+            if (res.status === 429) { setCooldown('yts', 60); return { movies: [] }; }
+            if (res.status === 403) {
+                if (DEBUG_MODE) console.warn(`[YTS] 403 da ${host}, fallback...`);
+                continue;
+            }
+            if (!res.ok) { lastErr = `${host}: status ${res.status}`; continue; }
+            const data = await res.json();
+            return { movies: data?.data?.movies || [] };
+        } catch (e) {
+            lastErr = `${host}: ${e.message}`;
+            if (DEBUG_MODE) console.warn(`[YTS] ${lastErr}, fallback...`);
+        }
+    }
+    if (DEBUG_MODE && lastErr) console.warn(`[YTS] tutti gli host falliti — ultimo: ${lastErr}`);
+    return { movies: [] };
+}
 
 async function searchYTS({ metadata }) {
     if (isOnCooldown('yts')) return [];
@@ -350,12 +378,7 @@ async function searchYTS({ metadata }) {
     return cached(key, async () => {
         try {
             const q = encodeURIComponent(metadata.title);
-            const url = `https://yts.mx/api/v2/list_movies.json?query_term=${q}&limit=20`;
-            const res = await fetchWithTimeout(url, {}, YTS_TIMEOUT_MS);
-            if (res.status === 429) { setCooldown('yts', 60); return []; }
-            if (!res.ok) return [];
-            const data = await res.json();
-            const movies = data?.data?.movies || [];
+            const { movies } = await fetchYTSMovies(q);
             const target = (metadata.title || '').toLowerCase().split(' ')[0];
             const out = [];
             for (const m of movies) {
