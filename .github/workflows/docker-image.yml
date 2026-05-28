@@ -27,12 +27,18 @@ jobs:
       - name: Check if build is needed
         id: changes
         run: |
-          git fetch origin main
-
-          if git diff --quiet HEAD origin/main; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
+          # Se il workflow è stato avviato manualmente, forza la build
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Avvio manuale rilevato. Salto il controllo del diff e forzo la build."
             echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            # Altrimenti, controlla se ci sono modifiche
+            git fetch origin main
+            if git diff --quiet HEAD origin/main; then
+              echo "skip=true" >> $GITHUB_OUTPUT
+            else
+              echo "skip=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Set up QEMU
