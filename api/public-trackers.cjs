@@ -492,25 +492,45 @@ async function searchEZTV({ metadata, parsedId }) {
 
 // =============================================================================
 // PROVIDER 4: SolidTorrents (JSON) — RATE-LIMITED (min 2s tra le query)
+// Host con fallback: solidtorrents.eu (più stabile, no CF) → solidtorrents.to (originale)
+// Override via env SOLID_HOST.
 // =============================================================================
 
 const SOLID_TIMEOUT_MS = 6000;
 const SOLID_MIN_INTERVAL_MS = 2000;   // max 1 chiamata ogni 2s
 const SOLID_MAX_QUERIES_PER_CALL = 2; // taglio prudente per non saturare
+const SOLID_HOSTS = process.env.SOLID_HOST
+    ? [process.env.SOLID_HOST]
+    : ['solidtorrents.eu', 'solidtorrents.to'];
+
+async function fetchSolidResults(query) {
+    let lastErr = null;
+    for (const host of SOLID_HOSTS) {
+        try {
+            const url = `https://${host}/api/v1/search?q=${encodeURIComponent(query)}&sort=seeders`;
+            const res = await fetchWithTimeout(url, { redirect: 'follow' }, SOLID_TIMEOUT_MS);
+            if (res.status === 429) { setCooldown('solid', 300); return { results: [] }; }
+            if (res.status === 403) {
+                if (DEBUG_MODE) console.warn(`[Solid] 403 da ${host}, fallback...`);
+                continue;
+            }
+            if (!res.ok) { lastErr = `${host}: status ${res.status}`; continue; }
+            const data = await res.json();
+            return { results: data?.results || [] };
+        } catch (e) {
+            lastErr = `${host}: ${e.message}`;
+            if (DEBUG_MODE) console.warn(`[Solid] ${lastErr}, fallback...`);
+        }
+    }
+    if (DEBUG_MODE && lastErr) console.warn(`[Solid] tutti gli host falliti — ultimo: ${lastErr}`);
+    return { results: [] };
+}
 
 async function searchSolidSingle(query) {
     if (isOnCooldown('solid')) return [];
     return cached(`solid:${query}`, () => rateLimited('solid', SOLID_MIN_INTERVAL_MS, async () => {
         try {
-            const url = `https://solidtorrents.to/api/v1/search?q=${encodeURIComponent(query)}&sort=seeders`;
-            const res = await fetchWithTimeout(url, {}, SOLID_TIMEOUT_MS);
-            if (res.status === 429) {
-                setCooldown('solid', 60);
-                return [];
-            }
-            if (!res.ok) return [];
-            const data = await res.json();
-            const results = data?.results || [];
+            const { results } = await fetchSolidResults(query);
             const out = [];
             for (const r of results) {
                 if (!r.infohash) continue;
@@ -556,19 +576,38 @@ async function searchSolid({ queries, metadata, parsedId, type }) {
 const BITSEARCH_TIMEOUT_MS = 6000;
 const BITSEARCH_MIN_INTERVAL_MS = 2000;
 const BITSEARCH_MAX_QUERIES_PER_CALL = 2;
+const BITSEARCH_HOSTS = process.env.BITSEARCH_HOST
+    ? [process.env.BITSEARCH_HOST]
+    : ['bitsearch.eu', 'bitsearch.to'];
+
+async function fetchBitsearchHTML(query) {
+    let lastErr = null;
+    for (const host of BITSEARCH_HOSTS) {
+        try {
+            const url = `https://${host}/search?q=${encodeURIComponent(query)}`;
+            const res = await fetchWithTimeout(url, { redirect: 'follow' }, BITSEARCH_TIMEOUT_MS);
+            if (res.status === 429) { setCooldown('bitsearch', 120); return { html: '' }; }
+            if (res.status === 403) {
+                if (DEBUG_MODE) console.warn(`[Bitsearch] 403 da ${host}, fallback...`);
+                continue;
+            }
+            if (!res.ok) { lastErr = `${host}: status ${res.status}`; continue; }
+            return { html: await res.text() };
+        } catch (e) {
+            lastErr = `${host}: ${e.message}`;
+            if (DEBUG_MODE) console.warn(`[Bitsearch] ${lastErr}, fallback...`);
+        }
+    }
+    if (DEBUG_MODE && lastErr) console.warn(`[Bitsearch] tutti gli host falliti — ultimo: ${lastErr}`);
+    return { html: '' };
+}
 
 async function searchBitsearchSingle(query) {
     if (isOnCooldown('bitsearch')) return [];
     return cached(`bs:${query}`, () => rateLimited('bitsearch', BITSEARCH_MIN_INTERVAL_MS, async () => {
         try {
-            const url = `https://bitsearch.to/search?q=${encodeURIComponent(query)}`;
-            const res = await fetchWithTimeout(url, {}, BITSEARCH_TIMEOUT_MS);
-            if (res.status === 429) {
-                setCooldown('bitsearch', 120);
-                return [];
-            }
-            if (!res.ok) return [];
-            const html = await res.text();
+            const { html } = await fetchBitsearchHTML(query);
+            if (!html) return [];
             // Pattern: ogni risultato ha un <a href="magnet:?xt=urn:btih:HASH&amp;dn=NAME&amp;..."
             const matches = [...html.matchAll(/btih:([a-fA-F0-9]{40})&amp;dn(?:&#x3[Dd];|=)?([^"&]+)/gi)];
             const seenLocal = new Set();
