@@ -26,6 +26,19 @@ const upload = multer({
 const DEFAULT_RD_KEY = process.env.REALDEBRID_API_KEY;
 const DEFAULT_TB_KEY = process.env.TORBOX_API_KEY;
 
+// HELPER: Extract display name (dn=) from a magnet link
+function extractDnFromMagnet(magnetLink) {
+    if (!magnetLink || typeof magnetLink !== 'string') return null;
+    const m = magnetLink.match(/[?&]dn=([^&]+)/i);
+    if (!m) return null;
+    try {
+        // dn is URL-encoded; spaces may be '+' or '%20'
+        return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() || null;
+    } catch {
+        return m[1];
+    }
+}
+
 // HELPER: Extract season from full path (e.g., "Show/Season 4/Episode 1.mkv")
 function parseSeasonFromPath(fullPath) {
     if (!fullPath) return null;
@@ -155,9 +168,19 @@ async function fetchFilesFromTorbox(infoHash, torboxKey) {
                 const hashKey = Object.keys(cacheData).find(k => k.toLowerCase() === infoHash.toLowerCase());
                 if (hashKey && cacheData[hashKey]?.files?.length > 0) {
                     const sortedFiles = [...cacheData[hashKey].files].sort((a, b) => (a.name || a.path || '').localeCompare(b.name || b.path || ''));
+                    // Torbox checkcached does NOT return torrent name. Best effort:
+                    // use entry.name/title if ever present, else derive from the first file's top folder.
+                    let cachedName = cacheData[hashKey].name || cacheData[hashKey].title || null;
+                    if (!cachedName && sortedFiles.length > 0) {
+                        const firstPath = sortedFiles[0].name || sortedFiles[0].path || '';
+                        if (firstPath.includes('/')) {
+                            cachedName = firstPath.split('/')[0];
+                        }
+                    }
                     return {
                         torrentId: 'cached',
-                        files: sortedFiles.map((f, idx) => ({ id: idx, path: f.name || f.path, bytes: f.size || 0 }))
+                        files: sortedFiles.map((f, idx) => ({ id: idx, path: f.name || f.path, bytes: f.size || 0 })),
+                        filename: cachedName
                     };
                 }
             }
@@ -182,7 +205,8 @@ async function fetchFilesFromTorbox(infoHash, torboxKey) {
         const sortedFiles = [...torrent.files].sort((a, b) => (a.name || a.path || '').localeCompare(b.name || b.path || ''));
         return {
             torrentId,
-            files: sortedFiles.map((f, idx) => ({ id: f.id !== undefined ? f.id : idx, path: f.name || f.path, bytes: f.size || 0 }))
+            files: sortedFiles.map((f, idx) => ({ id: f.id !== undefined ? f.id : idx, path: f.name || f.path, bytes: f.size || 0 })),
+            filename: torrent.name || torrent.title || null
         };
 
     } catch (error) {
@@ -2058,6 +2082,7 @@ router.post('/preview-files', upload.any(), async (req, res) => {
         } else {
             const match = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/);
             infoHash = match ? match[1].toLowerCase() : magnetLink.toLowerCase();
+            torrentName = extractDnFromMagnet(magnetLink);
         }
 
         if (!infoHash || infoHash.length < 40) {
@@ -2273,6 +2298,8 @@ router.post('/add', upload.any(), async (req, res) => {
         } else {
             const infoHashMatch = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/);
             infoHash = infoHashMatch ? infoHashMatch[1].toLowerCase() : magnetLink.toLowerCase();
+            torrentName = extractDnFromMagnet(magnetLink);
+            if (torrentName) console.log(`🏷️ [MANUAL] Extracted name from magnet dn=: ${torrentName}`);
         }
 
         if (!infoHash || infoHash.length < 40) {
