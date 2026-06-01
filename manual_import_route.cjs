@@ -236,6 +236,91 @@ async function fetchFilesFromTorbox(infoHash, torboxKey) {
 }
 
 /**
+ * fetchTorrentFromDHT
+ * Recupera il file .torrent (metadata) di un magnet collegandosi direttamente
+ * a DHT/peer via webtorrent. Non scarica il contenuto, solo i metadata (pochi KB).
+ * Richiede outbound UDP+TCP — disabilitare con ENABLE_DHT_FALLBACK=false su
+ * host che bloccano UDP (es. alcuni PaaS).
+ */
+async function fetchTorrentFromDHT(infoHash, magnetLink = null, timeoutMs = 20000) {
+    if (process.env.ENABLE_DHT_FALLBACK === 'false') {
+        console.log(`⏭️ [MANUAL-IMPORT] DHT fallback disabled via env`);
+        return null;
+    }
+
+    let WebTorrent;
+    try {
+        const mod = await import('webtorrent');
+        WebTorrent = mod.default || mod;
+    } catch (e) {
+        console.warn(`⚠️ [MANUAL-IMPORT] webtorrent not available: ${e.message}`);
+        return null;
+    }
+
+    const magnet = magnetLink || `magnet:?xt=urn:btih:${infoHash}`;
+    console.log(`🛰️ [MANUAL-IMPORT] DHT/peers lookup for ${infoHash.substring(0, 8)}... (timeout ${timeoutMs}ms)`);
+    const t0 = Date.now();
+
+    return new Promise((resolve) => {
+        let client;
+        try {
+            client = new WebTorrent();
+        } catch (e) {
+            console.warn(`⚠️ [MANUAL-IMPORT] DHT init failed: ${e.message}`);
+            return resolve(null);
+        }
+
+        let done = false;
+        const cleanup = (result) => {
+            if (done) return;
+            done = true;
+            try { client.destroy(() => {}); } catch (_) {}
+            resolve(result);
+        };
+
+        const timer = setTimeout(() => {
+            console.warn(`⌛ [MANUAL-IMPORT] DHT timeout after ${timeoutMs}ms`);
+            cleanup(null);
+        }, timeoutMs);
+
+        client.on('error', (err) => {
+            console.warn(`⚠️ [MANUAL-IMPORT] DHT client error: ${err.message}`);
+            clearTimeout(timer);
+            cleanup(null);
+        });
+
+        try {
+            // path:false → no disk write; deselect → don't download any piece
+            const torrent = client.add(magnet, { path: false, deselect: true }, (t) => {
+                clearTimeout(timer);
+                const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+                const files = (t.files || []).map((f, idx) => ({
+                    id: idx,
+                    path: f.path,
+                    bytes: f.length
+                }));
+                console.log(`✅ [MANUAL-IMPORT] DHT got "${t.name}" (${files.length} files) in ${elapsed}s`);
+                cleanup({
+                    torrentId: 'dht',
+                    files,
+                    filename: t.name || null
+                });
+            });
+
+            torrent.on('error', (err) => {
+                console.warn(`⚠️ [MANUAL-IMPORT] DHT torrent error: ${err.message}`);
+                clearTimeout(timer);
+                cleanup(null);
+            });
+        } catch (e) {
+            console.warn(`⚠️ [MANUAL-IMPORT] DHT add failed: ${e.message}`);
+            clearTimeout(timer);
+            cleanup(null);
+        }
+    });
+}
+
+/**
  * NEW: fetchTorrentFromCaches (Optimized Parallel)
  * Tries to download .torrent file from public caches effectively
  */
@@ -2349,7 +2434,7 @@ router.post('/add', upload.any(), async (req, res) => {
             await dbHelper.deleteFileInfo(infoHash);
         }
 
-        console.log(`🛠️ [MANUAL] Step 2: Fetching files (Local → TB cache → RD → P2P cache → TB create)...`);
+        console.log(`🛠️ [MANUAL] Step 2: Fetching files (Local → TB cache → RD → P2P cache → DHT → TB create)...`);
 
         // 2. Get Files — ordered from cheapest/least invasive to most invasive
         let data = null;
@@ -2398,7 +2483,20 @@ router.post('/add', upload.any(), async (req, res) => {
             }
         }
 
-        // (e) Torbox createtorrent — last resort, adds magnet to TB account
+        // (e) DHT / BitTorrent peers — talks directly to swarm via webtorrent
+        if (!data) {
+            console.log(`🛰️ [MANUAL] Trying DHT/peers fallback...`);
+            const dhtResult = await fetchTorrentFromDHT(infoHash, magnetLink || null, 20000);
+            if (dhtResult && dhtResult.files.length > 0) {
+                data = { files: dhtResult.files, filename: dhtResult.filename };
+                providerUsed = "DHT/Peers";
+                console.log(`✅ [MANUAL] DHT hit.`);
+            } else {
+                console.log(`⚠️ [MANUAL] DHT miss/disabled.`);
+            }
+        }
+
+        // (f) Torbox createtorrent — last resort, adds magnet to TB account
         if (!data && userTbKey) {
             try {
                 console.log(`🛠️ [MANUAL] Last resort: Torbox createtorrent...`);
