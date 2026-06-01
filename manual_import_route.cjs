@@ -149,56 +149,67 @@ async function fetchFilesFromRealDebrid(infoHash, rdKey) {
 }
 
 /**
- * HELPER: fetchFilesFromTorbox (Copiato da pack-files-handler.cjs perché non esportato)
+ * HELPER: fetchFilesFromTorboxCache (fast, read-only — checkcached only)
+ * Returns null if hash is not in TB cache. Does NOT add the torrent.
  */
-async function fetchFilesFromTorbox(infoHash, torboxKey) {
+async function fetchFilesFromTorboxCache(infoHash, torboxKey) {
+    const baseUrl = 'https://api.torbox.app/v1/api';
+    const headers = { 'Authorization': `Bearer ${torboxKey}` };
+    try {
+        const cacheResponse = await axios.get(`${baseUrl}/torrents/checkcached`, {
+            headers,
+            params: { hash: infoHash.toUpperCase(), format: 'object', list_files: true },
+            timeout: 10000
+        });
+        const cacheData = cacheResponse.data?.data;
+        if (cacheData) {
+            const hashKey = Object.keys(cacheData).find(k => k.toLowerCase() === infoHash.toLowerCase());
+            if (hashKey && cacheData[hashKey]?.files?.length > 0) {
+                const sortedFiles = [...cacheData[hashKey].files].sort((a, b) => (a.name || a.path || '').localeCompare(b.name || b.path || ''));
+                let cachedName = cacheData[hashKey].name || cacheData[hashKey].title || null;
+                if (!cachedName && sortedFiles.length > 0) {
+                    const firstPath = sortedFiles[0].name || sortedFiles[0].path || '';
+                    if (firstPath.includes('/')) cachedName = firstPath.split('/')[0];
+                }
+                return {
+                    torrentId: 'cached',
+                    files: sortedFiles.map((f, idx) => ({ id: idx, path: f.name || f.path, bytes: f.size || 0 })),
+                    filename: cachedName
+                };
+            }
+        }
+        return null;
+    } catch (e) {
+        console.warn(`⚠️ [MANUAL-IMPORT] TB cache check failed: ${e.message}`);
+        return null;
+    }
+}
+
+/**
+ * HELPER: fetchFilesFromTorboxCreate (slow, side-effect — createtorrent + delete)
+ * Adds the magnet to Torbox to retrieve file list, then deletes it.
+ */
+async function fetchFilesFromTorboxCreate(infoHash, torboxKey) {
     const baseUrl = 'https://api.torbox.app/v1/api';
     const headers = { 'Authorization': `Bearer ${torboxKey}` };
 
     try {
-        // 1. Try CheckCached (Fast)
-        try {
-            const cacheResponse = await axios.get(`${baseUrl}/torrents/checkcached`, {
-                headers,
-                params: { hash: infoHash.toUpperCase(), format: 'object', list_files: true },
-                timeout: 10000
-            });
-            const cacheData = cacheResponse.data?.data;
-            if (cacheData) {
-                const hashKey = Object.keys(cacheData).find(k => k.toLowerCase() === infoHash.toLowerCase());
-                if (hashKey && cacheData[hashKey]?.files?.length > 0) {
-                    const sortedFiles = [...cacheData[hashKey].files].sort((a, b) => (a.name || a.path || '').localeCompare(b.name || b.path || ''));
-                    // Torbox checkcached does NOT return torrent name. Best effort:
-                    // use entry.name/title if ever present, else derive from the first file's top folder.
-                    let cachedName = cacheData[hashKey].name || cacheData[hashKey].title || null;
-                    if (!cachedName && sortedFiles.length > 0) {
-                        const firstPath = sortedFiles[0].name || sortedFiles[0].path || '';
-                        if (firstPath.includes('/')) {
-                            cachedName = firstPath.split('/')[0];
-                        }
-                    }
-                    return {
-                        torrentId: 'cached',
-                        files: sortedFiles.map((f, idx) => ({ id: idx, path: f.name || f.path, bytes: f.size || 0 })),
-                        filename: cachedName
-                    };
-                }
-            }
-        } catch (e) { /* ignore cache error */ }
-
-        // 2. Add Magnet (Slow)
         const magnetLink = `magnet:?xt=urn:btih:${infoHash}`;
         const addResponse = await axios.post(`${baseUrl}/torrents/createtorrent`, { magnet: magnetLink }, { headers });
         const torrentId = addResponse.data?.data?.torrent_id;
         if (!torrentId) throw new Error('Failed to add to Torbox');
 
-        // Wait a bit
         await new Promise(r => setTimeout(r, 2000));
 
         const infoResponse = await axios.get(`${baseUrl}/torrents/mylist`, { headers, params: { id: torrentId } });
         const torrent = infoResponse.data?.data?.find(t => t.id === torrentId);
 
-        await axios.get(`${baseUrl}/torrents/controltorrent`, { headers, params: { torrent_id: torrentId, operation: 'delete' } }).catch(() => { });
+        // Per Torbox API docs: delete uses POST /torrents/controltorrent with JSON body
+        await axios.post(
+            `${baseUrl}/torrents/controltorrent`,
+            { torrent_id: torrentId, operation: 'delete' },
+            { headers: { ...headers, 'Content-Type': 'application/json' } }
+        ).catch(e => console.warn(`⚠️ [MANUAL-IMPORT] TB delete failed for ${torrentId}: ${e.message}`));
 
         if (!torrent || !torrent.files) throw new Error('No files found in Torbox');
 
@@ -208,11 +219,20 @@ async function fetchFilesFromTorbox(infoHash, torboxKey) {
             files: sortedFiles.map((f, idx) => ({ id: f.id !== undefined ? f.id : idx, path: f.name || f.path, bytes: f.size || 0 })),
             filename: torrent.name || torrent.title || null
         };
-
     } catch (error) {
-        console.error(`❌ [MANUAL-IMPORT] Torbox API error: ${error.message}`);
+        console.error(`❌ [MANUAL-IMPORT] Torbox createtorrent error: ${error.message}`);
         throw error;
     }
+}
+
+/**
+ * HELPER: fetchFilesFromTorbox (legacy combined — tries cache then create)
+ * Kept for backward compatibility with /preview-files.
+ */
+async function fetchFilesFromTorbox(infoHash, torboxKey) {
+    const cached = await fetchFilesFromTorboxCache(infoHash, torboxKey);
+    if (cached) return cached;
+    return fetchFilesFromTorboxCreate(infoHash, torboxKey);
 }
 
 /**
@@ -221,10 +241,15 @@ async function fetchFilesFromTorbox(infoHash, torboxKey) {
  */
 async function fetchTorrentFromCaches(infoHash) {
     const hashUpper = infoHash.toUpperCase();
+    // Active caches as of 2026:
+    //  - itorrents.net (primary; .org redirects here)
+    //  - itorrents.org (kept as fallback in case .net is unreachable)
+    // Removed:
+    //  - torrage.info (returns HTML landing page for every request)
+    //  - btcache.me   (returns 403 Forbidden globally)
     const urls = [
-        `https://itorrents.org/torrent/${hashUpper}.torrent`,
-        `https://torrage.info/torrent.php?h=${hashUpper}`,
-        `http://btcache.me/torrent/${hashUpper}`
+        `https://itorrents.net/torrent/${hashUpper}.torrent`,
+        `https://itorrents.org/torrent/${hashUpper}.torrent`
     ];
 
     console.log(`🔍 [MANUAL-IMPORT] Parallel fetch for .torrent from ${urls.length} caches for ${infoHash}...`);
@@ -2324,48 +2349,63 @@ router.post('/add', upload.any(), async (req, res) => {
             await dbHelper.deleteFileInfo(infoHash);
         }
 
-        console.log(`🛠️ [MANUAL] Step 2: Fetching files (Local/Cache/Debrid)...`);
+        console.log(`🛠️ [MANUAL] Step 2: Fetching files (Local → TB cache → RD → P2P cache → TB create)...`);
 
-        // 2. Get Files (from local torrent parse OR from Cache OR from Debrid)
+        // 2. Get Files — ordered from cheapest/least invasive to most invasive
         let data = null;
         let providerUsed = "";
 
+        // (a) Local .torrent file — instant, no API calls
         if (localFiles && localFiles.length > 0) {
-            // Use files parsed from uploaded .torrent file
             data = { files: localFiles, filename: torrentName };
             providerUsed = "Local .torrent";
-            console.log(`📁[MANUAL] Using ${localFiles.length} files from uploaded torrent.`);
-        } else {
-            // Try Torrent Cache first if no Debrid keys provided
-            if (!userRdKey && !userTbKey) {
-                console.log(`🌐[MANUAL] No Debrid keys provided. Attempting Torrent Cache for magnet ${infoHash}...`);
-                const cachedTorrent = await fetchTorrentFromCaches(infoHash);
-                if (cachedTorrent) {
-                    data = { files: cachedTorrent.files, filename: cachedTorrent.filename };
-                    providerUsed = "Torrent Cache (P2P)";
-                } else {
-                    console.log(`⚠️[MANUAL] Cache fetch returned null.`);
-                }
-            }
+            console.log(`📁 [MANUAL] Using ${localFiles.length} files from uploaded torrent.`);
+        }
 
-            // If still no data, try Debrid providers
-            if (!data && userRdKey) {
-                try {
-                    console.log(`🛠️ [MANUAL] Trying Real-Debrid fetch...`);
-                    data = await fetchFilesFromRealDebrid(infoHash, userRdKey);
-                    providerUsed = "Real-Debrid";
-                    console.log(`✅ [MANUAL] RD success.`);
-                } catch (e) { console.warn("RD Fetch failed:", e.message); }
+        // (b) Torbox cache — 1 API call, read-only, no slot occupied
+        if (!data && userTbKey) {
+            console.log(`🛠️ [MANUAL] Trying Torbox cache (checkcached)...`);
+            const tbCached = await fetchFilesFromTorboxCache(infoHash, userTbKey);
+            if (tbCached && tbCached.files.length > 0) {
+                data = tbCached;
+                providerUsed = "Torbox (cache)";
+                console.log(`✅ [MANUAL] TB cache hit.`);
+            } else {
+                console.log(`⚠️ [MANUAL] TB cache miss.`);
             }
+        }
 
-            if (!data && userTbKey) {
-                try {
-                    console.log(`🛠️ [MANUAL] Trying Torbox fetch...`);
-                    data = await fetchFilesFromTorbox(infoHash, userTbKey);
-                    providerUsed = "Torbox";
-                    console.log(`✅ [MANUAL] Torbox success.`);
-                } catch (e) { console.warn("TB Fetch failed:", e.message); }
+        // (c) Real-Debrid — addMagnet+info+delete (3 API calls, briefly occupies slot)
+        if (!data && userRdKey) {
+            try {
+                console.log(`🛠️ [MANUAL] Trying Real-Debrid fetch...`);
+                data = await fetchFilesFromRealDebrid(infoHash, userRdKey);
+                providerUsed = "Real-Debrid";
+                console.log(`✅ [MANUAL] RD success.`);
+            } catch (e) { console.warn("RD Fetch failed:", e.message); }
+        }
+
+        // (d) P2P caches — public .torrent mirrors, no account needed
+        if (!data) {
+            console.log(`🌐 [MANUAL] Trying P2P torrent caches for ${infoHash}...`);
+            const cachedTorrent = await fetchTorrentFromCaches(infoHash);
+            if (cachedTorrent) {
+                data = { files: cachedTorrent.files, filename: cachedTorrent.filename };
+                providerUsed = "Torrent Cache (P2P)";
+                console.log(`✅ [MANUAL] P2P cache hit.`);
+            } else {
+                console.log(`⚠️ [MANUAL] P2P cache miss.`);
             }
+        }
+
+        // (e) Torbox createtorrent — last resort, adds magnet to TB account
+        if (!data && userTbKey) {
+            try {
+                console.log(`🛠️ [MANUAL] Last resort: Torbox createtorrent...`);
+                data = await fetchFilesFromTorboxCreate(infoHash, userTbKey);
+                providerUsed = "Torbox (createtorrent)";
+                console.log(`✅ [MANUAL] TB createtorrent success.`);
+            } catch (e) { console.warn("TB createtorrent failed:", e.message); }
         }
 
         console.log(`🛠️ [MANUAL] Step 3: Checking data result...`);
