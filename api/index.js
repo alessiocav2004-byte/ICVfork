@@ -1391,8 +1391,12 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
                 ? `${left} / ${right}`
                 : left;
         }
-        // final safety: strip stray trailing/leading slashes and whitespace
-        displayTitle = String(displayTitle).replace(/\s*\/\s*$/, '').replace(/^\s*\/\s*/, '').trim();
+        // final safety: strip stray trailing/leading slashes and whitespace (incl. nbsp/zero-width)
+        displayTitle = String(displayTitle)
+            .replace(/[\s\u00a0\u200b-\u200d\ufeff]+/g, ' ')
+            .replace(/(?:\s*\/\s*)+$/, '')
+            .replace(/^(?:\s*\/\s*)+/, '')
+            .trim();
 
         const data = {
             config: {
