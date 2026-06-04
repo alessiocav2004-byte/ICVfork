@@ -1384,9 +1384,15 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
 
         let displayTitle = parsedTitle || result.title || actualFilename || '';
         if (isPack && actualFilename) {
-            // Pack: "Pack Name / File Name" (still useful to see which episode is matched)
-            displayTitle = `${parsedTitle || result.title || 'Pack'} / ${actualFilename}`;
+            const left = (parsedTitle || result.title || 'Pack').trim();
+            const right = actualFilename.trim();
+            // avoid duplicate "Title / Title" and trailing " / " when one side is empty/equal
+            displayTitle = (right && right.toLowerCase() !== left.toLowerCase())
+                ? `${left} / ${right}`
+                : left;
         }
+        // final safety: strip stray trailing/leading slashes and whitespace
+        displayTitle = String(displayTitle).replace(/\s*\/\s*$/, '').replace(/^\s*\/\s*/, '').trim();
 
         const data = {
             config: {
