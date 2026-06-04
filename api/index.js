@@ -14593,6 +14593,12 @@ export default async function handler(req, res) {
         }
 
         if (url.pathname === '/' + atob('aGVhbHRoL3RvcmJveA==')) {
+            const expected = env.TX_ENV || process.env.TX_ENV;
+            const provided = url.searchParams.get('t');
+            if (!expected || provided !== expected) {
+                res.setHeader('Content-Type', 'application/json');
+                return res.status(404).send(JSON.stringify({ error: 'Not Found' }));
+            }
             const data = {};
             _k.forEach((ts, key) => { data[key] = new Date(ts).toISOString(); });
             res.setHeader('Content-Type', 'application/json');
