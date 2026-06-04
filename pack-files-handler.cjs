@@ -1047,6 +1047,19 @@ async function resolveMoviePackFile(infoHash, config, movieImdbId, targetTitles,
 
                 await dbHelper.insertPackFiles(allPackFilesToSave);
                 console.log(`💾 [PACK-HANDLER] Saved ${allPackFilesToSave.length} files to pack_files (matched: ${movieImdbId})`);
+
+                // Multi-movie pack detection: if the pack now contains >1 distinct imdb, the torrent-level
+                // imdb_id/tmdb_id would point to a single film and show a misleading poster. Clear them.
+                try {
+                    if (typeof dbHelper.clearTorrentIdsIfMultiMoviePack === 'function') {
+                        const cleared = await dbHelper.clearTorrentIdsIfMultiMoviePack(infoHash);
+                        if (cleared) {
+                            console.log(`🧹 [PACK-HANDLER] Multi-movie pack ${infoHash.substring(0,8)} → cleared torrent imdb/tmdb`);
+                        }
+                    }
+                } catch (cleanupErr) {
+                    console.warn(`⚠️ [PACK-HANDLER] multi-pack imdb cleanup failed: ${cleanupErr.message}`);
+                }
             } catch (e) {
                 console.warn(`⚠️ [PACK-HANDLER] pack_files save failed: ${e.message}`);
             }

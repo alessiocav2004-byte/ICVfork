@@ -1256,15 +1256,32 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
         const container = extMatch ? extMatch[1].toLowerCase() : null;
         const extension = container;
 
-        // Season/Episode formatting
-        const season = result.season || null;
-        const episode = result.episode || null;
-        const seasons = season ? [season] : [];
-        const episodes = episode ? [episode] : [];
-        const pad = (n) => n?.toString().padStart(2, '0') || '';
-        const formattedSeasons = season ? `S${pad(season)}` : null;
-        const formattedEpisodes = episode ? `E${pad(episode)}` : null;
-        const seasonEpisode = [formattedSeasons, formattedEpisodes].filter(Boolean);
+        // Season/Episode formatting — AIOStreams-identical: parse filename with PTT to get
+        // arrays of seasons/episodes (supports season packs & multi-episode ranges).
+        let pttSE = null;
+        try { pttSE = parseTorrentTitle(filename || ''); } catch (_) {}
+        const pad = (n) => (n == null ? '' : n.toString().padStart(2, '0'));
+        let seasons = Array.isArray(pttSE?.seasons) && pttSE.seasons.length
+            ? pttSE.seasons.slice()
+            : (pttSE?.season != null ? [pttSE.season] : []);
+        let episodes = Array.isArray(pttSE?.episodes) && pttSE.episodes.length
+            ? pttSE.episodes.slice()
+            : (pttSE?.episode != null ? [pttSE.episode] : []);
+        if (!seasons.length && result.season != null) seasons = [result.season];
+        if (!episodes.length && result.episode != null) episodes = [result.episode];
+        const season = seasons[0] || null;
+        const episode = episodes[0] || null;
+        const fmtRange = (arr, letter) => {
+            if (!arr.length) return '';
+            const nums = arr.map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+            if (!nums.length) return '';
+            if (nums.length === 1) return `${letter}${pad(nums[0])}`;
+            return `${letter}${pad(nums[0])}-${letter}${pad(nums[nums.length - 1])}`;
+        };
+        const formattedSeasons = fmtRange(seasons, 'S') || null;
+        const formattedEpisodes = fmtRange(episodes, 'E') || null;
+        // AIOStreams: seasonEpisode = formattedSeasons + formattedEpisodes (joined string)
+        const seasonEpisode = ((formattedSeasons || '') + (formattedEpisodes || '')) || null;
         const seasonPack = result.isPack || /complete|stagione|season.?pack/i.test(fn);
 
         // Flags (AIOStreams)
@@ -1383,16 +1400,13 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
         } catch (_) { /* parser never throws in practice, but guard anyway */ }
 
         let displayTitle = parsedTitle || result.title || actualFilename || '';
-        if (isPack && actualFilename) {
-            const left = (parsedTitle || result.title || 'Pack').trim();
-            const right = actualFilename.trim();
-            // avoid duplicate "Title / Title" and trailing " / " when one side is empty/equal
-            displayTitle = (right && right.toLowerCase() !== left.toLowerCase())
-                ? `${left} / ${right}`
-                : left;
-        }
-        // final safety: strip stray trailing/leading slashes and whitespace
-        displayTitle = String(displayTitle).replace(/\s*\/\s*$/, '').replace(/^\s*\/\s*/, '').trim();
+        // AIOStreams-identical: stream.title = clean parsed title only (no filename concat).
+        // filename/folderName are exposed as separate fields for {stream.filename} / {stream.folderName} templates.
+        displayTitle = String(displayTitle)
+            .replace(/[\s\u00a0\u200b-\u200d\ufeff]+/g, ' ')
+            .replace(/(?:\s*\/\s*)+$/, '')
+            .replace(/^(?:\s*\/\s*)+/, '')
+            .trim();
 
         const data = {
             config: {
