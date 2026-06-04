@@ -1383,15 +1383,8 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
         } catch (_) { /* parser never throws in practice, but guard anyway */ }
 
         let displayTitle = parsedTitle || result.title || actualFilename || '';
-        if (isPack && actualFilename) {
-            const left = (parsedTitle || result.title || 'Pack').trim();
-            const right = actualFilename.trim();
-            // avoid duplicate "Title / Title" and trailing " / " when one side is empty/equal
-            displayTitle = (right && right.toLowerCase() !== left.toLowerCase())
-                ? `${left} / ${right}`
-                : left;
-        }
-        // final safety: strip stray trailing/leading slashes and whitespace (incl. nbsp/zero-width)
+        // AIOStreams-identical: stream.title = clean parsed title only (no filename concat).
+        // filename/folderName are exposed as separate fields for {stream.filename} / {stream.folderName} templates.
         displayTitle = String(displayTitle)
             .replace(/[\s\u00a0\u200b-\u200d\ufeff]+/g, ' ')
             .replace(/(?:\s*\/\s*)+$/, '')
