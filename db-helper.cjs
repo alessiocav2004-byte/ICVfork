@@ -1763,6 +1763,34 @@ async function insertPackFiles(packFiles) {
 }
 
 /**
+ * Detect whether a movie pack contains >1 distinct IMDb id; if so, clear the torrent-level
+ * imdb_id/tmdb_id (which would otherwise point to a single film and show a misleading poster).
+ * Per-file mappings inside pack_files are preserved, so per-movie lookups keep working.
+ * @param {string} infoHash
+ * @returns {Promise<boolean>} true if torrent IDs were cleared
+ */
+async function clearTorrentIdsIfMultiMoviePack(infoHash) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT COUNT(DISTINCT imdb_id) AS n FROM pack_files
+       WHERE pack_hash = $1 AND imdb_id IS NOT NULL`,
+      [infoHash.toLowerCase()]
+    );
+    if (rows[0] && parseInt(rows[0].n, 10) > 1) {
+      const upd = await pool.query(
+        `UPDATE torrents SET imdb_id = NULL, tmdb_id = NULL
+         WHERE info_hash = $1 AND (imdb_id IS NOT NULL OR tmdb_id IS NOT NULL)`,
+        [infoHash.toLowerCase()]
+      );
+      return upd.rowCount > 0;
+    }
+  } catch (e) {
+    console.warn(`⚠️ clearTorrentIdsIfMultiMoviePack failed for ${infoHash?.substring?.(0,8)}: ${e.message}`);
+  }
+  return false;
+}
+
+/**
  * Get pack files for a specific pack with TTL check
  * @param {string} packHash - InfoHash of the pack
  * @param {number} ttlDays - TTL in days (default: 10, same as torrents)
@@ -2392,6 +2420,7 @@ module.exports = {
   searchPacksByImdbId,
   searchPacksByTitle,
   insertPackFiles,
+  clearTorrentIdsIfMultiMoviePack,
   getPackFiles,
   getSeriesPackFiles,
   insertEpisodeFiles,
