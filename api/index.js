@@ -28,6 +28,8 @@ const publicTrackers = require('./public-trackers.cjs');
 import { fetchExternalAddonsFlat, EXTERNAL_ADDONS } from './external-addons.js';
 // ⛩️ Kitsu Plus catalog integration
 import { fetchKitsuPlusCatalog, isKitsuPlusSearchCatalog } from './kitsu-plus.js';
+// 🎬 AIOStreams-identical parser for stream.title
+import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
 // 🏴‍☠️ ILCORSARONERO KILL-SWITCH
 // Set env ILCORSARONERO=enable to turn on. Anything else (including unset) = disabled.
@@ -1372,18 +1374,18 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
 
         const actualFolderName = isPack ? (result.title || '') : (result.folderName || '');
 
-        // ✅ Smart Title Logic (User Request)
-        // 1. Single Movie/Episode: Show ONLY the filename (actualFilename)
-        // 2. Packs: Show "Pack Name / File Name"
-        let displayTitle = result.title || result.filename || '';
-        if (actualFilename) {
-            if (!isPack) {
-                // Single: Use filename only
-                displayTitle = actualFilename;
-            } else {
-                // Pack: Combine Pack + File
-                displayTitle = `${result.title || 'Pack'} / ${actualFilename}`;
-            }
+        // ✅ AIOStreams-identical title: parse filename with @viren070/parse-torrent-title
+        // and use the clean media title (e.g. "Il Trono Di Spade") instead of raw filename.
+        let parsedTitle = '';
+        try {
+            const ptt = parseTorrentTitle(actualFilename || result.title || '');
+            parsedTitle = (ptt && ptt.title) ? ptt.title : '';
+        } catch (_) { /* parser never throws in practice, but guard anyway */ }
+
+        let displayTitle = parsedTitle || result.title || actualFilename || '';
+        if (isPack && actualFilename) {
+            // Pack: "Pack Name / File Name" (still useful to see which episode is matched)
+            displayTitle = `${parsedTitle || result.title || 'Pack'} / ${actualFilename}`;
         }
 
         const data = {
