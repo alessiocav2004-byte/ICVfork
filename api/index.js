@@ -1543,7 +1543,7 @@ function cleanSearchQuery(query) {
 function generateBingeGroup(title, service = 'p2p') {
     if (!title) return `icv|${service}|unknown`;
 
-    const parsed = parseTorrentTitle(title);
+    const parsed = parseTorrentTitleLegacy(title);
 
     // Quality: 2160p, 1080p, 720p, etc.
     const quality = parsed.resolution || extractQuality(title) || 'unknown';
@@ -2310,7 +2310,7 @@ function matchMultiplePatterns(filename, patterns) {
  * @param {string} filename - Nome del file/torrent da parsare
  * @returns {Object} Oggetto con tutti i campi estratti
  */
-function parseTorrentTitle(filename) {
+function parseTorrentTitleLegacy(filename) {
     if (!filename) {
         return {
             title: undefined,
@@ -3034,7 +3034,7 @@ async function fetchKnabenData(searchQuery, type = 'movie', metadata = null, par
             }
 
             // ✅ NUOVO: Parsing del titolo come AIOStreams
-            const parsedTitle = parseTorrentTitle(hit.title);
+            const parsedTitle = parseTorrentTitleLegacy(hit.title);
 
             // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
             const hasItalian = parsedTitle.languages.includes('Italian');
@@ -3927,7 +3927,7 @@ async function fetchUIndexSingle(searchQuery, type = 'movie', validationMetadata
         const filteredResults = [];
         for (const result of rawResults) {
             // Parsing del titolo
-            const parsedTitle = parseTorrentTitle(result.title);
+            const parsedTitle = parseTorrentTitleLegacy(result.title);
             result.parsedInfo = parsedTitle;
 
             // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
