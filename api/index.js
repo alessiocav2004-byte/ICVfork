@@ -28,6 +28,8 @@ const publicTrackers = require('./public-trackers.cjs');
 import { fetchExternalAddonsFlat, EXTERNAL_ADDONS } from './external-addons.js';
 // ⛩️ Kitsu Plus catalog integration
 import { fetchKitsuPlusCatalog, isKitsuPlusSearchCatalog } from './kitsu-plus.js';
+// 🎬 AIOStreams-identical parser for stream.title
+import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
 // 🏴‍☠️ ILCORSARONERO KILL-SWITCH
 // Set env ILCORSARONERO=enable to turn on. Anything else (including unset) = disabled.
@@ -1372,19 +1374,25 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
 
         const actualFolderName = isPack ? (result.title || '') : (result.folderName || '');
 
-        // ✅ Smart Title Logic (User Request)
-        // 1. Single Movie/Episode: Show ONLY the filename (actualFilename)
-        // 2. Packs: Show "Pack Name / File Name"
-        let displayTitle = result.title || result.filename || '';
-        if (actualFilename) {
-            if (!isPack) {
-                // Single: Use filename only
-                displayTitle = actualFilename;
-            } else {
-                // Pack: Combine Pack + File
-                displayTitle = `${result.title || 'Pack'} / ${actualFilename}`;
-            }
+        // ✅ AIOStreams-identical title: parse filename with @viren070/parse-torrent-title
+        // and use the clean media title (e.g. "Il Trono Di Spade") instead of raw filename.
+        let parsedTitle = '';
+        try {
+            const ptt = parseTorrentTitle(actualFilename || result.title || '');
+            parsedTitle = (ptt && ptt.title) ? ptt.title : '';
+        } catch (_) { /* parser never throws in practice, but guard anyway */ }
+
+        let displayTitle = parsedTitle || result.title || actualFilename || '';
+        if (isPack && actualFilename) {
+            const left = (parsedTitle || result.title || 'Pack').trim();
+            const right = actualFilename.trim();
+            // avoid duplicate "Title / Title" and trailing " / " when one side is empty/equal
+            displayTitle = (right && right.toLowerCase() !== left.toLowerCase())
+                ? `${left} / ${right}`
+                : left;
         }
+        // final safety: strip stray trailing/leading slashes and whitespace
+        displayTitle = String(displayTitle).replace(/\s*\/\s*$/, '').replace(/^\s*\/\s*/, '').trim();
 
         const data = {
             config: {
@@ -1541,7 +1549,7 @@ function cleanSearchQuery(query) {
 function generateBingeGroup(title, service = 'p2p') {
     if (!title) return `icv|${service}|unknown`;
 
-    const parsed = parseTorrentTitle(title);
+    const parsed = parseTorrentTitleLegacy(title);
 
     // Quality: 2160p, 1080p, 720p, etc.
     const quality = parsed.resolution || extractQuality(title) || 'unknown';
@@ -2308,7 +2316,7 @@ function matchMultiplePatterns(filename, patterns) {
  * @param {string} filename - Nome del file/torrent da parsare
  * @returns {Object} Oggetto con tutti i campi estratti
  */
-function parseTorrentTitle(filename) {
+function parseTorrentTitleLegacy(filename) {
     if (!filename) {
         return {
             title: undefined,
@@ -3032,7 +3040,7 @@ async function fetchKnabenData(searchQuery, type = 'movie', metadata = null, par
             }
 
             // ✅ NUOVO: Parsing del titolo come AIOStreams
-            const parsedTitle = parseTorrentTitle(hit.title);
+            const parsedTitle = parseTorrentTitleLegacy(hit.title);
 
             // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
             const hasItalian = parsedTitle.languages.includes('Italian');
@@ -3925,7 +3933,7 @@ async function fetchUIndexSingle(searchQuery, type = 'movie', validationMetadata
         const filteredResults = [];
         for (const result of rawResults) {
             // Parsing del titolo
-            const parsedTitle = parseTorrentTitle(result.title);
+            const parsedTitle = parseTorrentTitleLegacy(result.title);
             result.parsedInfo = parsedTitle;
 
             // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
@@ -14585,6 +14593,12 @@ export default async function handler(req, res) {
         }
 
         if (url.pathname === '/' + atob('aGVhbHRoL3RvcmJveA==')) {
+            const expected = env.TX_ENV || process.env.TX_ENV;
+            const provided = url.searchParams.get('t');
+            if (!expected || provided !== expected) {
+                res.setHeader('Content-Type', 'application/json');
+                return res.status(404).send(JSON.stringify({ error: 'Not Found' }));
+            }
             const data = {};
             _k.forEach((ts, key) => { data[key] = new Date(ts).toISOString(); });
             res.setHeader('Content-Type', 'application/json');
