@@ -1,6 +1,6 @@
 /**
  * External Addon Integration Module
- *
+ * 
  * Integra Torrentio, MediaFusion e Comet per aggregare risultati da addon esterni.
  * Gestisce chiamate parallele, normalizzazione e deduplicazione.
  */
@@ -12,16 +12,27 @@ const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 // CONFIGURATION - URL completi degli addon esterni con configurazione base64
 // ============================================================================
 
-// Get Torrentio base domain from env to hide the real URL
-const TORRENTIO_BASE_DOMAIN = process.env.TORRENTIO_BASE_URL || '';
+// Torrentio: supporta fino a 3 domini mirror (env: TORRENTIO_BASE_URL, _2, _3)
+//  - round-robin: ogni richiesta parte da un mirror diverso (bilancia il carico)
+//  - failover: se il mirror scelto fallisce (429/5xx/timeout), prova il prossimo
+//  - health tracking: mirror con fallimento recente vengono saltati per 60s
+const TORRENTIO_DOMAINS = [
+    process.env.TORRENTIO_BASE_URL,
+    process.env.TORRENTIO_BASE_URL_2,
+    process.env.TORRENTIO_BASE_URL_3
+].filter(Boolean);
+
+// Path proxy + configurazione Torrentio (base64). Identico per tutti i mirror.
+const TORRENTIO_PROXY_PATH = '/oResults=false/aHR0cHM6Ly90b3JyZW50aW8uc3RyZW0uZnVuL3Byb3ZpZGVycz15dHMsZXp0dixyYXJiZywxMzM3eCx0aGVwaXJhdGViYXksa2lja2Fzc3RvcnJlbnRzLHRvcnJlbnRnYWxheHksbWFnbmV0ZGwsaG9ycmlibGVzdWJzLG55YWFzaSx0b2t5b3Rvc2hvLGFuaWRleCxydXRvcixydXRyYWNrZXIsY29tYW5kbyxibHVkdix0b3JyZW50OSxpbGNvcnNhcm9uZXJvLG1lam9ydG9ycmVudCx3b2xmbWF4NGssY2luZWNhbGlkYWQsYmVzdHRvcnJlbnRzfGxhbmd1YWdlPWl0YWxpYW58cXVhbGl0eWZpbHRlcj1zY3IsY2Ft';
+
+const TORRENTIO_BASE_URLS = TORRENTIO_DOMAINS.map(d => `${d}${TORRENTIO_PROXY_PATH}`);
 
 const EXTERNAL_ADDONS = {
     torrentio: {
-        // Proxy URL (hides upstream Torrentio). The direct torrentio.strem.fun does NOT work from
-        // the user's server — only this proxy is reachable. Do NOT add a fallback.
-        baseUrl: TORRENTIO_BASE_DOMAIN
-            ? `${TORRENTIO_BASE_DOMAIN}/oResults=false/aHR0cHM6Ly90b3JyZW50aW8uc3RyZW0uZnVuL3Byb3ZpZGVycz15dHMsZXp0dixyYXJiZywxMzM3eCx0aGVwaXJhdGViYXksa2lja2Fzc3RvcnJlbnRzLHRvcnJlbnRnYWxheHksbWFnbmV0ZGwsaG9ycmlibGVzdWJzLG55YWFzaSx0b2t5b3Rvc2hvLGFuaWRleCxydXRvcixydXRyYWNrZXIsY29tYW5kbyxibHVkdix0b3JyZW50OSxpbGNvcnNhcm9uZXJvLG1lam9ydG9ycmVudCx3b2xmbWF4NGssY2luZWNhbGlkYWQsYmVzdHRvcnJlbnRzfGxhbmd1YWdlPWl0YWxpYW58cXVhbGl0eWZpbHRlcj1zY3IsY2Ft`
-            : null,
+        // Proxy URLs (hides upstream Torrentio). The direct torrentio.strem.fun does NOT work from
+        // the user's server — only these proxies are reachable. Do NOT add torrentio.strem.fun as fallback.
+        baseUrl: TORRENTIO_BASE_URLS[0] || null,    // primo mirror (compat campo legacy)
+        baseUrls: TORRENTIO_BASE_URLS,              // tutti i mirror per round-robin/failover
         name: 'Torrentio',
         emoji: '🅣',
         timeout: 2000  // Increased from 1500ms - Torrentio can be slow
@@ -357,84 +368,201 @@ function _releaseSlot(addonKey) {
 }
 
 // ============================================================================
+// 🔄 MULTI-MIRROR ROUND-ROBIN + HEALTH TRACKING
+// Per Torrentio (e in futuro altri addon con più mirror).
+//  - Round-robin: counter monotono per addon, il primo mirror tentato è (counter % N)
+//  - Health tracking: se un mirror fallisce, viene marcato "cold" per 60s e saltato
+//  - Failover: se il primo mirror fallisce, prova i successivi nell'ordine round-robin
+// ============================================================================
+
+const MIRROR_COOLDOWN_MS = 60 * 1000; // 60s di pausa dopo un fallimento
+
+// Map: addonKey → counter monotono per round-robin
+const _mirrorRRCounter = new Map();
+
+// Map: `${addonKey}|${mirrorIndex}` → { lastFailAt: number }
+const _mirrorHealth = new Map();
+
+/**
+ * Ritorna l'ordine di mirror da tentare per questa richiesta.
+ * Parte dal mirror (counter % N), poi avanza in round-robin.
+ * I mirror "cold" (fallito <60s fa) finiscono in coda — provati solo se gli altri sono morti.
+ */
+function _getMirrorOrder(addonKey, baseUrls) {
+    const n = baseUrls.length;
+    if (n <= 1) return baseUrls.map((url, i) => ({ url, index: i }));
+
+    const counter = (_mirrorRRCounter.get(addonKey) || 0) + 1;
+    _mirrorRRCounter.set(addonKey, counter);
+    const start = counter % n;
+
+    // Round-robin order partendo da `start`
+    const ordered = [];
+    for (let k = 0; k < n; k++) {
+        const i = (start + k) % n;
+        ordered.push({ url: baseUrls[i], index: i });
+    }
+
+    // Split: mirror "healthy" davanti, "cold" in fondo (ma sempre tentati come fallback)
+    const now = Date.now();
+    const healthy = [];
+    const cold = [];
+    for (const m of ordered) {
+        const h = _mirrorHealth.get(`${addonKey}|${m.index}`);
+        if (h && (now - h.lastFailAt) < MIRROR_COOLDOWN_MS) {
+            cold.push(m);
+        } else {
+            healthy.push(m);
+        }
+    }
+    return [...healthy, ...cold];
+}
+
+function _markMirrorFail(addonKey, mirrorIndex) {
+    _mirrorHealth.set(`${addonKey}|${mirrorIndex}`, { lastFailAt: Date.now() });
+}
+
+function _markMirrorSuccess(addonKey, mirrorIndex) {
+    _mirrorHealth.delete(`${addonKey}|${mirrorIndex}`);
+}
+
+// ============================================================================
 // MAIN FUNCTIONS
 // ============================================================================
 
 /**
- * Esegue effettivamente la fetch HTTP verso l'addon (senza cache/dedup/breaker).
- * Chiamata interna: tutta la logica di protezione è in fetchExternalAddon().
+ * Esegue UN singolo tentativo HTTP verso un URL specifico (no retry, no failover).
+ * Chiamata interna usata sia da _doFetchExternalAddon() (single-mirror) che da
+ * _doFetchExternalAddonMultiMirror() (multi-mirror failover).
+ */
+async function _doFetchOnce(addonKey, addon, url) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), addon.timeout);
+
+        const response = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+                'User-Agent': 'IlCorsaroViola/1.0 (Stremio Addon)',
+                'Accept': 'application/json'
+            }
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            return { ok: false, status: response.status, streams: [] };
+        }
+
+        const data = await response.json();
+        const streams = data.streams || [];
+
+        if (DEBUG_MODE && streams.length > 0) {
+            console.log(`🔍 [${addon.name}] First stream sample:`, JSON.stringify(streams[0], null, 2).substring(0, 500));
+        }
+
+        return { ok: true, status: 200, streams: streams.map(s => normalizeExternalStream(s, addonKey)) };
+
+    } catch (error) {
+        const isTimeout = error.name === 'AbortError';
+        return { ok: false, status: 0, streams: [], error: error.message, isTimeout };
+    }
+}
+
+/**
+ * Esegue effettivamente la fetch HTTP verso l'addon (single-mirror: senza failover).
+ * Retry SOLO su timeout/connection error/5xx, MAI su 429.
  */
 async function _doFetchExternalAddon(addonKey, addon, url) {
-    // 🔁 Retry SOLO su timeout/connection error/5xx, MAI su 429
-    //    Su 429 rispettiamo il rate limit — il circuit breaker farà il resto.
     const MAX_ATTEMPTS = 2;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), addon.timeout);
+        const result = await _doFetchOnce(addonKey, addon, url);
 
-            const response = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'User-Agent': 'IlCorsaroViola/1.0 (Stremio Addon)',
-                    'Accept': 'application/json'
-                }
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                // 🚫 Niente retry su 429 — è esattamente quello che ci ha fatto bannare
-                if (response.status === 429) {
-                    console.error(`🚫 [${addon.name}] HTTP 429 Rate Limited — NOT retrying (will count toward circuit breaker)`);
-                    return { ok: false, status: 429, streams: [] };
-                }
-                // Retry solo su 5xx transienti
-                const transient = response.status >= 500;
-                if (transient && attempt < MAX_ATTEMPTS) {
-                    const backoff = 350 * attempt;
-                    console.warn(`⚠️ [${addon.name}] HTTP ${response.status} (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${backoff}ms`);
-                    await new Promise(r => setTimeout(r, backoff));
-                    continue;
-                }
-                console.error(`❌ [${addon.name}] HTTP ${response.status}${attempt > 1 ? ` after ${attempt} attempts` : ''}`);
-                return { ok: false, status: response.status, streams: [] };
-            }
-
-            const data = await response.json();
-            const streams = data.streams || [];
-
-            if (DEBUG_MODE) console.log(`✅ [${addon.name}] Received ${streams.length} streams${attempt > 1 ? ` (after ${attempt} attempts)` : ''}`);
-
-            if (DEBUG_MODE && streams.length > 0) {
-                console.log(`🔍 [${addon.name}] First stream sample:`, JSON.stringify(streams[0], null, 2).substring(0, 500));
-            }
-
-            return { ok: true, status: 200, streams: streams.map(s => normalizeExternalStream(s, addonKey)) };
-
-        } catch (error) {
-            const isTimeout = error.name === 'AbortError';
-            if (attempt < MAX_ATTEMPTS) {
-                const backoff = 350 * attempt;
-                if (isTimeout) {
-                    console.warn(`⏱️ [${addon.name}] Timeout (attempt ${attempt}/${MAX_ATTEMPTS}) after ${addon.timeout}ms — retrying in ${backoff}ms`);
-                } else {
-                    console.warn(`⚠️ [${addon.name}] ${error.message} (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${backoff}ms`);
-                }
-                await new Promise(r => setTimeout(r, backoff));
-                continue;
-            }
-            if (isTimeout) {
-                console.error(`⏱️ [${addon.name}] Timeout after ${addon.timeout}ms (${attempt} attempts)`);
-            } else {
-                console.error(`❌ [${addon.name}] Error after ${attempt} attempts:`, error.message);
-            }
-            return { ok: false, status: 0, streams: [] };
+        if (result.ok) {
+            if (DEBUG_MODE) console.log(`✅ [${addon.name}] Received ${result.streams.length} streams${attempt > 1 ? ` (after ${attempt} attempts)` : ''}`);
+            return result;
         }
+
+        // 🚫 Niente retry su 429 — è esattamente quello che ci ha fatto bannare
+        if (result.status === 429) {
+            console.error(`🚫 [${addon.name}] HTTP 429 Rate Limited — NOT retrying (will count toward circuit breaker)`);
+            return result;
+        }
+
+        // Errore di rete o 5xx: retry se non è l'ultimo tentativo
+        const transient = result.status === 0 || result.status >= 500;
+        if (transient && attempt < MAX_ATTEMPTS) {
+            const backoff = 350 * attempt;
+            if (result.isTimeout) {
+                console.warn(`⏱️ [${addon.name}] Timeout (attempt ${attempt}/${MAX_ATTEMPTS}) after ${addon.timeout}ms — retrying in ${backoff}ms`);
+            } else if (result.status >= 500) {
+                console.warn(`⚠️ [${addon.name}] HTTP ${result.status} (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${backoff}ms`);
+            } else {
+                console.warn(`⚠️ [${addon.name}] ${result.error || 'network error'} (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying in ${backoff}ms`);
+            }
+            await new Promise(r => setTimeout(r, backoff));
+            continue;
+        }
+
+        if (result.isTimeout) {
+            console.error(`⏱️ [${addon.name}] Timeout after ${addon.timeout}ms (${attempt} attempts)`);
+        } else if (result.status > 0) {
+            console.error(`❌ [${addon.name}] HTTP ${result.status}${attempt > 1 ? ` after ${attempt} attempts` : ''}`);
+        } else {
+            console.error(`❌ [${addon.name}] Error after ${attempt} attempts:`, result.error);
+        }
+        return result;
     }
 
     return { ok: false, status: 0, streams: [] };
+}
+
+/**
+ * Esegue la fetch su MULTIPLI mirror in failover sequenziale (round-robin order).
+ * Per ogni mirror prova 1 sola volta — se fallisce, marca il mirror cold e passa al successivo.
+ * Ritorna al primo successo. Se tutti i mirror falliscono, ritorna l'ultimo risultato fallito.
+ */
+async function _doFetchExternalAddonMultiMirror(addonKey, addon, type, id) {
+    const baseUrls = addon.baseUrls || (addon.baseUrl ? [addon.baseUrl] : []);
+    const order = _getMirrorOrder(addonKey, baseUrls);
+    let lastResult = { ok: false, status: 0, streams: [] };
+
+    for (let i = 0; i < order.length; i++) {
+        const { url: baseUrl, index } = order[i];
+        const fullUrl = `${baseUrl}/stream/${type}/${id}.json`;
+        const isLast = i === order.length - 1;
+
+        if (DEBUG_MODE) console.log(`🌐 [${addon.name}] Mirror ${index + 1}/${baseUrls.length}: trying ${type}/${id}`);
+
+        const result = await _doFetchOnce(addonKey, addon, fullUrl);
+
+        if (result.ok) {
+            if (DEBUG_MODE) console.log(`✅ [${addon.name}] Mirror ${index + 1} OK — ${result.streams.length} streams`);
+            _markMirrorSuccess(addonKey, index);
+            return result;
+        }
+
+        // Fallimento su questo mirror: marca cold e prova il prossimo
+        _markMirrorFail(addonKey, index);
+        lastResult = result;
+
+        if (result.status === 429) {
+            console.warn(`🚫 [${addon.name}] Mirror ${index + 1} HTTP 429 — failing over to next mirror`);
+        } else if (result.isTimeout) {
+            console.warn(`⏱️ [${addon.name}] Mirror ${index + 1} timeout — failing over to next mirror`);
+        } else if (result.status > 0) {
+            console.warn(`⚠️ [${addon.name}] Mirror ${index + 1} HTTP ${result.status} — failing over to next mirror`);
+        } else {
+            console.warn(`⚠️ [${addon.name}] Mirror ${index + 1} error (${result.error || 'network'}) — failing over to next mirror`);
+        }
+
+        if (isLast) {
+            console.error(`❌ [${addon.name}] All ${baseUrls.length} mirror(s) failed for ${type}/${id}`);
+        }
+    }
+
+    return lastResult;
 }
 
 /**
@@ -453,7 +581,9 @@ async function fetchExternalAddon(addonKey, type, id) {
         return [];
     }
 
-    if (!addon.baseUrl) {
+    // Multi-mirror: se baseUrls è popolato, lo usiamo (Torrentio). Altrimenti baseUrl singolo.
+    const hasMultiMirror = Array.isArray(addon.baseUrls) && addon.baseUrls.length > 0;
+    if (!hasMultiMirror && !addon.baseUrl) {
         if (DEBUG_MODE) console.log(`⏭️ [${addon.name}] Skipped - base URL not configured`);
         return [];
     }
@@ -494,11 +624,19 @@ async function fetchExternalAddon(addonKey, type, id) {
     const fetchPromise = (async () => {
         const release = await _acquireSlot(addonKey);
         try {
-            const url = `${addon.baseUrl}/stream/${type}/${id}.json`;
-            if (DEBUG_MODE) console.log(`🌐 [${addon.name}] Fetching: ${type}/${id}`);
             _bumpStat(addonKey, 'fetched');
 
-            const result = await _doFetchExternalAddon(addonKey, addon, url);
+            let result;
+            if (hasMultiMirror && addon.baseUrls.length > 1) {
+                // Multi-mirror: round-robin + failover (1 tentativo per mirror)
+                if (DEBUG_MODE) console.log(`🌐 [${addon.name}] Multi-mirror fetch (${addon.baseUrls.length} mirrors): ${type}/${id}`);
+                result = await _doFetchExternalAddonMultiMirror(addonKey, addon, type, id);
+            } else {
+                // Single-mirror: comportamento legacy (2 tentativi sullo stesso URL)
+                const url = `${addon.baseUrl}/stream/${type}/${id}.json`;
+                if (DEBUG_MODE) console.log(`🌐 [${addon.name}] Fetching: ${type}/${id}`);
+                result = await _doFetchExternalAddon(addonKey, addon, url);
+            }
 
             if (result.ok) {
                 _recordSuccess(addonKey);
@@ -524,7 +662,7 @@ async function fetchExternalAddon(addonKey, type, id) {
 
 /**
  * Normalizza uno stream dall'addon esterno nel formato interno
- *
+ * 
  * @param {Object} stream - Stream originale dall'addon
  * @param {string} addonKey - Chiave addon sorgente
  * @returns {Object} Stream normalizzato
@@ -637,7 +775,7 @@ function buildMagnetLink(infoHash, sources) {
 
 /**
  * Chiama TUTTI gli addon esterni in parallelo
- *
+ * 
  * @param {string} type - Tipo media (movie, series)
  * @param {string} id - ID Stremio
  * @param {Object} options - Opzioni: { enabledAddons: ['torrentio', 'mediafusion', 'comet'] }
@@ -680,7 +818,7 @@ async function fetchAllExternalAddons(type, id, options = {}) {
 
 /**
  * Ritorna un array "flat" di tutti i risultati esterni, già normalizzati
- *
+ * 
  * @param {string} type - Tipo media
  * @param {string} id - ID Stremio
  * @param {Object} options - Opzioni
