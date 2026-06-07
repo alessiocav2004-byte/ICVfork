@@ -15,10 +15,17 @@ try {
     console.warn("⚠️ [MANUAL-IMPORT] Could not load id-converter. TMDB support might be limited.", e);
 }
 
-// Multer config for file uploads
+// Multer config for file uploads.
+// fieldSize must accommodate base64-encoded torrent payloads sent as text fields
+// (FormData.append('torrentFileBase64', ...)). Default multer fieldSize=1MB rejects
+// any torrent file > ~750 KB on the wire and crashes with HTML 500 ('Unexpected
+// token "<"' on the client). 25 MB allows real-world .torrent files up to ~18 MB.
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: {
+        fileSize: 25 * 1024 * 1024,
+        fieldSize: 25 * 1024 * 1024
+    }
 });
 
 // ✅ CONFIGURA QUI O PASSA NEL BODY
@@ -2760,6 +2767,16 @@ router.post('/scrape', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// JSON error handler so multer/body-parser failures don't leak HTML to fetch callers
+router.use((err, req, res, next) => {
+    if (!err) return next();
+    const isMulter = err && (err.name === 'MulterError' || typeof err.code === 'string' && err.code.startsWith('LIMIT_'));
+    const status = isMulter ? 413 : 500;
+    console.error(`❌ [MANUAL] Route error (${err.code || err.name || 'Error'}):`, err.message);
+    if (res.headersSent) return next(err);
+    res.status(status).json({ error: err.message || 'Errore interno', code: err.code || null });
 });
 
 module.exports = router;
