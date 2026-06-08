@@ -2769,6 +2769,111 @@ router.post('/scrape', async (req, res) => {
     }
 });
 
+// ============================================================================
+// GET /scrape/health-check — pinga TUTTI i provider scraping + addon esterni
+// in parallelo e ritorna { results: [{ name, url, ok, status, ms, note }] }.
+// Usato dalla UI (template.html → bottone "Esegui Test") per diagnosi rapida.
+// Niente segreti nei URL: i base64 di Torrentio/Comet/Meteor sono pubblici
+// (sono URL di configurazione, non auth token).
+// ============================================================================
+router.get('/health-check', async (req, res) => {
+    // Lista provider: nome leggibile + URL da pingare + (opzionale) "ok if status in"
+    // I JSON endpoint usano un titolo notorio (GoT S01E01) per validare la response.
+    const TORRENTIO_PROXY_PATH = '/oResults=false/aHR0cHM6Ly90b3JyZW50aW8uc3RyZW0uZnVuL3Byb3ZpZGVycz15dHMsZXp0dixyYXJiZywxMzM3eCx0aGVwaXJhdGViYXksa2lja2Fzc3RvcnJlbnRzLHRvcnJlbnRnYWxheHksbWFnbmV0ZGwsaG9ycmlibGVzdWJzLG55YWFzaSx0b2t5b3Rvc2hvLGFuaWRleCxydXRvcixydXRyYWNrZXIsY29tYW5kbyxibHVkdix0b3JyZW50OSxpbGNvcnNhcm9uZXJvLG1lam9ydG9ycmVudCx3b2xmbWF4NGssY2luZWNhbGlkYWQsYmVzdHRvcnJlbnRzfGxhbmd1YWdlPWl0YWxpYW58cXVhbGl0eWZpbHRlcj1zY3IsY2Ft';
+    const COMET_B64 = 'eyJtYXhSZXN1bHRzUGVyUmVzb2x1dGlvbiI6MCwibWF4U2l6ZSI6MCwiY2FjaGVkT25seSI6ZmFsc2UsInNvcnRDYWNoZWRVbmNhY2hlZFRvZ2V0aGVyIjpmYWxzZSwicmVtb3ZlVHJhc2giOnRydWUsInJlc3VsdEZvcm1hdCI6WyJhbGwiXSwiZGVicmlkU2VydmljZXMiOltdLCJlbmFibGVUb3JyZW50Ijp0cnVlLCJkZWR1cGxpY2F0ZVN0cmVhbXMiOmZhbHNlLCJzY3JhcGVEZWJyaWRBY2NvdW50VG9ycmVudHMiOmZhbHNlLCJkZWJyaWRTdHJlYW1Qcm94eVBhc3N3b3JkIjoiIiwibGFuZ3VhZ2VzIjp7InJlcXVpcmVkIjpbIml0Il0sImFsbG93ZWQiOlsibXVsdGkiLCJpdCJdLCJleGNsdWRlIjpbImVuIiwiamEiLCJ6aCIsInJ1IiwiYXIiLCJwdCIsImVzIiwiZnIiLCJkZSIsImtvIiwiaGkiLCJibiIsInBhIiwibXIiLCJndSIsInRhIiwidGUiLCJrbiIsIm1sIiwidGgiLCJ2aSIsImlkIiwidHIiLCJoZSIsImZhIiwidWsiLCJlbCIsImx0IiwibHYiLCJldCIsInBsIiwiY3MiLCJzayIsImh1Iiwicm8iLCJiZyIsInNyIiwiaHIiLCJzbCIsIm5sIiwiZGEiLCJmaSIsInN2Iiwibm8iLCJtcyIsImxhIl0sInByZWZlcnJlZCI6WyJpdCJdfSwicmVzb2x1dGlvbnMiOnsicjI0MHAiOmZhbHNlfSwib3B0aW9ucyI6eyJyZW1vdmVfcmFua3NfdW5kZXIiOi0xMDAwMDAwMDAwMCwiYWxsb3dfZW5nbGlzaF9pbl9sYW5ndWFnZXMiOmZhbHNlLCJyZW1vdmVfdW5rbm93bl9sYW5ndWFnZXMiOmZhbHNlfX0=';
+    const MEDIAFUSION_B64 = 'D--MuTCQ99t0sh23nd3nx2xZCCqMkr4MPwy5I9suo3Ej2tUYTqimnxZBJ34hbNRwoL5AIvPt4N8KPnl50LWHT5YLDcrwnX_dhOq3vHO0aCNKBlnXeki7olZAUDoHepPCTDFLFtZVcZcohYRa83aT2Vbig3W5Qz3qErPqw2Zdb676ioZa452Mb35T0IX-ftQcNF0oGJerUTZhfvv9w4wrEIiW8wx0jdSxAfcrnM6yKFEcYMP-3dRWYAL2wy13Gcvwr2j4ax2z6TQ35xlcW9WWsKjA';
+    const STREMTHRU_B64 = 'eyJpbmRleGVycyI6bnVsbCwic3RvcmVzIjpbeyJjIjoicDJwIiwidCI6IiJ9XSwiZmlsdGVyIjoiXCJpdFwiIGluIExhbmd1YWdlcyBcdTAwMjZcdTAwMjYgUXVhbGl0eSAhPSBcIkNBTVwiIn0=';
+    const METEOR_B64 = 'eyJkZWJyaWRTZXJ2aWNlIjoidG9ycmVudCIsImRlYnJpZEFwaUtleSI6IiIsImNhY2hlZE9ubHkiOnRydWUsImVuYWJsZVlvdXJNZWRpYSI6ZmFsc2UsInlvdXJNZWRpYUxlZ2FjeU1vZGUiOmZhbHNlLCJzaG93WW91ck1lZGlhU3RyZWFtcyI6ZmFsc2UsInlvdXJNZWRpYVNvdXJjZXMiOlsidG9ycmVudCJdLCJyZW1vdmVUcmFzaCI6ZmFsc2UsInJlbW92ZVNhbXBsZXMiOmZhbHNlLCJyZW1vdmVBZHVsdCI6ZmFsc2UsImV4Y2x1ZGUzRCI6ZmFsc2UsImVuYWJsZVNlYURleCI6ZmFsc2UsImVuYWJsZVVzZW5ldCI6ZmFsc2UsInVzZW5ldEN1c3RvbUVuZ2luZXMiOmZhbHNlLCJtaW5TZWVkZXJzIjowLCJtYXhSZXN1bHRzIjowLCJtYXhSZXN1bHRzUGVyUmVzIjowLCJtYXhTaXplIjowLCJyZXNvbHV0aW9ucyI6W10sImxhbmd1YWdlcyI6eyJwcmVmZXJyZWQiOlsibXVsdGkiLCJpdCJdLCJyZXF1aXJlZCI6WyJpdCIsIm11bHRpIl0sImV4Y2x1ZGUiOltdfSwicmVzdWx0Rm9ybWF0IjpbInRpdGxlIiwicXVhbGl0eSIsInNpemUiLCJhdWRpbyJdLCJzb3J0T3JkZXIiOlsicGFjayIsImNhY2hlZCIsInlvdXJtZWRpYSIsInNlYWRleCIsInJlc29sdXRpb24iLCJzaXplIiwicXVhbGl0eSIsInNlZWRlcnMiLCJsYW5ndWFnZSIsInR5cGUiXX0';
+
+    const trio = (host) => `https://${host}.stremio-italia.eu${TORRENTIO_PROXY_PATH}/stream/series/tt0944947:1:1.json`;
+
+    const providers = [
+        // === Scrapers HTML/API pubblici ===
+        { name: '🏴‍☠️ apibay (TPB)',     url: 'https://apibay.org/q.php?q=test',                                      validate: (b) => Array.isArray(JSON.parse(b)) },
+        { name: '🎬 YTS (yts.am)',        url: 'https://yts.am/api/v2/list_movies.json?query_term=test&limit=1',       validate: (b) => JSON.parse(b)?.status === 'ok' },
+        { name: '📺 EZTV',                url: 'https://eztvx.to/api/get-torrents?imdb_id=tt0944947&limit=1',          validate: (b) => 'torrents_count' in JSON.parse(b) },
+        { name: '🟢 SolidTorrents',       url: 'https://solidtorrents.to/api/v1/search?q=test&limit=1',                expectStatus: [200, 301] },
+        { name: '🔎 Bitsearch (.eu)',     url: 'https://bitsearch.eu/search?q=test' },
+        { name: '🛰️ DHTIndex',            url: 'https://dhtindex.org/search?q=test',                                   validate: (b) => /\/torrent\/[a-f0-9]{40}/.test(b) },
+        { name: '🦉 Knaben',              url: 'https://knaben.org' },
+        { name: '🌌 TorrentGalaxy (.one)', url: 'https://torrentgalaxy.one/get-posts/keywords:test:format:json',        validate: (b) => { const j = JSON.parse(b); return Array.isArray(j) || Array.isArray(j.posts) || Array.isArray(j.results); } },
+        // === Cache .torrent file (per recupero file list) ===
+        { name: '📦 itorrents.net',        url: 'https://itorrents.net' },
+        // === Addon Stremio esterni (URL completi con config base64) ===
+        { name: '🅣 Torrentio mirror 1',  url: trio('torrentioita'),  validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '🅣 Torrentio mirror 2',  url: trio('torrentioita2'), validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '🅣 Torrentio mirror 3',  url: trio('torrentioita3'), validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '🅜 MediaFusion',         url: `https://mediafusionfortheweebs.midnightignite.me/${MEDIAFUSION_B64}/stream/series/tt0944947:1:1.json`, validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '🅒 Comet',               url: `https://comet.feels.legal/${COMET_B64}/stream/series/tt0944947:1:1.json`, validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '🆂 StremThru Torz',       url: `https://stremthru.13377001.xyz/stremio/torz/${STREMTHRU_B64}/stream/series/tt0944947:1:1.json`, validate: (b) => 'streams' in JSON.parse(b) },
+        { name: '☄️ Meteor',              url: `https://meteorfortheweebs.midnightignite.me/${METEOR_B64}/stream/series/tt0944947:1:1.json`, validate: (b) => 'streams' in JSON.parse(b) },
+        // === Debrid API ===
+        { name: '👑 Real-Debrid API',     url: 'https://api.real-debrid.com/rest/1.0/time' },
+        { name: '📦 TorBox API',          url: 'https://api.torbox.app/v1/api/torrents/createtorrent', expectStatus: [200, 401, 403, 405] },
+    ];
+
+    const ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+    async function checkOne(p) {
+        const t0 = Date.now();
+        try {
+            const resp = await axios.get(p.url, {
+                timeout: 10000,
+                headers: { 'User-Agent': ua, 'Accept': '*/*' },
+                validateStatus: () => true,            // non lanciare su 4xx/5xx, ci pensiamo noi
+                maxRedirects: 3,
+                responseType: 'text',                  // ci basta il body come stringa
+                transformResponse: [(d) => d]          // disabilita parsing automatico axios
+            });
+            const ms = Date.now() - t0;
+            const status = resp.status;
+            let ok = false;
+            let note = '';
+
+            // expectStatus override (es. TorBox 405 al GET = endpoint vivo)
+            if (Array.isArray(p.expectStatus)) {
+                ok = p.expectStatus.includes(status);
+                if (!ok) note = `status non in [${p.expectStatus.join(',')}]`;
+            } else if (typeof p.validate === 'function') {
+                if (status >= 200 && status < 400) {
+                    try {
+                        ok = !!p.validate(typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data));
+                        if (!ok) note = 'response body inattesa';
+                    } catch (e) {
+                        ok = false;
+                        note = 'parse fail: ' + e.message.substring(0, 60);
+                    }
+                } else {
+                    note = 'HTTP error';
+                }
+            } else {
+                ok = status >= 200 && status < 400;
+                if (!ok) note = 'HTTP error';
+            }
+            return { name: p.name, url: p.url.split('?')[0], ok, status, ms, note };
+        } catch (e) {
+            const ms = Date.now() - t0;
+            const msg = e.code === 'ENOTFOUND' ? 'DNS non risolve' :
+                        e.code === 'ECONNREFUSED' ? 'connessione rifiutata' :
+                        (e.code === 'ECONNABORTED' || /timeout/i.test(e.message || '')) ? 'timeout' :
+                        (e.message || 'errore').substring(0, 80);
+            return { name: p.name, url: p.url.split('?')[0], ok: false, status: 0, ms, note: msg };
+        }
+    }
+
+    try {
+        // Tutto in parallelo — ognuno ha timeout interno 10s
+        const results = await Promise.all(providers.map(checkOne));
+        // Tronca URL lunghi nella response (per leggibilità nella tabella)
+        for (const r of results) {
+            if (r.url.length > 80) r.url = r.url.substring(0, 60) + '...' + r.url.substring(r.url.length - 17);
+        }
+        res.json({ results });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // JSON error handler so multer/body-parser failures don't leak HTML to fetch callers
 router.use((err, req, res, next) => {
     if (!err) return next();
