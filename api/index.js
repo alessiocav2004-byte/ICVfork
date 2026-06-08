@@ -7739,10 +7739,10 @@ async function handleStream(type, id, config, workerOrigin) {
             const useEZTV = !jackettOnly && config.use_eztv !== false;
             const useSolid = !jackettOnly && config.use_solid !== false;
             const useBitsearch = !jackettOnly && config.use_bitsearch !== false;
-            // dhtindex: FORCE ON anche se l'utente lo disabilita dalla UI legacy
-            // (\u00e8 un crawler DHT pubblico, fonte ITA pi\u00f9 robusta dopo il blocco di
-            // Corsaro+UIndex; rate-limit interno via min-interval 1.5s).
-            const useDhtIndex = !jackettOnly;
+            // dhtindex: default ON come gli altri public trackers. L'utente pu\u00f2 disabilitarlo
+            // dalla UI (`use_dhtindex=false`). Gira nella stessa fase background degli altri
+            // (anyPublicTrackerEnabled), quindi anche in hybrid_mode.
+            const useDhtIndex = !jackettOnly && config.use_dhtindex !== false;
             const anyPublicTrackerEnabled = useApibay || useYTS || useEZTV || useSolid || useBitsearch || useDhtIndex;
             const globalExternalEnabled = !jackettOnly && config.use_external_addons !== false;
             const enabledExternalAddons = [];
