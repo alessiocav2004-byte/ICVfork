@@ -1908,6 +1908,9 @@ function isGoodShortQueryMatch(torrentTitle, searchQuery) {
 
 // --- NUOVA SEZIONE: SCRAPER PER IL CORSARO NERO ---
 
+// DISABILITATO: tutti i domini ilcorsaronero (.link/.fun/.com) sono bloccati o
+// servono pagine fasulle. La variabile resta solo per compatibilità import
+// finché non rimuoviamo tutti i call-site morti.
 const CORSARO_BASE_URL = "https://ilcorsaronero.link";
 
 async function fetchCorsaroNeroSingle(searchQuery, type = 'movie') {
@@ -2701,7 +2704,8 @@ const KNABEN_TIMEOUT_RETRY = 2000; // 2 second timeout for subsequent attempts
 const KNABEN_API_VERSION = "1";
 
 // TorrentGalaxy API configuration
-const TORRENTGALAXY_API_URL = "https://torrentgalaxy.space";
+// .space restituisce HTML (rotto), .one è l'unico mirror che serve ancora JSON.
+const TORRENTGALAXY_API_URL = "https://torrentgalaxy.one";
 const TORRENTGALAXY_TIMEOUT_FIRST = 4000; // 4 second timeout for first attempt
 const TORRENTGALAXY_TIMEOUT_RETRY = 2000; // 2 second timeout for subsequent attempts
 
@@ -7006,10 +7010,13 @@ async function handleStream(type, id, config, workerOrigin) {
                 selectedProviders = ['jackett'];
                 console.log(`🔍 [Jackett Only] Querying ONLY Jackett provider in database`);
             } else {
-                if (config.use_corsaronero !== false) selectedProviders.push('corsaro');  // Matches CorsaroNero, ilcorsaronero
-                if (config.use_knaben !== false) selectedProviders.push('knaben');        // Matches Knaben (1337x), etc.
+                // DISABILITATI: corsaronero & uindex — bloccati da Cloudflare a livello
+                // server (anti-bot), non vengono più inclusi nemmeno se l'utente li abilita
+                // dalla config legacy. Commentato, non eliminato, per future revival.
+                // if (config.use_corsaronero === true) selectedProviders.push('corsaro');
+                if (config.use_knaben !== false) selectedProviders.push('knaben');
                 if (config.use_torrentgalaxy !== false) selectedProviders.push('torrentgalaxy');
-                if (config.use_uindex !== false) selectedProviders.push('uindex');
+                // if (config.use_uindex === true) selectedProviders.push('uindex');
                 if (config.use_stremthru_torz !== false) selectedProviders.push('stremthru_torz');
                 if (config.use_meteor !== false) selectedProviders.push('meteor');
                 if (config.use_rarbg === true) selectedProviders.push('rarbg');
@@ -7719,8 +7726,10 @@ async function handleStream(type, id, config, workerOrigin) {
             // Check which sites are enabled (default to all if not specified)
             // 🔍 Jackett Only: forcibly disable every other live scraper
             const jackettOnly = config.jackett_only === true;
-            const useUIndex = !jackettOnly && config.use_uindex !== false;
-            const useCorsaroNero = !jackettOnly && config.use_corsaronero !== false;
+            // DISABILITATI hard: bloccati da Cloudflare. Anche se config.use_* è true
+            // dalla UI legacy, non li attiviamo.
+            const useUIndex = false;
+            const useCorsaroNero = false;
             const useKnaben = !jackettOnly && config.use_knaben !== false;
             const useTorrentGalaxy = !jackettOnly && config.use_torrentgalaxy !== false; // Default ON
             const useJackett = jackettOnly || config.use_jackett !== false; // Default ON (only matters if creds provided)
@@ -7730,7 +7739,11 @@ async function handleStream(type, id, config, workerOrigin) {
             const useEZTV = !jackettOnly && config.use_eztv !== false;
             const useSolid = !jackettOnly && config.use_solid !== false;
             const useBitsearch = !jackettOnly && config.use_bitsearch !== false;
-            const anyPublicTrackerEnabled = useApibay || useYTS || useEZTV || useSolid || useBitsearch;
+            // dhtindex: default ON come gli altri public trackers. L'utente pu\u00f2 disabilitarlo
+            // dalla UI (`use_dhtindex=false`). Gira nella stessa fase background degli altri
+            // (anyPublicTrackerEnabled), quindi anche in hybrid_mode.
+            const useDhtIndex = !jackettOnly && config.use_dhtindex !== false;
+            const anyPublicTrackerEnabled = useApibay || useYTS || useEZTV || useSolid || useBitsearch || useDhtIndex;
             const globalExternalEnabled = !jackettOnly && config.use_external_addons !== false;
             const enabledExternalAddons = [];
             if (globalExternalEnabled) {
@@ -8013,6 +8026,7 @@ async function handleStream(type, id, config, workerOrigin) {
                             eztv: useEZTV,
                             solid: useSolid,
                             bitsearch: useBitsearch,
+                            dhtindex: useDhtIndex,
                         };
                         if (DEBUG_MODE) console.log(`🌐 [PublicTrackers] Starting (enabled: ${Object.entries(ptEnabled).filter(([,v])=>v).map(([k])=>k).join(',')})`);
                         const ptResults = await publicTrackers.searchAllPublicTrackers({

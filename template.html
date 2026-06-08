@@ -862,13 +862,16 @@
                             style="padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.9em; user-select: none;">
                             📂 Seleziona Siti Torrent (Clicca per espandere)</summary>
                         <div class="search-sites" style="padding: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <label>
-                                <input type="checkbox" id="use_corsaronero" checked>
-                                <span>🏴‍☠️ Il Corsaro Nero (Italiano)</span>
+                            <!-- DISABILITATI: bloccati a livello Cloudflare/anti-bot, non rispondono più dal server. -->
+                            <label title="Disabilitato: bloccato da Cloudflare/anti-bot" style="opacity:0.45;cursor:not-allowed;">
+                                <input type="checkbox" id="use_corsaronero" disabled>
+                                <span style="text-decoration:line-through;">🏴‍☠️ Il Corsaro Nero (Italiano)</span>
+                                <small style="color:#fca5a5;margin-left:6px;">— disabilitato</small>
                             </label>
-                            <label>
-                                <input type="checkbox" id="use_uindex" checked>
-                                <span>📚 UIndex (Internazionale) ⚠️ Rate Limited</span>
+                            <label title="Disabilitato: bloccato da Cloudflare/anti-bot" style="opacity:0.45;cursor:not-allowed;">
+                                <input type="checkbox" id="use_uindex" disabled>
+                                <span style="text-decoration:line-through;">📚 UIndex (Internazionale)</span>
+                                <small style="color:#fca5a5;margin-left:6px;">— disabilitato</small>
                             </label>
                             <label>
                                 <input type="checkbox" id="use_knaben" checked>
@@ -899,6 +902,11 @@
                                 <input type="checkbox" id="use_bitsearch" checked>
                                 <span>🔎 Bitsearch (Internazionale) ⚠️ Rate Limited / HTML</span>
                             </label>
+                            <!-- DHTIndex (dhtindex.org) — crawler DHT pubblico, default ON come gli altri public trackers. -->
+                            <label>
+                                <input type="checkbox" id="use_dhtindex" checked>
+                                <span>🛰️ DHTIndex (DHT Crawler, ITA-friendly)</span>
+                            </label>
                             <label>
                                 <input type="checkbox" id="use_torrentio" checked>
                                 <span>🅣 Torrentio (Esterno)</span>
@@ -927,6 +935,37 @@
                                 <input type="checkbox" id="use_jackett" checked>
                                 <span>🔍 Jackett (richiede URL+API Key)</span>
                             </label>
+                        </div>
+                    </details>
+
+                    <!-- 🩺 Health-check: testa tutti i provider/addon in 1 click -->
+                    <details id="health_details"
+                        style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <summary
+                            style="padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.9em; user-select: none;">
+                            🩺 Test Connessione Siti / Addon</summary>
+                        <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                                <button type="button" id="btnRunHealth"
+                                    style="padding:8px 16px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; border:0; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85em;">
+                                    ▶ Esegui Test
+                                </button>
+                                <span id="healthStatus" style="font-size:0.85em; color:#94a3b8;">Pronto.</span>
+                            </div>
+                            <div id="healthResults" style="display:none; margin-top:10px;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82em;">
+                                    <thead>
+                                        <tr style="background:rgba(255,255,255,0.05); text-align:left;">
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Provider</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Status</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1); text-align:right;">HTTP</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1); text-align:right;">Tempo</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Note</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="healthRows"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </details>
 
@@ -1265,6 +1304,7 @@
             const useEZTVCheckbox = document.getElementById("use_eztv");
             const useSolidCheckbox = document.getElementById("use_solid");
             const useBitsearchCheckbox = document.getElementById("use_bitsearch");
+            const useDhtIndexCheckbox = document.getElementById("use_dhtindex");
             const useTorrentioCheckbox = document.getElementById("use_torrentio");
             const useMediaFusionCheckbox = document.getElementById("use_mediafusion");
             const useCometCheckbox = document.getElementById("use_comet");
@@ -1365,6 +1405,7 @@
                     useEZTVCheckbox,
                     useSolidCheckbox,
                     useBitsearchCheckbox,
+                    useDhtIndexCheckbox,
                     useTorrentioCheckbox,
                     useMediaFusionCheckbox,
                     useCometCheckbox,
@@ -1548,6 +1589,7 @@
                 if (useEZTVCheckbox && !useEZTVCheckbox.checked) config.use_eztv = false;
                 if (useSolidCheckbox && !useSolidCheckbox.checked) config.use_solid = false;
                 if (useBitsearchCheckbox && !useBitsearchCheckbox.checked) config.use_bitsearch = false;
+                if (useDhtIndexCheckbox && !useDhtIndexCheckbox.checked) config.use_dhtindex = false;
                 config.use_torrentio = useTorrentioCheckbox.checked;
                 config.use_mediafusion = useMediaFusionCheckbox.checked;
                 config.use_comet = useCometCheckbox.checked;
@@ -1609,9 +1651,9 @@
                 }
 
                 // Check if at least one search site is selected
+                // NOTE: corsaronero e uindex sono DISABILITATI (bloccati da Cloudflare),
+                // non vengono più inclusi nella lista mostrata all'utente.
                 let searchSites = [];
-                if (config.use_corsaronero) searchSites.push("CorsaroNero");
-                if (config.use_uindex) searchSites.push("UIndex");
                 if (config.use_knaben) searchSites.push("Knaben");
                 if (config.use_torrentgalaxy) searchSites.push("TorrentGalaxy");
                 if (config.use_apibay) searchSites.push("apibay");
@@ -1619,6 +1661,7 @@
                 if (config.use_eztv) searchSites.push("EZTV");
                 if (config.use_solid) searchSites.push("SolidTorrents");
                 if (config.use_bitsearch) searchSites.push("Bitsearch");
+                if (config.use_dhtindex !== false) searchSites.push("DHTIndex");
                 if (config.use_torrentio) searchSites.push("Torrentio");
                 if (config.use_mediafusion) searchSites.push("MediaFusion");
                 if (config.use_comet) searchSites.push("Comet");
@@ -1839,6 +1882,10 @@
                         const el = document.getElementById('use_bitsearch');
                         if (el) el.checked = !!cfg.use_bitsearch;
                     }
+                    if (cfg.use_dhtindex !== undefined) {
+                        const el = document.getElementById('use_dhtindex');
+                        if (el) el.checked = !!cfg.use_dhtindex;
+                    }
                     if (cfg.use_torrentio !== undefined) {
                         const el = document.getElementById('use_torrentio');
                         if (el) el.checked = cfg.use_torrentio;
@@ -2024,6 +2071,7 @@
             if (useEZTVCheckbox) useEZTVCheckbox.addEventListener('change', updateInstallLink);
             if (useSolidCheckbox) useSolidCheckbox.addEventListener('change', updateInstallLink);
             if (useBitsearchCheckbox) useBitsearchCheckbox.addEventListener('change', updateInstallLink);
+            if (useDhtIndexCheckbox) useDhtIndexCheckbox.addEventListener('change', updateInstallLink);
             useTorrentioCheckbox.addEventListener('change', updateInstallLink);
             useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
             useCometCheckbox.addEventListener('change', updateInstallLink);
@@ -2251,6 +2299,55 @@
                     }
                 }
             });
+
+            // ===== 🩺 HEALTH CHECK BUTTON =====
+            // Chiama /scrape/health-check (vedi manual_import_route.cjs) che testa tutti i provider
+            // e ritorna { results: [{ name, url, ok, status, ms, note }] }.
+            const btnRunHealth = document.getElementById('btnRunHealth');
+            if (btnRunHealth) {
+                btnRunHealth.addEventListener('click', async () => {
+                    const statusEl = document.getElementById('healthStatus');
+                    const resultsEl = document.getElementById('healthResults');
+                    const rowsEl = document.getElementById('healthRows');
+                    btnRunHealth.disabled = true;
+                    btnRunHealth.textContent = '⏳ Test in corso...';
+                    statusEl.textContent = 'Sto pingando tutti i provider (può richiedere ~15s)...';
+                    statusEl.style.color = '#94a3b8';
+                    rowsEl.innerHTML = '';
+                    resultsEl.style.display = 'block';
+                    const t0 = Date.now();
+                    try {
+                        const resp = await fetch('/scrape/health-check');
+                        const data = await resp.json();
+                        if (!resp.ok || !data.results) throw new Error(data.error || 'Risposta non valida');
+                        const okCount = data.results.filter(r => r.ok).length;
+                        const total = data.results.length;
+                        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+                        statusEl.textContent = `✓ ${okCount}/${total} provider OK · ${elapsed}s`;
+                        statusEl.style.color = okCount === total ? '#4ade80' : (okCount > total / 2 ? '#fbbf24' : '#f87171');
+                        rowsEl.innerHTML = data.results.map(r => {
+                            const okColor = r.ok ? '#4ade80' : '#f87171';
+                            const okLabel = r.ok ? '✅ OK' : '❌ KO';
+                            const httpDisplay = r.status > 0 ? r.status : '—';
+                            const msDisplay = r.ms != null ? `${r.ms}ms` : '—';
+                            const note = (r.note || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <td style="padding:6px 8px;"><b>${r.name}</b><br><span style="font-size:0.85em; color:#94a3b8;">${r.url}</span></td>
+                                <td style="padding:6px 8px; color:${okColor}; font-weight:bold;">${okLabel}</td>
+                                <td style="padding:6px 8px; text-align:right;">${httpDisplay}</td>
+                                <td style="padding:6px 8px; text-align:right;">${msDisplay}</td>
+                                <td style="padding:6px 8px; color:#cbd5e1;">${note}</td>
+                            </tr>`;
+                        }).join('');
+                    } catch (err) {
+                        statusEl.textContent = '❌ Errore: ' + err.message;
+                        statusEl.style.color = '#f87171';
+                    } finally {
+                        btnRunHealth.disabled = false;
+                        btnRunHealth.textContent = '▶ Esegui Test';
+                    }
+                });
+            }
 
             // Initial call to enable buttons
             updateInstallLink();

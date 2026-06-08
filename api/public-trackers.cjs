@@ -339,7 +339,7 @@ async function searchApibay({ queries, metadata, parsedId, type }) {
 
 // =============================================================================
 // PROVIDER 2: YTS (JSON) — solo FILM
-// Host con fallback: yts.am (storico, stabile) → yts.mx (originale, spesso DNS-fail)
+// Host con fallback: yts.am (mirror ufficiale attivo) → yts.mx (DNS-fail su molti server) → yts.lu (301 verso homepage, API non disponibile)
 // Override via env YTS_HOST.
 // =============================================================================
 
@@ -651,6 +651,106 @@ async function searchBitsearch({ queries, metadata, parsedId, type }) {
     return dedupeByHash(buckets.flat());
 }
 
+// =============================================================================
+// PROVIDER 6: DHTIndex (dhtindex.org HTML) — crawler DHT pubblico, no API
+//
+// Pattern HTML stabile:
+//   <a class="text-base..." href="/torrent/<40-hex-hash>">TITLE</a>
+//   ...meta (size, date, files, S:<seeds>, L:<leech>)...
+//   <a href="magnet:?xt=urn:btih:<HASH>&dn=...&tr=...">Magnet Link</a>
+//
+// Rate limit non documentato → cap conservativo: 1.5s tra chiamate, max 2 query
+// per richiesta, cooldown 120s su 429 / 600s su 403 (CF block).
+// =============================================================================
+
+const DHTINDEX_TIMEOUT_MS = 8000;
+const DHTINDEX_MIN_INTERVAL_MS = 1500;
+const DHTINDEX_MAX_QUERIES_PER_CALL = 2;
+const DHTINDEX_HOST = process.env.DHTINDEX_HOST || 'dhtindex.org';
+
+async function searchDhtIndexSingle(query) {
+    if (isOnCooldown('dhtindex')) return [];
+    return cached(`dhtindex:${query}`, () => rateLimited('dhtindex', DHTINDEX_MIN_INTERVAL_MS, async () => {
+        try {
+            const url = `https://${DHTINDEX_HOST}/search?q=${encodeURIComponent(query)}`;
+            const res = await fetchWithTimeout(url, {
+                headers: { 'Accept': 'text/html,application/xhtml+xml' },
+            }, DHTINDEX_TIMEOUT_MS);
+            if (res.status === 429) { setCooldown('dhtindex', 120); return []; }
+            if (res.status === 403) { setCooldown('dhtindex', 600); return []; }
+            if (!res.ok) return [];
+            const html = await res.text();
+            if (!html || html.length < 200) return [];
+
+            // Estrazione titolo + hash dal link "/torrent/<hash>"
+            // Pattern: <a ... href="/torrent/<40hex>" ...>TITLE</a>
+            const titleMap = new Map(); // hash -> title
+            const titleRe = /<a[^>]+href="\/torrent\/([a-f0-9]{40})"[^>]*>([^<]{4,})<\/a>/gi;
+            let m;
+            while ((m = titleRe.exec(html)) !== null) {
+                const hash = m[1].toLowerCase();
+                const title = m[2].replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim();
+                if (title && !titleMap.has(hash)) titleMap.set(hash, title);
+            }
+            if (titleMap.size === 0) return [];
+
+            // Estrazione magnet con sizes/seeders dal blocco circostante.
+            // I magnet hanno il formato magnet:?xt=urn:btih:<HASH>&dn=...
+            const magnetRe = /magnet:\?xt=urn:btih:([a-f0-9]{40})[^"'\s]*/gi;
+            const out = [];
+            const seen = new Set();
+            while ((m = magnetRe.exec(html)) !== null) {
+                const hash = m[1].toLowerCase();
+                if (seen.has(hash)) continue;
+                seen.add(hash);
+                const title = titleMap.get(hash);
+                if (!title) continue;
+
+                // Cerca dati meta nelle ~800 char attorno al primo match del titolo.
+                // dhtindex mostra: "5.5 GB2026-05-2810 Files S: 30 L: 24"
+                let sizeBytes = 0, seeders = 0, leechers = 0;
+                const titlePos = html.indexOf(`/torrent/${hash}"`);
+                if (titlePos > 0) {
+                    const block = html.substring(titlePos, titlePos + 1200);
+                    // Size: "5.5 GB" / "841.86 MB" — primo numero+unit dopo il titolo
+                    const sizeM = block.match(/>\s*([\d.,]+\s*(?:B|KB|MB|GB|TB))\b/i);
+                    if (sizeM) sizeBytes = parseSizeToBytes(sizeM[1]);
+                    // Seeds/Leeches: "S: 30" "L: 24"
+                    const sM = block.match(/\bS:\s*(\d+)/i);
+                    const lM = block.match(/\bL:\s*(\d+)/i);
+                    if (sM) seeders = parseInt(sM[1], 10) || 0;
+                    if (lM) leechers = parseInt(lM[1], 10) || 0;
+                }
+
+                const item = normalizeResult({
+                    title,
+                    infoHash: hash,
+                    sizeBytes,
+                    seeders,
+                    leechers,
+                    source: 'DHTIndex',
+                });
+                if (item) out.push(item);
+            }
+            return out;
+        } catch (e) {
+            if (DEBUG_MODE) console.warn(`[dhtindex] ${e.message}`);
+            return [];
+        }
+    }));
+}
+
+async function searchDhtIndex({ queries, metadata, parsedId, type }) {
+    let qs = queries || buildPublicTrackerQueries(metadata, parsedId, type);
+    if (!qs.length) return [];
+    qs = qs.slice(0, DHTINDEX_MAX_QUERIES_PER_CALL);
+    const buckets = [];
+    for (const q of qs) {
+        buckets.push(await searchDhtIndexSingle(q));
+    }
+    return dedupeByHash(buckets.flat());
+}
+
 // -----------------------------------------------------------------------------
 // Dedup helper (per-call)
 // -----------------------------------------------------------------------------
@@ -688,6 +788,7 @@ const DEFAULT_ENABLED = {
     eztv: true,
     solid: true,
     bitsearch: true,
+    dhtindex: true,
 };
 
 async function searchAllPublicTrackers({ metadata, parsedId, type, enabled }) {
@@ -700,6 +801,7 @@ async function searchAllPublicTrackers({ metadata, parsedId, type, enabled }) {
     if (en.eztv && type === 'series' && metadata?.imdbId) tasks.push(searchEZTV(ctx));
     if (en.solid) tasks.push(searchSolid(ctx));
     if (en.bitsearch) tasks.push(searchBitsearch(ctx));
+    if (en.dhtindex) tasks.push(searchDhtIndex(ctx));
 
     const buckets = await Promise.all(tasks.map(p => p.catch(err => {
         if (DEBUG_MODE) console.warn('[public-trackers] provider error:', err.message);
@@ -724,6 +826,7 @@ module.exports = {
     searchEZTV,
     searchSolid,
     searchBitsearch,
+    searchDhtIndex,
 
     // Builder query unificato (riusabile anche per gli scraper esistenti)
     buildPublicTrackerQueries,
