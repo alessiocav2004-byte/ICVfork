@@ -902,11 +902,10 @@
                                 <input type="checkbox" id="use_bitsearch" checked>
                                 <span>🔎 Bitsearch (Internazionale) ⚠️ Rate Limited / HTML</span>
                             </label>
-                            <!-- 🆕 DHTIndex (dhtindex.org) — crawler DHT pubblico, FORCE ON lato server. -->
-                            <label title="Sempre attivo: crawler DHT pubblico, fonte primaria ITA dopo il blocco di Corsaro/UIndex">
-                                <input type="checkbox" id="use_dhtindex" checked disabled>
+                            <!-- DHTIndex (dhtindex.org) — crawler DHT pubblico, default ON come gli altri public trackers. -->
+                            <label>
+                                <input type="checkbox" id="use_dhtindex" checked>
                                 <span>🛰️ DHTIndex (DHT Crawler, ITA-friendly)</span>
-                                <small style="color:#34d399;margin-left:6px;">— sempre attivo</small>
                             </label>
                             <label>
                                 <input type="checkbox" id="use_torrentio" checked>
@@ -1305,6 +1304,7 @@
             const useEZTVCheckbox = document.getElementById("use_eztv");
             const useSolidCheckbox = document.getElementById("use_solid");
             const useBitsearchCheckbox = document.getElementById("use_bitsearch");
+            const useDhtIndexCheckbox = document.getElementById("use_dhtindex");
             const useTorrentioCheckbox = document.getElementById("use_torrentio");
             const useMediaFusionCheckbox = document.getElementById("use_mediafusion");
             const useCometCheckbox = document.getElementById("use_comet");
@@ -1405,6 +1405,7 @@
                     useEZTVCheckbox,
                     useSolidCheckbox,
                     useBitsearchCheckbox,
+                    useDhtIndexCheckbox,
                     useTorrentioCheckbox,
                     useMediaFusionCheckbox,
                     useCometCheckbox,
@@ -1588,6 +1589,7 @@
                 if (useEZTVCheckbox && !useEZTVCheckbox.checked) config.use_eztv = false;
                 if (useSolidCheckbox && !useSolidCheckbox.checked) config.use_solid = false;
                 if (useBitsearchCheckbox && !useBitsearchCheckbox.checked) config.use_bitsearch = false;
+                if (useDhtIndexCheckbox && !useDhtIndexCheckbox.checked) config.use_dhtindex = false;
                 config.use_torrentio = useTorrentioCheckbox.checked;
                 config.use_mediafusion = useMediaFusionCheckbox.checked;
                 config.use_comet = useCometCheckbox.checked;
@@ -1659,6 +1661,7 @@
                 if (config.use_eztv) searchSites.push("EZTV");
                 if (config.use_solid) searchSites.push("SolidTorrents");
                 if (config.use_bitsearch) searchSites.push("Bitsearch");
+                if (config.use_dhtindex !== false) searchSites.push("DHTIndex");
                 if (config.use_torrentio) searchSites.push("Torrentio");
                 if (config.use_mediafusion) searchSites.push("MediaFusion");
                 if (config.use_comet) searchSites.push("Comet");
@@ -1879,6 +1882,10 @@
                         const el = document.getElementById('use_bitsearch');
                         if (el) el.checked = !!cfg.use_bitsearch;
                     }
+                    if (cfg.use_dhtindex !== undefined) {
+                        const el = document.getElementById('use_dhtindex');
+                        if (el) el.checked = !!cfg.use_dhtindex;
+                    }
                     if (cfg.use_torrentio !== undefined) {
                         const el = document.getElementById('use_torrentio');
                         if (el) el.checked = cfg.use_torrentio;
@@ -2064,6 +2071,7 @@
             if (useEZTVCheckbox) useEZTVCheckbox.addEventListener('change', updateInstallLink);
             if (useSolidCheckbox) useSolidCheckbox.addEventListener('change', updateInstallLink);
             if (useBitsearchCheckbox) useBitsearchCheckbox.addEventListener('change', updateInstallLink);
+            if (useDhtIndexCheckbox) useDhtIndexCheckbox.addEventListener('change', updateInstallLink);
             useTorrentioCheckbox.addEventListener('change', updateInstallLink);
             useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
             useCometCheckbox.addEventListener('change', updateInstallLink);
