@@ -359,7 +359,7 @@ const bgJobQueue = [];
  * - Unlimited queue (all jobs will be processed eventually)
  * - Individual jobs skip unnecessary DB writes internally (e.g. insertEpisodeFiles skip-check)
  */
-const MAX_BG_QUEUE_SIZE = 100; // ✅ MEMORY FIX: Prevent unbounded queue growth
+const MAX_BG_QUEUE_SIZE = 500; // Increased to 500 to prevent dropping background jobs under high load
 const enqueueBgJob = (options) => {
     if (activeBgJobs < MAX_CONCURRENT_BG_JOBS) {
         _startBgJob(options);
@@ -11587,14 +11587,16 @@ async function handleStream(type, id, config, workerOrigin) {
                 console.log(`🔍 [Enrichment Titles] Italian: "${italianTitle || 'N/A'}", Original: "${originalTitle || 'N/A'}", English: "${mediaDetails.title}"`);
             }
 
-            // 🔄 Load balancing: Round-robin between VPS1 and VPS2
+            // 🔄 Load balancing: Round-robin between VPS1, VPS2, VPS3, VPS4
             const enrichmentServers = [
                 process.env.ENRICHMENT_SERVER_URL,
-                process.env.ENRICHMENT_SERVER_URL_2
+                process.env.ENRICHMENT_SERVER_URL_2,
+                process.env.ENRICHMENT_SERVER_URL_3,
+                process.env.ENRICHMENT_SERVER_URL_4
             ].filter(Boolean); // Remove undefined values
 
             if (enrichmentServers.length === 0) {
-                if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured (ENRICHMENT_SERVER_URL / ENRICHMENT_SERVER_URL_2), skipping webhook');
+                if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured, skipping webhook');
             } else {
 
             // Simple round-robin counter (rotates between servers)
