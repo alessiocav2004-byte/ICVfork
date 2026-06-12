@@ -11587,7 +11587,7 @@ async function handleStream(type, id, config, workerOrigin) {
                 console.log(`🔍 [Enrichment Titles] Italian: "${italianTitle || 'N/A'}", Original: "${originalTitle || 'N/A'}", English: "${mediaDetails.title}"`);
             }
 
-            // 🔄 Load balancing: Round-robin between VPS1, VPS2, VPS3, VPS4
+            // 🔄 Load balancing: Round-robin between standard servers, always call light server if configured
             const enrichmentServers = [
                 process.env.ENRICHMENT_SERVER_URL,
                 process.env.ENRICHMENT_SERVER_URL_2,
@@ -11595,50 +11595,64 @@ async function handleStream(type, id, config, workerOrigin) {
                 process.env.ENRICHMENT_SERVER_URL_4
             ].filter(Boolean); // Remove undefined values
 
-            if (enrichmentServers.length === 0) {
+            const lightServerUrl = process.env.LIGHT_ENRICHMENT_SERVER_URL;
+
+            if (enrichmentServers.length === 0 && !lightServerUrl) {
                 if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured, skipping webhook');
             } else {
+                const targets = [];
 
-            // Simple round-robin counter (rotates between servers)
-            if (!global.enrichmentServerIndex) {
-                global.enrichmentServerIndex = 0;
-            }
-            const enrichmentUrl = enrichmentServers[global.enrichmentServerIndex % enrichmentServers.length];
-            global.enrichmentServerIndex = (global.enrichmentServerIndex + 1) % enrichmentServers.length;
-
-            const enrichmentApiKey = process.env.ENRICHMENT_API_KEY || 'change-me-in-production';
-
-            if (DEBUG_MODE) console.log(`🚀 [Webhook] Calling VPS enrichment (server ${global.enrichmentServerIndex === 0 ? 2 : 1}): ${enrichmentUrl}`);
-
-            // 🚀 FIRE-AND-FORGET: Do NOT await!
-            fetch(enrichmentUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': enrichmentApiKey
-                },
-                body: JSON.stringify({
-                    imdbId: mediaDetails.imdbId,
-                    tmdbId: mediaDetails.tmdbId,
-                    italianTitle: italianTitle,
-                    originalTitle: originalTitle || mediaDetails.title,
-                    type: type,
-                    year: mediaDetails.year,
-                    searchQueries: searchQueries || []
-                }),
-                signal: AbortSignal.timeout(5000)
-            }).then(webhookResponse => {
-                if (webhookResponse.ok) {
-                    if (DEBUG_MODE) console.log(`✅ [Webhook] Enrichment queued (${webhookResponse.status})`);
-                } else {
-                    console.warn(`⚠️ [Webhook] Failed: ${webhookResponse.status}`);
+                // 1. Always include the lightweight server if configured
+                if (lightServerUrl) {
+                    targets.push(lightServerUrl);
                 }
-            }).catch(err => {
-                console.warn(`⚠️ [Webhook] Unreachable:`, err.message);
-            });
 
-            // Proceed immediately without waiting
-            } // end else (enrichmentServers.length > 0)
+                // 2. Select one standard server using the round-robin logic
+                if (enrichmentServers.length > 0) {
+                    if (!global.enrichmentServerIndex) {
+                        global.enrichmentServerIndex = 0;
+                    }
+                    const url = enrichmentServers[global.enrichmentServerIndex % enrichmentServers.length];
+                    global.enrichmentServerIndex = (global.enrichmentServerIndex + 1) % enrichmentServers.length;
+                    targets.push(url);
+                }
+
+                const enrichmentApiKey = process.env.ENRICHMENT_API_KEY || 'change-me-in-production';
+
+                targets.forEach((enrichmentUrl) => {
+                    const isLight = enrichmentUrl === lightServerUrl;
+                    if (DEBUG_MODE) {
+                        console.log(`🚀 [Webhook] Calling VPS enrichment (${isLight ? 'Lightweight' : 'Standard round-robin'}): ${enrichmentUrl}`);
+                    }
+
+                    // 🚀 FIRE-AND-FORGET: Do NOT await!
+                    fetch(enrichmentUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': enrichmentApiKey
+                        },
+                        body: JSON.stringify({
+                            imdbId: mediaDetails.imdbId,
+                            tmdbId: mediaDetails.tmdbId,
+                            italianTitle: italianTitle,
+                            originalTitle: originalTitle || mediaDetails.title,
+                            type: type,
+                            year: mediaDetails.year,
+                            searchQueries: searchQueries || []
+                        }),
+                        signal: AbortSignal.timeout(5000)
+                    }).then(webhookResponse => {
+                        if (webhookResponse.ok) {
+                            if (DEBUG_MODE) console.log(`✅ [Webhook] Enrichment queued (${webhookResponse.status}) for ${enrichmentUrl}`);
+                        } else {
+                            console.warn(`⚠️ [Webhook] Failed for ${enrichmentUrl}: ${webhookResponse.status}`);
+                        }
+                    }).catch(err => {
+                        console.warn(`⚠️ [Webhook] Unreachable for ${enrichmentUrl}:`, err.message);
+                    });
+                });
+            } // end else
         } else {
             if (DEBUG_MODE) console.log(`⏭️  [Background] Enrichment skipped (dbEnabled=${dbEnabled}, hasMediaDetails=${!!mediaDetails}, hasIds=${!!(mediaDetails?.tmdbId || mediaDetails?.imdbId || mediaDetails?.kitsuId)})`);
         }
