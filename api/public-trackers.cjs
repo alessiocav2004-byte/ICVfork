@@ -672,7 +672,7 @@ async function searchDhtIndexSingle(query) {
     if (isOnCooldown('dhtindex')) return [];
     return cached(`dhtindex:${query}`, () => rateLimited('dhtindex', DHTINDEX_MIN_INTERVAL_MS, async () => {
         try {
-            const url = `https://${DHTINDEX_HOST}/search?q=${encodeURIComponent(query)}`;
+            const url = `https://${DHTINDEX_HOST}/search?q=${encodeURIComponent(query)}&type=video&sort=best`;
             const res = await fetchWithTimeout(url, {
                 headers: { 'Accept': 'text/html,application/xhtml+xml' },
             }, DHTINDEX_TIMEOUT_MS);
