@@ -14,13 +14,14 @@
     "start:docker": "PORT=7860 node server.js"
   },
   "dependencies": {
+    "@viren070/parse-torrent-title": "^0.7.6",
     "axios": "^1.6.2",
     "bittorrent-dht": "^11.0.11",
     "bittorrent-tracker": "^11.2.2",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^17.2.3",
     "express": "^4.22.1",
-    "fuzzball": "^2.2.3",
+    "fuzzball": "^2.2.6",
     "multer": "^2.0.2",
     "node-fetch": "^2.7.0",
     "pg": "^8.17.2",
@@ -30,7 +31,3 @@
     "vercel": "^34.2.0"
   }
 }
-
-
-
-
