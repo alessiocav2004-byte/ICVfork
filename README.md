@@ -47,8 +47,8 @@ La caratteristica più potente di IlCorsaroViola è il suo database "vivo":
 - **Knaben** - Meta-search engine
 - **TorrentGalaxy** - Tracker internazionale
 - **RARBG** - Database storico (proxy)
-- **Torrentio/MediaFusion/Comet** - Addon esterni integrati
 - **Jackett** - I tuoi indexer privati
+- **E molti altri**
 
 ### ⚡ Performance & Debrid
 

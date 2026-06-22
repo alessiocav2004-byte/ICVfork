@@ -1512,7 +1512,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
             },
             addon: {
                 name: 'IlCorsaroViola',
-                version: '8.0.0',
+                version: '9.0.0',
                 presetId: preset,
                 manifestUrl: null
             },
@@ -1759,16 +1759,64 @@ function isTrustedSource(source, provider) {
     return false;
 }
 
-// ✅ NUOVA FUNZIONE: Icona lingua (usando i regex AIOStreams)
+// Language name → flag emoji mapping (matches formatter.cjs languageEmojiMap)
+const LANGUAGE_EMOJI_MAP = {
+    multi: '🌎', english: '🇬🇧', japanese: '🇯🇵', chinese: '🇨🇳', russian: '🇷🇺',
+    arabic: '🇸🇦', portuguese: '🇵🇹', spanish: '🇪🇸', french: '🇫🇷', german: '🇩🇪',
+    italian: '🇮🇹', korean: '🇰🇷', hindi: '🇮🇳', bengali: '🇧🇩', punjabi: '🇵🇰',
+    marathi: '🇮🇳', gujarati: '🇮🇳', tamil: '🇮🇳', telugu: '🇮🇳', kannada: '🇮🇳',
+    malayalam: '🇮🇳', thai: '🇹🇭', vietnamese: '🇻🇳', indonesian: '🇮🇩', turkish: '🇹🇷',
+    hebrew: '🇮🇱', persian: '🇮🇷', ukrainian: '🇺🇦', greek: '🇬🇷', lithuanian: '🇱🇹',
+    latvian: '🇱🇻', estonian: '🇪🇪', polish: '🇵🇱', czech: '🇨🇿', slovak: '🇸🇰',
+    hungarian: '🇭🇺', romanian: '🇷🇴', bulgarian: '🇧🇬', serbian: '🇷🇸', croatian: '🇭🇷',
+    slovenian: '🇸🇮', dutch: '🇳🇱', danish: '🇩🇰', finnish: '🇫🇮', swedish: '🇸🇪',
+    norwegian: '🇳🇴', malay: '🇲🇾', 'dual audio': '🎙️', dubbed: '🎤', latino: '💃🏻',
+};
+
+// ✅ Build language emoji string from detected language names
+function buildLanguageEmojis(detectedLanguages) {
+    const emojis = detectedLanguages
+        .map(lang => LANGUAGE_EMOJI_MAP[lang.toLowerCase()])
+        .filter(Boolean);
+    return [...new Set(emojis)].join(' ');
+}
+
+// ✅ Check if title matches preferred language
+function isPreferredLanguage(title, preferredLang, detectedLanguages = null) {
+    if (!title || !preferredLang || preferredLang === 'all') return true;
+    const lang = preferredLang.toLowerCase();
+
+    if (!detectedLanguages) {
+        const parsedInfo = parseTorrentTitleLegacy(title);
+        detectedLanguages = parsedInfo.languages || [];
+    }
+
+    const hasMulti = detectedLanguages.includes('Multi') || detectedLanguages.includes('Dual Audio');
+    if (hasMulti) return true;
+
+    if (lang === 'english') {
+        // For English: no language tag → assume English
+        if (detectedLanguages.length === 0) return true;
+        return detectedLanguages.includes('English');
+    }
+
+    if (lang === 'italian') {
+        return detectedLanguages.includes('Italian') || isItalian(title);
+    }
+
+    // For other languages: require explicit tag
+    const langName = lang.charAt(0).toUpperCase() + lang.slice(1);
+    return detectedLanguages.includes(langName);
+}
+
+// ✅ NUOVA FUNZIONE: Icona lingua con emoji corretto per OGNI lingua rilevata
 function getLanguageInfo(title, italianMovieTitle = null, source = null, parsedInfo = null) {
     if (!title) return { icon: '', isItalian: false, isMulti: false, displayLabel: '', detectedLanguages: [] };
 
-    // ✅ Se abbiamo parsedInfo dal parser AIOStreams, usalo direttamente
     let detectedLanguages = [];
     if (parsedInfo?.languages?.length > 0) {
         detectedLanguages = parsedInfo.languages;
     } else {
-        // Fallback: usa i regex PARSE_REGEX.languages se definiti
         if (typeof PARSE_REGEX !== 'undefined' && PARSE_REGEX.languages) {
             for (const [lang, regex] of Object.entries(PARSE_REGEX.languages)) {
                 if (regex.test(title)) {
@@ -1776,7 +1824,6 @@ function getLanguageInfo(title, italianMovieTitle = null, source = null, parsedI
                 }
             }
         } else {
-            // Fallback vecchio metodo se PARSE_REGEX non è ancora disponibile
             const lowerTitle = title.toLowerCase();
             if (/\b(ita|italian)\b/i.test(title) && !/\b(ita|italian)[.\s\-_]?sub/i.test(title)) detectedLanguages.push('Italian');
             if (/\b(eng|english)\b/i.test(title) && !/\b(eng|english)[.\s\-_]?sub/i.test(title)) detectedLanguages.push('English');
@@ -1785,48 +1832,23 @@ function getLanguageInfo(title, italianMovieTitle = null, source = null, parsedI
         }
     }
 
-    // Detect flags based on detected languages
     let hasIta = detectedLanguages.includes('Italian');
-    const hasEng = detectedLanguages.includes('English');
     const hasMulti = detectedLanguages.includes('Multi') || detectedLanguages.includes('Dual Audio');
 
-    // Check also for Italian via title matching
     if (!hasIta && italianMovieTitle) {
         hasIta = isItalian(title, italianMovieTitle);
     }
 
-    // Force Italian for trusted sources (CorsaroNero, Torrentio, Custom)
     if (source && isTrustedSource(source, null)) {
+        if (!detectedLanguages.includes('Italian')) detectedLanguages.push('Italian');
         hasIta = true;
     }
 
-    // Logic 1: ITA + ENG -> 🇮🇹 🇬🇧
-    if (hasIta && hasEng) {
-        return { icon: '🇮🇹 🇬🇧', isItalian: true, isMulti: true, displayLabel: '🇮🇹 🇬🇧', detectedLanguages };
-    }
+    // Build emoji from ALL detected languages — no more hiding behind generic 🌐
+    const icon = buildLanguageEmojis(detectedLanguages);
+    const displayLabel = icon || (hasMulti ? '🌈 MULTI' : '');
 
-    // Logic 2: SOLO ITA (or ITA + MULTI) -> 🇮🇹
-    if (hasIta) {
-        return { icon: '🇮🇹', isItalian: true, isMulti: hasMulti, displayLabel: '🇮🇹', detectedLanguages };
-    }
-
-    // Logic 3: MULTI (No ITA) -> 🌈 MULTI
-    if (hasMulti) {
-        return { icon: '🌈', isItalian: false, isMulti: true, displayLabel: '🌈 MULTI', detectedLanguages };
-    }
-
-    // Logic 4: SOLO ENG (Default) -> 🇬🇧
-    if (hasEng) {
-        return { icon: '🇬🇧', isItalian: false, isMulti: false, displayLabel: '🇬🇧', detectedLanguages };
-    }
-
-    // Logic 5: Altre lingue o nessuna rilevata -> 🌐
-    if (detectedLanguages.length > 0) {
-        return { icon: '🌐', isItalian: false, isMulti: false, displayLabel: '🌐', detectedLanguages };
-    }
-
-    // Default
-    return { icon: '', isItalian: false, isMulti: false, displayLabel: '', detectedLanguages };
+    return { icon, isItalian: hasIta, isMulti: hasMulti, displayLabel, detectedLanguages };
 }
 
 // ✅ NUOVA FUNZIONE: Detecta Season Pack
@@ -3057,17 +3079,8 @@ async function fetchKnabenData(searchQuery, type = 'movie', metadata = null, par
                 continue;
             }
 
-            // ✅ NUOVO: Parsing del titolo come AIOStreams
+            // ✅ Parsing del titolo per estrarre qualità, lingue, etc.
             const parsedTitle = parseTorrentTitleLegacy(hit.title);
-
-            // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
-            const hasItalian = parsedTitle.languages.includes('Italian');
-            const hasMulti = parsedTitle.languages.includes('Multi') || parsedTitle.languages.includes('Dual Audio');
-
-            // Se non ha italiano/multi dal parser, controlla con isItalian()
-            if (!hasItalian && !hasMulti && !isItalian(hit.title)) {
-                continue; // Skip non-Italian content
-            }
 
             // Verifica che abbia hash o link valido
             if (!hit.hash && !hit.link) {
@@ -3231,10 +3244,6 @@ async function fetchTorrentGalaxyData(searchQuery, type = 'movie', metadata = nu
 
                     // ✅ ITALIAN FILTER: Same as Knaben - only accept Italian/Multi content
                     const torrentTitle = item.n || '';
-                    if (!isItalian(torrentTitle)) {
-                        // Skip non-Italian content
-                        continue;
-                    }
 
                     // Convert bytes to human-readable size
                     const sizeBytes = parseInt(item.s) || 0;
@@ -3657,7 +3666,7 @@ async function fetchJackettioData(searchQuery, type = 'movie', jackettioInstance
         }
 
         // ✅ ONLY ITALIAN RESULTS
-        const results = await jackettioInstance.search(searchQuery, category, true);
+        const results = await jackettioInstance.search(searchQuery, category, false);
         return results;
 
     } catch (error) {
@@ -3954,20 +3963,7 @@ async function fetchUIndexSingle(searchQuery, type = 'movie', validationMetadata
             const parsedTitle = parseTorrentTitleLegacy(result.title);
             result.parsedInfo = parsedTitle;
 
-            // ✅ FILTRO ITALIANO: Accetta solo italiano, sub-ita, multi
-            const hasItalian = parsedTitle.languages.includes('Italian');
-            const hasMulti = parsedTitle.languages.includes('Multi') || parsedTitle.languages.includes('Dual Audio');
-            if (!hasItalian && !hasMulti) {
-                // Fallback: controlla anche con regex diretta per casi edge
-                const italianFallback = /\b(ita|italian|sub[.\s\-_]?ita|subita|ita[.\s\-_]?sub)\b/i.test(result.title);
-                const multiFallback = /\b(multi|dual[.\s\-_]?audio)\b/i.test(result.title);
-                if (!italianFallback && !multiFallback) {
-                    if (DEBUG_MODE) console.log(`🔍 [UIndex] Skipping non-Italian: "${result.title.substring(0, 60)}..."`);
-                    continue;
-                }
-            }
-
-            // ✅ NUOVO: Validazione titolo come AIOStreams
+            // ✅ Validazione titolo come AIOStreams
             if (validationMetadata && isTitleWrong(parsedTitle, validationMetadata, result.title)) {
                 if (DEBUG_MODE) console.log(`🔍 [UIndex] Skipping wrong title: "${result.title.substring(0, 60)}..."`);
                 continue;
@@ -6630,6 +6626,14 @@ async function handleStream(type, id, config, workerOrigin) {
 
     // 🚀 HYBRID MODE: Return DB results immediately, scrape in background
     const useHybridMode = config.hybrid_mode === true;
+
+    // ✅ CONTENT LANGUAGE: Normalize config, handle backwards compat full_ita → content_language
+    if (config.full_ita === true && !config.content_language) {
+        config.content_language = 'italian';
+    } else if (!config.content_language) {
+        config.content_language = 'all';
+    }
+    const contentLanguage = config.content_language;
 
     // ✅ GLOBAL TORRENT CACHE - key is type:id (NO user-specific keys!)
     // This allows different users to share the same torrent search results
@@ -9793,19 +9797,18 @@ async function handleStream(type, id, config, workerOrigin) {
             }
 
             // ✅ LANGUAGE FILTERING (Post-Season Filter)
-            // Apply "Italian Preference" ONLY after we have filtered for the correct season/episode.
-            // This ensures we don't discard English S02 just because we found Italian S01.
-            if (filteredResults.length > 0) {
+            // Only applies for Italian content preference — preserves the original behavior
+            // where Italian results for the correct season/episode are preferred.
+            // For other languages or "All Languages", this filter is skipped.
+            if (contentLanguage === 'italian' && filteredResults.length > 0) {
                 const hasItalianResults = filteredResults.some(r => {
                     const sourceLabel = (r.source || r.provider || '').toLowerCase();
                     if (sourceLabel.includes('custom manual')) return true;
-                    // 📦 For pack files with fileIndex, check file_title AND pack title
                     const titleForLang = (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title)
                         ? r.file_title
                         : r.title;
                     const lang = getLanguageInfo(titleForLang, italianTitle, r.source);
                     if (lang.isItalian || lang.isMulti) return true;
-                    // 📦 PACK ITA INHERITANCE: pack title has ITA → file inherits
                     if (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title) {
                         const packLang = getLanguageInfo(r.title || '', italianTitle, r.source);
                         if (packLang.isItalian || packLang.isMulti) return true;
@@ -9822,15 +9825,12 @@ async function handleStream(type, id, config, workerOrigin) {
                             ? r.file_title
                             : r.title;
 
-                        // ✅ EXEMPTIONS: Trusted sources (Custom, corsaro, torrentio) & Movie Packs
                         const isMoviePackFile = (type === 'movie' && r.fileIndex !== undefined && r.fileIndex !== null);
-
                         if (isTrustedSource(r.source, r.provider) || isMoviePackFile) return true;
 
                         const lang = getLanguageInfo(titleForLang, italianTitle, r.source);
                         if (lang.isItalian || lang.isMulti) return true;
 
-                        // 📦 PACK ITA INHERITANCE: pack title has ITA → file inherits
                         if (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title) {
                             const packLang = getLanguageInfo(r.title || '', italianTitle, r.source);
                             if (packLang.isItalian || packLang.isMulti) return true;
@@ -9838,29 +9838,10 @@ async function handleStream(type, id, config, workerOrigin) {
                         return false;
                     });
 
-                    // Only apply if we actually filter something out
                     if (italianOnly.length < originalCount) {
-                        // console.log(`🇮🇹 [Lang Filter] Found ${italianOnly.length} Italian results for correct season. Hiding ${originalCount - italianOnly.length} non-Italian results.`);
-
-                        // ✅ STRICT FILTER: Even if we keep non-Italian as fallback for display,
-                        // we mark them so they don't get saved to the DB if the user wants strict DB
-                        // Actually, user said "non ita non metterli nel db".
-                        // So we will just STRICTLY filter them out here if Italians are found.
-                        // But if NO Italians are found, we might want to return them for viewing but NOT save them.
-
-                        // Current implementation: filteredResults = italianOnly;
-                        // This already hides them from view AND DB because we continue with `filteredResults`.
                         filteredResults = italianOnly;
                     }
                 } else {
-                    // No Italian results found.
-                    // User said: "non ita non metterli nel db... non servono..."
-                    // If we want to prevent them from hitting the DB, we must filter them out.
-                    // BUT if we filter them out here, the user sees "No streams".
-                    // If we want to show them but not save them, we need a flag.
-                    // Let's implement Strict Filtering: If no ITA, return NOTHING (or keep logic but block DB save).
-                    // Given the explicit request "non metterli nel db", I will flag them 'doNotSave'.
-
                     console.log(`🌍 [Lang Filter] No Italian results. Marking ${filteredResults.length} results as 'skip_db_save'.`);
                     filteredResults.forEach(r => {
                         const sourceLabel = (r.source || r.provider || '').toLowerCase();
@@ -9873,14 +9854,14 @@ async function handleStream(type, id, config, workerOrigin) {
 
             // ⚠️ LIMIT + LANG FILTER MOVED: Applied AFTER cache block (so cache contains complete results)
 
-            // ✅ SAVE TO GLOBAL CACHE - raw torrent results for all users (BEFORE full_ita filter)
+            // ✅ SAVE TO GLOBAL CACHE - raw torrent results for all users (BEFORE content_language filter)
             // Conditions to save:
             // 1. Global cache must be enabled
             // 2. Must have results
             // 3. User must have use_global_cache enabled (default: true)
             // 4. User must NOT be db_only (db_only can read but never saves)
             // 5. User must have ALL essential providers enabled (UIndex is optional)
-            // 6. User must NOT have full_ita=true (cache stores COMPLETE results)
+            // 6. User must have content_language=all (cache stores COMPLETE results)
             // 7. Content must NOT be too recent (< 48 hours) - fresh releases get incomplete results
             const hasAllEssentialProviders = (
                 config.use_corsaronero !== false &&
@@ -9920,7 +9901,7 @@ async function handleStream(type, id, config, workerOrigin) {
                 filteredResults.length > 0 &&
                 useGlobalCache &&
                 !config.db_only &&
-                !config.full_ita &&  // ✅ Only save if full_ita=false (cache stores COMPLETE results)
+                contentLanguage === 'all' &&  // ✅ Only save with complete results (no language filter)
                 hasAllEssentialProviders &&
                 !isTooRecent  // ✅ Don't cache fresh releases (< 4 days / 96h)
             );
@@ -9964,7 +9945,7 @@ async function handleStream(type, id, config, workerOrigin) {
                 const reasons = [];
                 if (!useGlobalCache) reasons.push('use_global_cache=false');
                 if (config.db_only) reasons.push('db_only=true');
-                if (config.full_ita) reasons.push('full_ita=true (need complete results)');
+                if (contentLanguage !== 'all') reasons.push(`content_language=${contentLanguage} (need complete results)`);
                 if (!hasAllEssentialProviders) reasons.push('missing providers');
                 if (isTooRecent) reasons.push(`too recent (< 48h since release: ${contentReleaseDate})`);
                 console.log(`⏭️ [CACHE SKIP] Not saving to cache: ${reasons.join(', ')}`);
@@ -10052,37 +10033,42 @@ async function handleStream(type, id, config, workerOrigin) {
             }
         }
 
-        // ✅ FULL ITA MODE: Only show results with "ITA" in title (except trusted sources)
-        if (config.full_ita) {
+        // ✅ CONTENT LANGUAGE FILTER: Show only results matching the preferred language
+        if (contentLanguage !== 'all') {
             const beforeCount = filteredResults.length;
 
             filteredResults = filteredResults.filter(result => {
-                // ✅ EXEMPT all trusted sources (Custom, corsaro, torrentio/Torrentio(X))
-                if (isTrustedSource(result.source, result.provider) || isTrustedSource(result.externalAddon, null)) return true;
-
-                // 🔧 FIX: ALL packs (movie AND series) must have ITA in title or file_title
-                const isPackLink = (result.fileIndex !== undefined && result.fileIndex !== null);
-                if (isPackLink) {
-                    // Check for ITA in file_title or title
-                    const fileTitle = (result.file_title || '').toLowerCase();
-                    const title = (result.title || result.websiteTitle || '').toLowerCase();
-                    const hasItaInPack = /\bita\b|italian|italiano/i.test(fileTitle) || /\bita\b|italian|italiano/i.test(title);
-                    if (hasItaInPack) return true;
-                    // If no ITA found, continue with normal checks below (will be filtered)
+                // Trusted sources (Custom, corsaro, torrentio) are assumed Italian — always show
+                if (contentLanguage === 'italian' && 
+                    (isTrustedSource(result.source, result.provider) || isTrustedSource(result.externalAddon, null))) {
+                    return true;
                 }
 
-                // For all other providers, check for strict ITA in title
-                const title = (result.title || result.websiteTitle || '').toLowerCase();
-                const hasIta = /\bita\b|italian|italiano/i.test(title);
+                const titleForLang = (result.fileIndex !== undefined && result.fileIndex !== null && result.file_title)
+                    ? result.file_title
+                    : (result.title || result.websiteTitle || '');
 
-                if (!hasIta) {
-                    console.log(`🇮🇹 [FULL ITA] Filtered out: "${(result.title || '').substring(0, 50)}..." (${result.source || result.externalAddon || 'unknown'})`);
+                const parsedLang = parseTorrentTitleLegacy(titleForLang);
+                const detected = parsedLang.languages || [];
+
+                // Packs: also check the pack title for language tag
+                if (result.fileIndex !== undefined && result.fileIndex !== null && result.file_title) {
+                    const packLang = parseTorrentTitleLegacy(result.title || '');
+                    if (packLang.languages) detected.push(...packLang.languages);
                 }
 
-                return hasIta;
+                const allowed = isPreferredLanguage(titleForLang, contentLanguage, detected);
+
+                if (!allowed && DEBUG_MODE) {
+                    console.log(`🌐 [Lang Filter] Filtered out (${contentLanguage}): "${titleForLang.substring(0, 50)}..." (${result.source || result.externalAddon || 'unknown'})`);
+                }
+
+                return allowed;
             });
 
-            console.log(`🇮🇹 [FULL ITA] Filtered ${beforeCount} → ${filteredResults.length} results (strict ITA mode)`);
+            if (beforeCount !== filteredResults.length) {
+                console.log(`🌐 [Lang Filter] Filtered ${beforeCount} → ${filteredResults.length} results (language: ${contentLanguage})`);
+            }
         }
 
         // Limit results for performance (after all filters)
@@ -12089,7 +12075,7 @@ export default async function handler(req, res) {
                     if (hasAD) services.push('🅰️');   // Red A for AllDebrid
 
                     // Feature flags
-                    const hasFullIta = config.full_ita === true;
+                    const contentLang = config.content_language || 'all';
                     const hasSkipIntro = config.introskip_enabled === true;
                     const hasDbOnly = config.db_only === true;
                     const hasAnime = config.anime_enabled === true;
@@ -12102,7 +12088,12 @@ export default async function handler(req, res) {
                     let featureSuffix = '';
                     if (hasDbOnly) featureSuffix += '⚡';
                     if (hasJackett) featureSuffix += '🧥';
-                    if (hasFullIta) featureSuffix += '🇮🇹';
+                    if (contentLang === 'italian') featureSuffix += '🇮🇹';
+                    else if (contentLang === 'english') featureSuffix += '🇬🇧';
+                    else if (contentLang === 'french') featureSuffix += '🇫🇷';
+                    else if (contentLang === 'spanish') featureSuffix += '🇪🇸';
+                    else if (contentLang === 'german') featureSuffix += '🇩🇪';
+                    else if (contentLang === 'portuguese') featureSuffix += '🇵🇹';
                     if (hasSkipIntro) featureSuffix += '⏩';
                     if (config.only_debrid_cache === true) featureSuffix += '⚡';
                     if (hasAnime) {
@@ -12134,7 +12125,7 @@ export default async function handler(req, res) {
 
             const manifest = {
                 id: 'community.ilcorsaroviola.ita',
-                version: '8.0.0',
+                version: '9.0.0',
                 name: addonName,
                 description: 'Streaming da UIndex, CorsaroNero DB local, Knaben e Jackettio con o senza Real-Debrid, Torbox e Alldebrid.',
                 logo: 'https://i.imgur.com/kZK4KKS.png',
@@ -14654,7 +14645,7 @@ export default async function handler(req, res) {
             const health = {
                 status: 'OK',
                 addon: 'IlCorsaroViola',
-                version: '8.0.0',
+                version: '9.0.0',
                 uptime: Date.now(),
                 cache: {
                     entries: cache.size,
