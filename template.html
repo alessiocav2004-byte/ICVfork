@@ -555,18 +555,6 @@
                     <button class="lang-btn active" id="lang_it" onclick="switchUILanguage('it')">🇮🇹 Italiano</button>
                     <button class="lang-btn" id="lang_en" onclick="switchUILanguage('en')">🇬🇧 English</button>
                 </div>
-                <div style="text-align:center; margin-bottom:12px;">
-                    <select id="content_language" class="content-lang-select" onchange="updateInstallLink()">
-                        <option value="all" data-i18n="lang_all">🌐 All Languages</option>
-                        <option value="italian" data-i18n="lang_italian">🇮🇹 Italian</option>
-                        <option value="english" data-i18n="lang_english">🇬🇧 English</option>
-                        <option value="french" data-i18n="lang_french">🇫🇷 French</option>
-                        <option value="spanish" data-i18n="lang_spanish">🇪🇸 Spanish</option>
-                        <option value="german" data-i18n="lang_german">🇩🇪 German</option>
-                        <option value="portuguese" data-i18n="lang_portuguese">🇵🇹 Portuguese</option>
-                    </select>
-                    <div style="font-size:0.75em; color:#6b7280; margin-top:2px;" data-i18n="lang_hint">Filter results by language</div>
-                </div>
                 <div class="features-box">
                     <div style="grid-column: span 1;">
                         <h4>Caratteristiche principali:</h4>
@@ -769,7 +757,7 @@
             <!-- Proxy -->
             <div class="service-card area-proxy">
                 <div class="service-header">
-                    <div class="service-title">� Proxy (Opzionale)</div>
+                    <div class="service-title">🌐 Proxy (Opzionale)</div>
                 </div>
                 <small>Per condividere Real-Debrid tra più utenti</small>
                 <input id="mediaflow_url" placeholder="Proxy URL (es: https://your-proxy.com)" type="text">
@@ -817,6 +805,18 @@
                         </label>
                         <small style="display: block; margin-top: 6px; color: #6b7280;">Solo risultati con "ITA" nel
                             nome</small>
+                        </div>
+                        <div style="text-align:center; margin-top:12px;">
+                            <select id="content_language" class="content-lang-select" onchange="updateInstallLink()">
+                                <option value="all" data-i18n="lang_all">🌐 All Languages</option>
+                                <option value="italian" data-i18n="lang_italian">🇮🇹 Italian</option>
+                                <option value="english" data-i18n="lang_english">🇬🇧 English</option>
+                                <option value="french" data-i18n="lang_french">🇫🇷 French</option>
+                                <option value="spanish" data-i18n="lang_spanish">🇪🇸 Spanish</option>
+                                <option value="german" data-i18n="lang_german">🇩🇪 German</option>
+                                <option value="portuguese" data-i18n="lang_portuguese">🇵🇹 Portuguese</option>
+                            </select>
+                            <div style="font-size:0.75em; color:#6b7280; margin-top:2px;" data-i18n="lang_hint">Filter results by language</div>
                         </div>
                     </div>
                 </div>
@@ -2507,7 +2507,11 @@
             updateInstallLink();
 
             installButton.addEventListener('click', () => {
-                if (installLinkDisplay.value) window.location.href = installLinkDisplay.value;
+                if (installLinkDisplay.value) {
+                    var url = installLinkDisplay.value;
+                    var stremioUrl = url.replace(/^https?:\/\//, 'stremio://');
+                    window.location.href = stremioUrl;
+                }
             });
 
             copyButton.addEventListener('click', () => {
