@@ -506,6 +506,13 @@
             color: #9ca3af;
             font-size: clamp(0.7rem, 1.5vw, 0.875rem);
         }
+
+        .lang-switch { display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:16px; }
+        .lang-btn { padding:4px 14px; border-radius:20px; border:1px solid rgba(147,51,234,0.3); background:rgba(20,20,40,0.4); color:#9ca3af; cursor:pointer; font-size:0.85em; transition:all 0.3s ease; }
+        .lang-btn.active { background:rgba(147,51,234,0.3); border-color:#9333ea; color:#fff; }
+        .lang-btn:hover { border-color:rgba(147,51,234,0.6); }
+        .content-lang-select { background:rgba(20,20,40,0.6); border:1px solid rgba(147,51,234,0.3); border-radius:8px; color:#fff; padding:6px 10px; font-size:0.85em; cursor:pointer; }
+        .content-lang-select option { background:#1a1a2e; color:#fff; }
     </style>
     <style>
         /* Vanta WAVES background container */
@@ -544,6 +551,22 @@
             </div>
 
             <div class="header-right">
+                <div class="lang-switch">
+                    <button class="lang-btn active" id="lang_it" onclick="switchUILanguage('it')">🇮🇹 Italiano</button>
+                    <button class="lang-btn" id="lang_en" onclick="switchUILanguage('en')">🇬🇧 English</button>
+                </div>
+                <div style="text-align:center; margin-bottom:12px;">
+                    <select id="content_language" class="content-lang-select" onchange="updateInstallLink()">
+                        <option value="all" data-i18n="lang_all">🌐 All Languages</option>
+                        <option value="italian" data-i18n="lang_italian">🇮🇹 Italian</option>
+                        <option value="english" data-i18n="lang_english">🇬🇧 English</option>
+                        <option value="french" data-i18n="lang_french">🇫🇷 French</option>
+                        <option value="spanish" data-i18n="lang_spanish">🇪🇸 Spanish</option>
+                        <option value="german" data-i18n="lang_german">🇩🇪 German</option>
+                        <option value="portuguese" data-i18n="lang_portuguese">🇵🇹 Portuguese</option>
+                    </select>
+                    <div style="font-size:0.75em; color:#6b7280; margin-top:2px;" data-i18n="lang_hint">Filter results by language</div>
+                </div>
                 <div class="features-box">
                     <div style="grid-column: span 1;">
                         <h4>Caratteristiche principali:</h4>
@@ -785,7 +808,8 @@
                         <div style="font-size: 0.8em; color: #9ca3af; margin-bottom: 15px;">Risposta istantanea +
                             scraping in background</div>
 
-                        <!-- Full ITA Toggle -->
+                        <!-- Full ITA Toggle - shown only when content language is Italian -->
+                        <div id="full_ita_container">
                         <label
                             style="display: flex; align-items: center; justify-content: center; padding: 12px 20px; background: rgba(0, 128, 0, 0.15); border: 2px solid rgba(0, 200, 83, 0.4); border-radius: 12px; cursor: pointer; max-width: 320px; margin: 0 auto;">
                             <input type="checkbox" id="full_ita" style="width: 20px; height: 20px; margin-right: 10px;">
@@ -793,11 +817,12 @@
                         </label>
                         <small style="display: block; margin-top: 6px; color: #6b7280;">Solo risultati con "ITA" nel
                             nome</small>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Old Style Toggle (Small, Always Visible) -->
-                <div style="text-align: center; margin-bottom: 15px; margin-top: 10px;">
+                <div id="old_style_container" style="text-align: center; margin-bottom: 15px; margin-top: 10px;">
                     <label
                         style="cursor: pointer; font-size: 0.8em; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 5px 12px; border-radius: 20px; background: rgba(127, 29, 29, 0.1); transition: all 0.2s ease; display: inline-block;">
                         <input type="checkbox" id="use_old_style" style="vertical-align: middle; margin-right: 5px;">
@@ -806,6 +831,7 @@
                 </div>
 
                 <!-- Extra Features (Anime) -->
+                <div id="anime_section">
                 <div class="section-title" style="margin-bottom: 10px;">Flussi HTTP &lt;/&gt;</div>
                 <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px; padding: 0 10px;">
                     <!-- Anime Card -->
@@ -820,6 +846,7 @@
                     </label>
 
 
+                </div>
                 </div>
 
                 <!-- Hidden checkboxes for hybrid mode defaults -->
@@ -971,10 +998,12 @@
 
                     <!-- Options: Full ITA, DB Only, Cache, Hybrid -->
                     <div class="search-sites">
+                        <div id="full_ita_container_old">
                         <label style="background: rgba(0, 128, 0, 0.15); border-color: rgba(0, 200, 83, 0.4);">
                             <input type="checkbox" id="full_ita_old">
                             <span>🇮🇹 FULL ITA (Solo risultati con "ITA" nel nome)</span>
                         </label>
+                        </div>
                         <label style="background: rgba(0, 100, 200, 0.15); border-color: rgba(100, 150, 255, 0.4);">
                             <input type="checkbox" id="db_only">
                             <span>💾 Ricerca Solo DB (Ultra-veloce, no live search)</span>
@@ -1213,19 +1242,19 @@
                 <!-- Manual Import (Smaller, Above) -->
                 <button id="manual_import_button" onclick="window.open('/scrape', '_blank')"
                     style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3); padding: 10px 20px; font-size: 0.9em; min-width: auto; width: 50%; margin-bottom: 20px;">
-                    Aggiungi Torrent Custom
+                    <span data-i18n="custom_torrent">Aggiungi Torrent Custom</span>
                 </button>
             </div>
 
             <div class="button-group">
-                <button id="install_button" disabled>Installa Addon</button>
+                <button id="install_button" disabled data-i18n="open_stremio">▶️ Apri in Stremio</button>
 
                 <a href="https://ko-fi.com/G2G41MG3ZN" target="_blank" class="custom-kofi-union">
                     <img src="https://storage.ko-fi.com/cdn/cup-border.png" alt="Ko-fi">
-                    <span>Un Grog per noi 🍻</span>
+                    <span data-i18n="kofi">Un Grog per noi 🍻</span>
                 </a>
 
-                <button id="copy_button" disabled>Copia Link</button>
+                <button id="copy_button" disabled data-i18n="install_btn">📋 Copia Link</button>
             </div>
 
             <style>
@@ -1281,7 +1310,91 @@
             </div>
         </div>
         <script>
+            // ===== UI LANGUAGE =====
+            const TRANSLATIONS = {
+                it: {
+                    lang_all: '🌐 Tutte le Lingue',
+                    lang_italian: '🇮🇹 Italiano',
+                    lang_english: '🇬🇧 Inglese',
+                    lang_french: '🇫🇷 Francese',
+                    lang_spanish: '🇪🇸 Spagnolo',
+                    lang_german: '🇩🇪 Tedesco',
+                    lang_portuguese: '🇵🇹 Portoghese',
+                    install_btn: '📋 Copia Link Installazione',
+                    open_stremio: '▶️ Apri in Stremio',
+                    kofi: 'Un Grog per noi 🍻',
+                    custom_torrent: 'Aggiungi Torrent Custom',
+                    lang_hint: 'Filtra i risultati per lingua',
+                    status_ready: 'Configurazione pronta',
+                },
+                en: {
+                    lang_all: '🌐 All Languages',
+                    lang_italian: '🇮🇹 Italian',
+                    lang_english: '🇬🇧 English',
+                    lang_french: '🇫🇷 French',
+                    lang_spanish: '🇪🇸 Spanish',
+                    lang_german: '🇩🇪 German',
+                    lang_portuguese: '🇵🇹 Portuguese',
+                    install_btn: '📋 Copy Install Link',
+                    open_stremio: '▶️ Open in Stremio',
+                    kofi: 'A Grog for us 🍻',
+                    custom_torrent: 'Add Custom Torrent',
+                    lang_hint: 'Filter results by language',
+                    status_ready: 'Configuration ready',
+                }
+            };
+            let currentUILang = 'it';
+            function t(k) { return (TRANSLATIONS[currentUILang]||TRANSLATIONS.it)[k]||k; }
+            function switchUILanguage(l) {
+                currentUILang = l;
+                document.getElementById('lang_it').classList.toggle('active', l==='it');
+                document.getElementById('lang_en').classList.toggle('active', l==='en');
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    var key = el.getAttribute('data-i18n');
+                    el.textContent = t(key);
+                });
+                var sel = document.getElementById('content_language');
+                var isIta = sel && (sel.value === 'all' || sel.value === 'italian');
+                var show = isIta && currentUILang === 'it';
+                var oe = document.getElementById('old_style_container');
+                var ae = document.getElementById('anime_section');
+                if (oe) oe.style.display = show ? 'block' : 'none';
+                if (ae) ae.style.display = show ? 'block' : 'none';
+                // Full ITA checkbox: only visible when content language is Italian
+                var showFullIta = sel && sel.value === 'italian';
+                var fc = document.getElementById('full_ita_container');
+                var fco = document.getElementById('full_ita_container_old');
+                if (fc) fc.style.display = showFullIta ? '' : 'none';
+                if (fco) fco.style.display = showFullIta ? '' : 'none';
+                if (!showFullIta) {
+                    if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                    if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                }
+                updateInstallLink();
+            }
+
             // Input fields
+            var _clSelect = document.getElementById('content_language');
+            if (_clSelect) {
+                _clSelect.addEventListener('change', function() {
+                    var isIta = this.value === 'all' || this.value === 'italian';
+                    var show = isIta && currentUILang === 'it';
+                    var oe = document.getElementById('old_style_container');
+                    var ae = document.getElementById('anime_section');
+                    if (oe) oe.style.display = show ? 'block' : 'none';
+                    if (ae) ae.style.display = show ? 'block' : 'none';
+                    // Full ITA checkbox: only when content is Italian
+                    var showFullIta = this.value === 'italian';
+                    var fc = document.getElementById('full_ita_container');
+                    var fco = document.getElementById('full_ita_container_old');
+                    if (fc) fc.style.display = showFullIta ? '' : 'none';
+                    if (fco) fco.style.display = showFullIta ? '' : 'none';
+                    if (!showFullIta) {
+                        if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                        if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                    }
+                });
+            }
             const useRdCheckbox = document.getElementById("use_rd");
             const rdKeyInput = document.getElementById("rd_key");
             const useTorboxCheckbox = document.getElementById("use_torbox");
@@ -1598,6 +1711,7 @@
                 config.use_rarbg = useRarbgCheckbox.checked;
                 config.use_jackett = useJackettCheckbox.checked;
                 config.full_ita = fullItaCheckbox.checked;
+                config.content_language = document.getElementById('content_language').value;
                 config.db_only = dbOnlyCheckbox.checked;
                 config.use_global_cache = useGlobalCacheCheckbox.checked;
                 config.only_debrid_cache = document.getElementById('only_debrid_cache').checked;
@@ -1708,7 +1822,13 @@
                 // Feature icons (no separator)
                 let featureEmojis = '';
                 if (config.db_only) featureEmojis += '⚡';
-                if (config.full_ita) featureEmojis += '🇮🇹';
+                var cl = config.content_language || (config.full_ita ? 'italian' : 'all');
+                if (cl === 'italian') featureEmojis += '🇮🇹';
+                else if (cl === 'english') featureEmojis += '🇬🇧';
+                else if (cl === 'french') featureEmojis += '🇫🇷';
+                else if (cl === 'spanish') featureEmojis += '🇪🇸';
+                else if (cl === 'german') featureEmojis += '🇩🇪';
+                else if (cl === 'portuguese') featureEmojis += '🇵🇹';
                 if (config.introskip_enabled) featureEmojis += '⏩';
                 if (config.anime_enabled) featureEmojis += '⛩️';
                 if (config.only_debrid_cache) featureEmojis += '⚡';
@@ -1919,6 +2039,32 @@
                         const elOld = document.getElementById('full_ita_old');
                         if (el) el.checked = cfg.full_ita;
                         if (elOld) elOld.checked = cfg.full_ita;
+                        // Sync content_language select with full_ita
+                        const cl = document.getElementById('content_language');
+                        if (cl && cfg.full_ita) cl.value = 'italian';
+                    }
+                    if (cfg.content_language) {
+                        const cl = document.getElementById('content_language');
+                        if (cl) cl.value = cfg.content_language;
+                    }
+                    // Update Full ITA + Old Style + Anime visibility after loading content_language
+                    var _fcl = document.getElementById('content_language');
+                    if (_fcl) {
+                        var _isIta = _fcl.value === 'all' || _fcl.value === 'italian';
+                        var _show = _isIta && currentUILang === 'it';
+                        var _oe = document.getElementById('old_style_container');
+                        var _ae = document.getElementById('anime_section');
+                        if (_oe) _oe.style.display = _show ? 'block' : 'none';
+                        if (_ae) _ae.style.display = _show ? 'block' : 'none';
+                        var _showFi = _fcl.value === 'italian';
+                        var _fc = document.getElementById('full_ita_container');
+                        if (_fc) _fc.style.display = _showFi ? '' : 'none';
+                        var _fco = document.getElementById('full_ita_container_old');
+                        if (_fco) _fco.style.display = _showFi ? '' : 'none';
+                        if (!_showFi) {
+                            if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                            if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                        }
                     }
                     if (cfg.db_only !== undefined) {
                         const el = document.getElementById('db_only');
@@ -2076,7 +2222,11 @@
             useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
             useCometCheckbox.addEventListener('change', updateInstallLink);
             useRarbgCheckbox.addEventListener('change', updateInstallLink);
-            fullItaCheckbox.addEventListener('change', updateInstallLink);
+            fullItaCheckbox.addEventListener('change', function() {
+                var _cl = document.getElementById('content_language');
+                if (_cl) _cl.value = this.checked ? 'italian' : 'all';
+                updateInstallLink();
+            });
             dbOnlyCheckbox.addEventListener('change', updateInstallLink);
             useGlobalCacheCheckbox.addEventListener('change', updateInstallLink);
             document.getElementById('only_debrid_cache').addEventListener('change', updateInstallLink);
@@ -2099,7 +2249,11 @@
             useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
             useCometCheckbox.addEventListener('change', updateInstallLink);
             useRarbgCheckbox.addEventListener('change', updateInstallLink);
-            fullItaCheckbox.addEventListener('change', updateInstallLink);
+            fullItaCheckbox.addEventListener('change', function() {
+                var _cl = document.getElementById('content_language');
+                if (_cl) _cl.value = this.checked ? 'italian' : 'all';
+                updateInstallLink();
+            });
             useGlobalCacheCheckbox.addEventListener('change', updateInstallLink);
             useMaxResLimitCheckbox.addEventListener('change', updateInstallLink);
             maxResLimitSelect.addEventListener('change', updateInstallLink);
@@ -2371,6 +2525,9 @@
                     });
                 }
             });
+
+            // Apply initial UI language after all consts declared
+            switchUILanguage('it');
         </script>
         <script>
             // Vanta.WAVES animated background (html5up-vantajs style)
