@@ -11582,6 +11582,7 @@ async function handleStream(type, id, config, workerOrigin) {
             ].filter(Boolean); // Remove undefined values
 
             const lightServerUrl = process.env.LIGHT_ENRICHMENT_SERVER_URL;
+            const exttoServerUrl = process.env.EXTO_ENRICHMENT_SERVER_URL;
 
             if (enrichmentServers.length === 0 && !lightServerUrl) {
                 if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured, skipping webhook');
@@ -11591,6 +11592,11 @@ async function handleStream(type, id, config, workerOrigin) {
                 // 1. Always include the lightweight server if configured
                 if (lightServerUrl) {
                     targets.push(lightServerUrl);
+                }
+
+                // 1b. Always include the ExtTo enrichment server if configured
+                if (exttoServerUrl) {
+                    targets.push(exttoServerUrl);
                 }
 
                 // 2. Select one standard server using the round-robin logic
