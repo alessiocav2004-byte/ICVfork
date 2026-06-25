@@ -551,34 +551,24 @@
             </div>
 
             <div class="header-right">
-                <div class="lang-switch">
-                    <button class="lang-btn active" id="lang_it" onclick="switchUILanguage('it')">🇮🇹 Italiano</button>
-                    <button class="lang-btn" id="lang_en" onclick="switchUILanguage('en')">🇬🇧 English</button>
+                <div style="margin-bottom:16px;display:flex;gap:8px;">
+                    <button class="lang-btn active" id="lang_it" onclick="switchUILanguage('it')" style="flex:1;padding:10px 20px;border:none;background:linear-gradient(135deg,#9333ea,#7c3aed);color:#fff;border-radius:12px;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇮🇹 Italiano</button>
+                    <button class="lang-btn" id="lang_en" onclick="switchUILanguage('en')" style="flex:1;padding:10px 20px;border:none;background:rgba(20,20,40,0.4);color:#9ca3af;border-radius:12px;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇬🇧 English</button>
                 </div>
-                <div class="features-box">
-                    <div style="grid-column: span 1;">
-                        <h4 data-i18n="features_title">Caratteristiche principali:</h4>
-                        <ul>
-                            <li data-i18n="features_multi"><strong>Multi-sorgente:</strong> Il Corsaro Nero (DB locale incrementale con Cache RD
-                                reale), UIndex, Knaben e Jackett (opzionale)</li>
-                            <li data-i18n="features_ita"><strong>Ottimizzato per l'Italia:</strong> Priorità ai contenuti in italiano 🇮🇹</li>
-                        </ul>
-                    </div>
-                    <div style="grid-column: span 1;">
-                        <h4 style="visibility: hidden;">Placeholder</h4>
-                        <ul>
-                            <li data-i18n="features_hybrid"><strong>🚀 Hybrid Mode:</strong> Risposta istantanea + scraping in background</li>
-                            <li data-i18n="features_debrid"><strong>Debrid:</strong> Real-Debrid e/o Torbox per streaming istantaneo</li>
-                            <li data-i18n="features_p2p"><strong>P2P Fallback:</strong> Senza debrid usa streaming P2P diretto</li>
-                        </ul>
-                    </div>
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <a href="https://dmv.stremio-italia.eu/" target="_blank" style="flex:1;min-width:200px;padding:16px 20px;background:rgba(20,20,40,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#e0e0e0;font-size:1em;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.3s ease;" onmouseover="this.style.borderColor='rgba(147,51,234,0.6)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(147,51,234,0.3)';this.style.transform=''">
+                        <span style="opacity:0.7;">DMV 🟣</span>
+                        <span style="font-size:0.85em;opacity:0.6;">Debrid Manager Viola</span>
+                    </a>
+                    <a href="https://dmv.stremio-italia.eu/db" target="_blank" style="flex:1;min-width:200px;padding:16px 20px;background:rgba(20,20,40,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#e0e0e0;font-size:1em;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.3s ease;" onmouseover="this.style.borderColor='rgba(147,51,234,0.6)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(147,51,234,0.3)';this.style.transform=''">
+                        <span style="opacity:0.7;">🗄️</span>
+                        <span style="font-size:0.85em;opacity:0.6;">ICV Database</span>
+                    </a>
                 </div>
 
                 <div class="config-info">
                     <p style="text-align: center;" data-i18n="config_text">Configura i servizi che vuoi utilizzare:</p>
-                    <div id="status" style="text-align: center;" data-i18n="config_ready">✓ 🚀 Configurazione pronta (Solo P2P) | Siti:
-                        CorsaroNero,
-                        Knaben</div>
+                    <div id="status" style="text-align: center;" data-i18n="config_ready">✓ 🚀 Configurazione pronta (Solo P2P)</div>
                 </div>
             </div>
         </div>
@@ -1328,6 +1318,7 @@
                     kofi: 'Un Grog per noi 🍻',
                     custom_torrent: 'Aggiungi Torrent Custom',
                     status_ready: 'Configurazione pronta',
+                    status_p2p: '(Solo P2P)',
                     // Service cards
                     rd_title: '👑 Real-Debrid (Opzionale)',
                     rd_get_key: 'Clicca qui per la tua chiave 🔑',
@@ -1351,7 +1342,7 @@
                     old_style: '⚙️ Old Style',
                     // Config
                     config_text: 'Configura i servizi che vuoi utilizzare:',
-                    config_ready: '✓ 🚀 Configurazione pronta (Solo P2P) | Siti: CorsaroNero, Knaben',
+                    config_ready: '✓ 🚀 Configurazione pronta (Solo P2P)',
                     // TorBox Referral
                     tb_ref_title: 'Potenzia la tua esperienza con IlCorsaroViola',
                     tb_ref_desc: 'Migliora il tuo streaming con il servizio debrid ultra-veloce di <span class="tb-accent" style="font-weight:600;">TorBox</span>.<br>Ottieni fino a <strong>84 giorni gratis</strong> usando uno dei Referral code della community:',
@@ -1453,6 +1444,7 @@
                     kofi: 'A Grog for us 🍻',
                     custom_torrent: 'Add Custom Torrent',
                     status_ready: 'Configuration ready',
+                    status_p2p: '(P2P only)',
                     // Service cards
                     rd_title: '👑 Real-Debrid (Optional)',
                     rd_get_key: 'Click here for your key 🔑',
@@ -1476,10 +1468,10 @@
                     old_style: '⚙️ Old Style',
                     // Config
                     config_text: 'Configure the services you want to use:',
-                    config_ready: '✓ 🚀 Configuration ready (P2P only) | Sites: CorsaroNero, Knaben',
+                    config_ready: '✓ 🚀 Configuration ready (P2P only)',
                     // TorBox Referral
                     tb_ref_title: 'Boost your experience with IlCorsaroViola',
-                    tb_ref_desc: 'Enhance your streaming with the ultra-fast <span class=\"tb-accent\" style=\"font-weight:600;\">TorBox</span> debrid service.<br>Get up to <strong>84 days free</strong> using one of the community Referral codes:',
+                    tb_ref_desc: 'Enhance your streaming with the ultra-fast <span class="tb-accent" style="font-weight:600;">TorBox</span> debrid service.<br>Get up to <strong>84 days free</strong> using one of the community Referral codes:',
                     tb_ref_buy: 'Buy TorBox →',
                     // Sections
                     section_search: '🔎 Torrent Search Sites',
@@ -1565,10 +1557,18 @@
             };
             let currentUILang = 'it';
             function t(k) { return (TRANSLATIONS[currentUILang]||TRANSLATIONS.it)[k]||k; }
-            function switchUILanguage(l) {
-                currentUILang = l;
-                document.getElementById('lang_it').classList.toggle('active', l==='it');
-                document.getElementById('lang_en').classList.toggle('active', l==='en');
+             function switchUILanguage(l) {
+                 currentUILang = l;
+                 var btnIt = document.getElementById('lang_it');
+                 var btnEn = document.getElementById('lang_en');
+                 if (btnIt) {
+                     btnIt.style.background = (l === 'it') ? 'linear-gradient(135deg,#9333ea,#7c3aed)' : 'transparent';
+                     btnIt.style.color = (l === 'it') ? '#fff' : '#9ca3af';
+                 }
+                 if (btnEn) {
+                     btnEn.style.background = (l === 'en') ? 'linear-gradient(135deg,#9333ea,#7c3aed)' : 'transparent';
+                     btnEn.style.color = (l === 'en') ? '#fff' : '#9ca3af';
+                 }
                 // textContent
                 document.querySelectorAll('[data-i18n]').forEach(el => {
                     var key = el.getAttribute('data-i18n');
@@ -1589,6 +1589,15 @@
                     var key = el.getAttribute('data-i18n-title');
                     el.title = t(key);
                 });
+                // Auto-select content language based on UI language
+                var clSel = document.getElementById('content_language');
+                if (clSel) {
+                    if (l === 'it' && clSel.value !== 'italian') {
+                        clSel.value = 'italian';
+                    } else if (l === 'en' && clSel.value !== 'all') {
+                        clSel.value = 'all';
+                    }
+                }
                 var sel = document.getElementById('content_language');
                 var isIta = sel && (sel.value === 'all' || sel.value === 'italian');
                 var show = isIta && currentUILang === 'it';
@@ -2086,9 +2095,8 @@
 
                 const dbOnlyText = config.db_only ? ' [DB Only]' : '';
                 const hybridText = config.hybrid_mode ? ' [Hybrid]' : '';
-                const serviceText = services.length > 0 ? ` (${services.join(', ')})` : ' (Solo P2P)';
-                const searchText = searchSites.length > 0 ? ` | Siti: ${searchSites.join(', ')}` : '';
-                statusEl.textContent = `✓ ${statusEmojis}🚀 Configurazione pronta${dbOnlyText}${serviceText}${searchText}`;
+                const serviceText = services.length > 0 ? ` (${services.join(', ')})` : t('status_p2p');
+                statusEl.textContent = `✓ ${statusEmojis} ${t('status_ready')}${dbOnlyText}${hybridText}${serviceText}`;
                 statusEl.style.color = '#4EC9B0';
             }
 
