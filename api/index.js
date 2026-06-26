@@ -322,8 +322,12 @@ async function _processRdQueue() {
     _rdQueueRunning = true;
     console.log(`🔒 [RD Queue] Processing started (${_rdQueue.length} items)`);
 
-    while (_rdQueue.length > 0) {
+    let processedCount = 0;
+    const MAX_BATCH = 30;
+
+    while (_rdQueue.length > 0 && processedCount < MAX_BATCH) {
         const { fn, resolve, reject } = _rdQueue.shift();
+        processedCount++;
 
         // Enforce minimum delay since last RD call
         const elapsed = Date.now() - _lastRdCallTime;
@@ -344,7 +348,12 @@ async function _processRdQueue() {
     }
 
     _rdQueueRunning = false;
-    console.log(`🔒 [RD Queue] Processing complete (idle)`);
+    console.log(`🔒 [RD Queue] Batch complete (${processedCount}/${MAX_BATCH} items)`);
+
+    // Resume if more items still in queue (via setImmediate to let event loop breathe)
+    if (_rdQueue.length > 0) {
+        setImmediate(() => _processRdQueue());
+    }
 }
 
 // �🔄 GLOBAL BG JOB SEMAPHORE
