@@ -1,4 +1,4 @@
-// Scraper Unificato
+// Scraper Unificato: UIndex + Il Corsaro Nero + Knaben + TorrentGalaxy + Jackett + RARBG con o senza Real-Debrid (Versione Vercel)
 
 import * as cheerio from 'cheerio';
 import { promises as fs } from 'fs';
@@ -1791,7 +1791,7 @@ function buildLanguageEmojis(detectedLanguages) {
 }
 
 // ✅ Check if title matches preferred language
-function isPreferredLanguage(title, preferredLang, detectedLanguages = null) {
+function isPreferredLanguage(title, preferredLang, detectedLanguages = null, fullIta = false) {
     if (!title || !preferredLang || preferredLang === 'all') return true;
     const lang = preferredLang.toLowerCase();
 
@@ -1801,7 +1801,7 @@ function isPreferredLanguage(title, preferredLang, detectedLanguages = null) {
     }
 
     const hasMulti = detectedLanguages.includes('Multi') || detectedLanguages.includes('Dual Audio');
-    if (hasMulti) return true;
+    if (hasMulti && !fullIta) return true;
 
     if (lang === 'english') {
         // For English: no language tag → assume English
@@ -6643,6 +6643,7 @@ async function handleStream(type, id, config, workerOrigin) {
         config.content_language = 'all';
     }
     const contentLanguage = config.content_language;
+    const fullIta = config.full_ita === true;
 
     // ✅ GLOBAL TORRENT CACHE - key is type:id (NO user-specific keys!)
     // This allows different users to share the same torrent search results
@@ -9817,10 +9818,10 @@ async function handleStream(type, id, config, workerOrigin) {
                         ? r.file_title
                         : r.title;
                     const lang = getLanguageInfo(titleForLang, italianTitle, r.source);
-                    if (lang.isItalian || lang.isMulti) return true;
+                    if (lang.isItalian) return true;
                     if (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title) {
                         const packLang = getLanguageInfo(r.title || '', italianTitle, r.source);
-                        if (packLang.isItalian || packLang.isMulti) return true;
+                        if (packLang.isItalian) return true;
                     }
                     return false;
                 });
@@ -9838,11 +9839,11 @@ async function handleStream(type, id, config, workerOrigin) {
                         if (isTrustedSource(r.source, r.provider) || isMoviePackFile) return true;
 
                         const lang = getLanguageInfo(titleForLang, italianTitle, r.source);
-                        if (lang.isItalian || lang.isMulti) return true;
+                        if (lang.isItalian) return true;
 
                         if (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title) {
                             const packLang = getLanguageInfo(r.title || '', italianTitle, r.source);
-                            if (packLang.isItalian || packLang.isMulti) return true;
+                            if (packLang.isItalian) return true;
                         }
                         return false;
                     });
@@ -10066,7 +10067,7 @@ async function handleStream(type, id, config, workerOrigin) {
                     if (packLang.languages) detected.push(...packLang.languages);
                 }
 
-                const allowed = isPreferredLanguage(titleForLang, contentLanguage, detected);
+                const allowed = isPreferredLanguage(titleForLang, contentLanguage, detected, fullIta);
 
                 if (!allowed && DEBUG_MODE) {
                     console.log(`🌐 [Lang Filter] Filtered out (${contentLanguage}): "${titleForLang.substring(0, 50)}..." (${result.source || result.externalAddon || 'unknown'})`);
