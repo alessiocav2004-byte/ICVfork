@@ -480,13 +480,23 @@ async function updateRdCacheStatus(cacheResults, mediaType = null) {
       itemsToProcess.push(result);
     }
 
+    // ✅ DEDUPLICATE: Remove duplicate hashes to avoid ON CONFLICT error
+    const deduped = [];
+    const seen = new Set();
+    for (const r of itemsToProcess) {
+      const h = r.hash.toLowerCase();
+      if (seen.has(h)) continue;
+      seen.add(h);
+      deduped.push(r);
+    }
+
     // ✅ BATCHED UPSERT: Process all items in a single query
-    if (itemsToProcess.length > 0) {
+    if (deduped.length > 0) {
       const values = [];
       const params = [];
       let paramIndex = 1;
 
-      for (const result of itemsToProcess) {
+      for (const result of deduped) {
         const hashLower = result.hash.toLowerCase();
         const realTitle = result.torrent_title || result.file_title || null;
         const cachedValue = result.cached === true ? true : (result.cached === false ? false : true);
@@ -578,13 +588,23 @@ async function updateTbCacheStatus(cacheResults, mediaType = null) {
       itemsToProcess.push(result);
     }
 
+    // ✅ DEDUPLICATE: Remove duplicate hashes to avoid ON CONFLICT error
+    const deduped = [];
+    const seen2 = new Set();
+    for (const r of itemsToProcess) {
+      const h = r.hash.toLowerCase();
+      if (seen2.has(h)) continue;
+      seen2.add(h);
+      deduped.push(r);
+    }
+
     // ✅ BATCHED UPSERT
-    if (itemsToProcess.length > 0) {
+    if (deduped.length > 0) {
       const values = [];
       const params = [];
       let paramIndex = 1;
 
-      for (const result of itemsToProcess) {
+      for (const result of deduped) {
         const hashLower = result.hash.toLowerCase();
         const realTitle = result.torrent_title || result.file_title || null;
         const cachedValue = result.cached === true ? true : (result.cached === false ? false : true);
