@@ -358,7 +358,7 @@ async function _processRdQueue() {
 
 // �🔄 GLOBAL BG JOB SEMAPHORE
 // Prevents unlimited parallel background jobs from saturating the DB
-const MAX_CONCURRENT_BG_JOBS = 2;
+const MAX_CONCURRENT_BG_JOBS = parseInt(process.env.BG_JOBS, 10) || 4;
 let activeBgJobs = 0;
 const bgJobQueue = [];
 
@@ -368,7 +368,7 @@ const bgJobQueue = [];
  * - Unlimited queue (all jobs will be processed eventually)
  * - Individual jobs skip unnecessary DB writes internally (e.g. insertEpisodeFiles skip-check)
  */
-const MAX_BG_QUEUE_SIZE = 500; // Increased to 500 to prevent dropping background jobs under high load
+const MAX_BG_QUEUE_SIZE = 2000;
 const enqueueBgJob = (options) => {
     if (activeBgJobs < MAX_CONCURRENT_BG_JOBS) {
         _startBgJob(options);
