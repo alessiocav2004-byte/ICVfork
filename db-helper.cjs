@@ -135,11 +135,12 @@ function initDatabase(config = {}) {
  * @param {Array<string>} providers - Optional array of provider names to filter by
  * @returns {Promise<Array>} Array of torrent objects
  */
-async function searchByImdbId(imdbId, type = null, providers = null) {
+async function searchByImdbId(imdbId, type = null, providers = null, season = null, episode = null) {
   if (!pool) throw new Error('Database not initialized');
 
   try {
-    if (DEBUG_MODE) console.log(`💾 [DB] Searching by IMDb: ${imdbId}${type ? ` (${type})` : ''}${providers ? ` [providers: ${providers.join(',')}]` : ''}`);
+    const hasSeasonEpisode = season !== null && season !== undefined && episode !== null && episode !== undefined;
+    if (DEBUG_MODE) console.log(`💾 [DB] Searching by IMDb: ${imdbId}${type ? ` (${type})` : ''}${providers ? ` [providers: ${providers.join(',')}]` : ''}${hasSeasonEpisode ? ` S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}` : ''}`);
 
     let query = `
       SELECT
@@ -178,20 +179,40 @@ async function searchByImdbId(imdbId, type = null, providers = null) {
       paramIndex++;
     }
 
-    // ✅ PROVIDER FILTER: Only return torrents from selected providers
-    // Use ILIKE patterns for case-insensitive matching and variants (e.g., 'Knaben (1337x)')
-    if (providers && Array.isArray(providers) && providers.length > 0) {
-      const patterns = providers.map((p, i) => `provider ILIKE $${paramIndex + i}`).join(' OR ');
-      // 🚀 CUSTOM & VIP: Always include these providers regardless of filter
-      // ⚠️ NOTE: 'Custom Manual' is intentionally NOT bypassed here — its rows live in the
-      // `files` table with explicit imdb_season/imdb_episode and must be fetched via
-      // searchEpisodeFiles(), otherwise a single-episode mapping would leak into every episode.
-      query += ` AND (${patterns} OR provider = 'Custom' OR provider = 'vip')`;
-      // Add % wildcards for partial matching (e.g., 'knaben' matches 'Knaben (1337x)')
-      params.push(...providers.map(p => `%${p}%`));
+    // ✅ PROVIDER FILTER REMOVED — all providers are searched equally.
+    // Only Custom Manual is excluded because its rows live in the files table
+    // with explicit imdb_season/imdb_episode.
+
+    // ✅ SEARCH BY SEASON/EPISODE: Filter title for specific episode patterns
+    if (hasSeasonEpisode) {
+      const s = String(season);
+      const ep = String(episode);
+      const sPad = s.padStart(2, '0');
+      const epPad = ep.padStart(2, '0');
+      const seasonPatterns = [
+        `[sS]${sPad}[eE]${epPad}`,                          // S04E10
+        `[sS]${season}[eE]${epPad}`,                         // S4E10
+        `[sS]${sPad}[eE]${episode}`,                         // S04E1
+        `[sS]${season}[eE]${episode}`,                       // S4E1
+        `[sS]${sPad}[eE][pP]${epPad}`,                       // S04EP10
+        `[sS]${season}[eE][pP]${epPad}`,                     // S4EP10
+        `[sS]${sPad}\\\\s*[\\\\-\\u2013\\u2014]\\\\s*[eE]?${epPad}`,  // S04-10, S04 - E10
+        `[sS]${sPad}[pP]${epPad}`,                           // S04P10 (puntata)
+        `${sPad}x${epPad}`,                                  // 04x10
+        `${season}x${episode}`,                              // 4x1
+        `${season}[eE]${episode}`,                           // 4e10 (senza S)
+        `[sS]eason\\\\s*${season}\\\\s*[eE]pisode\\\\s*${episode}`,   // Season 4 Episode 10
+        `[sS]tagione\\\\s*${season}\\\\s*[eE]pisodio\\\\s*${episode}`, // Stagione 4 Episodio 10
+      ];
+      const conditions = seasonPatterns.map((_, i) => `title ~* $${paramIndex + i}`).join(' OR ');
+      query += ` AND (${conditions})`;
+      params.push(...seasonPatterns);
+      paramIndex += seasonPatterns.length;
     }
 
-    query += ' ORDER BY cached_rd DESC NULLS LAST, seeders DESC LIMIT 50';
+    query += ' ORDER BY cached_rd DESC NULLS LAST, seeders DESC';
+    // 🔥 When S/E filter is active, use larger limit (exact episode results are fewer)
+    query += hasSeasonEpisode ? ' LIMIT 200' : ' LIMIT 50';
 
     const result = await pool.query(query, params);
     if (DEBUG_MODE) console.log(`💾 [DB] Found ${result.rows.length} torrents for IMDb ${imdbId}`);
@@ -250,15 +271,9 @@ async function searchByTmdbId(tmdbId, type = null, providers = null) {
       paramIndex++;
     }
 
-    // ✅ PROVIDER FILTER: Only return torrents from selected providers
-    // Use ILIKE patterns for case-insensitive matching and variants (e.g., 'Knaben (1337x)')
-    if (providers && Array.isArray(providers) && providers.length > 0) {
-      const patterns = providers.map((p, i) => `provider ILIKE $${paramIndex + i}`).join(' OR ');
-      // 🚀 CUSTOM & VIP: Always include these providers regardless of filter
-      // ⚠️ NOTE: 'Custom Manual' intentionally excluded — see searchByImdbId comment.
-      query += ` AND (${patterns} OR provider = 'Custom' OR provider = 'vip')`;
-      params.push(...providers.map(p => `%${p}%`));
-    }
+    // ✅ PROVIDER FILTER REMOVED — all providers are searched equally.
+    // Only Custom Manual is excluded because its rows live in the files table
+    // with explicit imdb_season/imdb_episode.
 
     query += ' ORDER BY cached_rd DESC NULLS LAST, seeders DESC LIMIT 50';
 
@@ -314,14 +329,8 @@ async function searchEpisodeFiles(imdbId, season, episode, providers = null) {
 
     const params = [imdbId, season, episode];
 
-    // ✅ PROVIDER FILTER: Only return torrents from selected providers
-    // Use ILIKE patterns for case-insensitive matching and variants (e.g., 'Knaben (1337x)')
-    if (providers && Array.isArray(providers) && providers.length > 0) {
-      const patterns = providers.map((p, i) => `t.provider ILIKE $${4 + i}`).join(' OR ');
-      // 🚀 CUSTOM, CUSTOM MANUAL & VIP: Always include these providers regardless of filter
-      query += ` AND (${patterns} OR t.provider = 'Custom' OR t.provider = 'Custom Manual' OR t.provider = 'vip')`;
-      params.push(...providers.map(p => `%${p}%`));
-    }
+    // ✅ PROVIDER FILTER REMOVED — all providers are searched equally.
+    // Custom, Custom Manual, and VIP are always included.
 
     query += `
       ORDER BY t.cached_rd DESC NULLS LAST, t.seeders DESC
@@ -2068,11 +2077,7 @@ async function searchFilesByTitle(titleQuery, providers = null, options = {}) {
       paramIndex++;
     }
 
-    if (providers && Array.isArray(providers) && providers.length > 0) {
-      const patterns = providers.map((p, i) => `t.provider ILIKE $${paramIndex + i}`).join(' OR ');
-      query += ` AND (${patterns})`;
-      params.push(...providers.map(p => `%${p}%`));
-    }
+    // ✅ PROVIDER FILTER REMOVED — all providers are searched equally.
 
     query += ' ORDER BY t.cached_rd DESC NULLS LAST, t.seeders DESC LIMIT 20';
     const result = await pool.query(query, params);
@@ -2167,11 +2172,7 @@ async function searchFilesByTitle(titleQuery, providers = null, options = {}) {
       paramIndex++;
     }
 
-    if (providers && Array.isArray(providers) && providers.length > 0) {
-      const patterns = providers.map((p, i) => `t.provider ILIKE $${paramIndex + i}`).join(' OR ');
-      query += ` AND (${patterns})`;
-      params.push(...providers.map(p => `%${p}%`));
-    }
+    // ✅ PROVIDER FILTER REMOVED — all providers are searched equally.
 
     query += ' ORDER BY t.cached_rd DESC NULLS LAST, t.seeders DESC LIMIT 20';
 
