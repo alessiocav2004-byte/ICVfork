@@ -185,21 +185,29 @@ async function searchByImdbId(imdbId, type = null, providers = null, season = nu
 
     // ✅ SEARCH BY SEASON/EPISODE: Filter title for specific episode patterns
     if (hasSeasonEpisode) {
-      query += ` AND (
-        title ~* $${paramIndex}
-        OR title ~* $${paramIndex + 1}
-        OR title ~* $${paramIndex + 2}
-      )`;
       const s = String(season);
       const ep = String(episode);
       const sPad = s.padStart(2, '0');
       const epPad = ep.padStart(2, '0');
-      params.push(
-        `[sS]${sPad}[eE]${epPad}`,       // S04E10
-        `\\m${s}x${ep}\\M`,                // 4x10
-        `[sS]${sPad}[eE][pP]${epPad}`    // S04EP10
-      );
-      paramIndex += 3;
+      const seasonPatterns = [
+        `[sS]${sPad}[eE]${epPad}`,                          // S04E10
+        `[sS]${season}[eE]${epPad}`,                         // S4E10
+        `[sS]${sPad}[eE]${episode}`,                         // S04E1
+        `[sS]${season}[eE]${episode}`,                       // S4E1
+        `[sS]${sPad}[eE][pP]${epPad}`,                       // S04EP10
+        `[sS]${season}[eE][pP]${epPad}`,                     // S4EP10
+        `[sS]${sPad}\\\\s*[\\\\-\\u2013\\u2014]\\\\s*[eE]?${epPad}`,  // S04-10, S04 - E10
+        `[sS]${sPad}[pP]${epPad}`,                           // S04P10 (puntata)
+        `${sPad}x${epPad}`,                                  // 04x10
+        `${season}x${episode}`,                              // 4x1
+        `${season}[eE]${episode}`,                           // 4e10 (senza S)
+        `[sS]eason\\\\s*${season}\\\\s*[eE]pisode\\\\s*${episode}`,   // Season 4 Episode 10
+        `[sS]tagione\\\\s*${season}\\\\s*[eE]pisodio\\\\s*${episode}`, // Stagione 4 Episodio 10
+      ];
+      const conditions = seasonPatterns.map((_, i) => `title ~* $${paramIndex + i}`).join(' OR ');
+      query += ` AND (${conditions})`;
+      params.push(...seasonPatterns);
+      paramIndex += seasonPatterns.length;
     }
 
     query += ' ORDER BY cached_rd DESC NULLS LAST, seeders DESC';
