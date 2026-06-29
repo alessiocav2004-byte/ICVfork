@@ -1521,7 +1521,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
             },
             addon: {
                 name: 'IlCorsaroViola',
-                version: '9.0.0',
+                version: '10.0.0',
                 presetId: preset,
                 manifestUrl: null
             },
@@ -7013,37 +7013,8 @@ async function handleStream(type, id, config, workerOrigin) {
 
             // ✅ BUILD SELECTED PROVIDERS LIST from user config
             // Maps config keys to DB provider ILIKE patterns (shortest common substring)
+            // ✅ PROVIDER FILTER REMOVED — all DB queries search all providers now.
             let selectedProviders = [];
-
-            // 💾 DB Only Mode: Query ALL providers in DB (ignore config selections)
-            if (config.db_only) {
-                selectedProviders = ['corsaro', 'knaben', 'torrentgalaxy', 'uindex', 'rarbg', 'rd_cache', 'pack-handler', 'Custom', 'torrentio', 'mediafusion', 'comet', 'jackett'];
-                if (DEBUG_MODE) console.log(`💾 [DB Only] Querying ALL providers in database`);
-            } else if (config.jackett_only) {
-                // 🔍 Jackett Only Mode: Only Jackett results (DB + live)
-                selectedProviders = ['jackett'];
-                console.log(`🔍 [Jackett Only] Querying ONLY Jackett provider in database`);
-            } else {
-                // DISABILITATI: corsaronero & uindex — bloccati da Cloudflare a livello
-                // server (anti-bot), non vengono più inclusi nemmeno se l'utente li abilita
-                // dalla config legacy. Commentato, non eliminato, per future revival.
-                // if (config.use_corsaronero === true) selectedProviders.push('corsaro');
-                if (config.use_knaben !== false) selectedProviders.push('knaben');
-                if (config.use_torrentgalaxy !== false) selectedProviders.push('torrentgalaxy');
-                // if (config.use_uindex === true) selectedProviders.push('uindex');
-                if (config.use_stremthru_torz !== false) selectedProviders.push('stremthru_torz');
-                if (config.use_meteor !== false) selectedProviders.push('meteor');
-                if (config.use_rarbg === true) selectedProviders.push('rarbg');
-                if (config.use_jackett !== false) selectedProviders.push('jackett');
-                // Always include rd_cache (personal torrents), pack-handler, and Custom (manually imported)
-                selectedProviders.push('rd_cache', 'pack-handler', 'Custom');
-                // External addons: Check individual toggles
-                if (config.use_external_addons !== false) {
-                    if (config.use_torrentio !== false) selectedProviders.push('torrentio');
-                    if (config.use_mediafusion !== false) selectedProviders.push('mediafusion');
-                    if (config.use_comet !== false) selectedProviders.push('comet');
-                }
-            }
             if (DEBUG_MODE) console.log(`💾 [DB] Selected providers for query: ${selectedProviders.join(', ')}`);
 
             if (dbEnabled && mediaDetails.imdbId) {
@@ -7065,6 +7036,10 @@ async function handleStream(type, id, config, workerOrigin) {
                         const packResults = await dbHelper.searchByImdbId(mediaDetails.imdbId, type, selectedProviders);
                         if (DEBUG_MODE) console.log(`💾 [DB] Found ${packResults.length} additional torrents (packs/complete series)`);
 
+                        // 🔥 SEARCH BY EPISODE: Find torrents with S/E in the title (ExtTo, MirCrew, etc.)
+                        const episodeTitleResults = await dbHelper.searchByImdbId(mediaDetails.imdbId, type, selectedProviders, parseInt(season), parseInt(episode));
+                        if (DEBUG_MODE && episodeTitleResults.length > 0) console.log(`💾 [DB] Found ${episodeTitleResults.length} episode-specific torrents (title S/E pattern)`);
+
                         // ✅ FIX: Remove file_index from pack results!
                         // The file_index in torrents table is from the LAST played episode, not the current one.
                         // This prevents showing wrong episodes when user requests E1 but pack has E6 file_index saved.
@@ -7074,8 +7049,8 @@ async function handleStream(type, id, config, workerOrigin) {
                             file_title: null        // ❌ Remove - it's wrong for this episode
                         }));
 
-                        // Merge: episode files + packs (packs need dynamic resolution)
-                        dbResults = [...dbResults, ...cleanedPackResults];
+                        // Merge: episode files + packs + episode-specific torrents
+                        dbResults = [...dbResults, ...cleanedPackResults, ...episodeTitleResults];
                     } else {
                         // No season/episode available (Kitsu without TMDb conversion fallback)
                         console.log(`🎌 [Anime] No season mapping available, fetching all packs`);
@@ -12141,7 +12116,7 @@ export default async function handler(req, res) {
 
             const manifest = {
                 id: 'community.ilcorsaroviola.ita',
-                version: '9.0.0',
+                version: '10.0.0',
                 name: addonName,
                 description: 'Streaming da UIndex, CorsaroNero DB local, Knaben e Jackettio con o senza Real-Debrid, Torbox e Alldebrid.',
                 logo: 'https://i.imgur.com/kZK4KKS.png',
@@ -14661,7 +14636,7 @@ export default async function handler(req, res) {
             const health = {
                 status: 'OK',
                 addon: 'IlCorsaroViola',
-                version: '9.0.0',
+                version: '10.0.0',
                 uptime: Date.now(),
                 cache: {
                     entries: cache.size,
