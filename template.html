@@ -738,6 +738,8 @@
                     <input type="checkbox" id="use_torbox">
                 </div>
                 <input id="torbox_key" placeholder="Torbox API Key" type="password" disabled>
+                <span id="tb_valid" style="margin-left:8px;font-size:1.1em;"></span>
+                <div id="tb_error_msg" style="color:#ef4444;font-size:0.85em;margin-top:4px;display:none;">❌ Chiave TB non valida o scaduta</div>
                 <div style="text-align: right; margin-top: 4px; font-size: 0.8em;">
                     <a href="https://torbox.app/settings" target="_blank"
                         style="color: #4EC9B0; text-decoration: none;" data-i18n="tb_get_key">Clicca qui per la tua chiave 🔑</a>
@@ -1645,6 +1647,33 @@
             const useTorboxCheckbox = document.getElementById("use_torbox");
             const torboxKeyInput = document.getElementById("torbox_key");
 
+            // 🛡️ TB Key validation — check key against TorBox API
+            let _tbValid = false;
+            async function validateTbKey(key) {
+                const el = document.getElementById('tb_valid');
+                const errEl = document.getElementById('tb_error_msg');
+                const cleanKey = key.trim();
+                if (!cleanKey || cleanKey.length < 10) { el.textContent = ''; errEl.style.display = 'none'; _tbValid = false; updateInstallLink(); return; }
+                el.textContent = '⏳';
+                try {
+                    const r = await fetch('/validate-tb-key/' + encodeURIComponent(cleanKey));
+                    const data = await r.json();
+                    el.textContent = data.valid ? '✅' : '❌';
+                    el.title = data.valid ? 'Chiave valida' : 'Chiave non valida o scaduta';
+                    _tbValid = data.valid;
+                    errEl.style.display = data.valid ? 'none' : 'block';
+                } catch (e) {
+                    el.textContent = '⚠️';
+                    el.title = 'Errore di rete';
+                    _tbValid = false;
+                    errEl.style.display = 'none';
+                }
+                updateInstallLink();
+            }
+            torboxKeyInput.addEventListener('input', function() {
+                validateTbKey(this.value);
+            });
+
             const mediaflowUrlInput = document.getElementById("mediaflow_url");
             const mediaflowPasswordInput = document.getElementById("mediaflow_password");
             const jackettUrlInput = document.getElementById("jackett_url");
@@ -2039,6 +2068,16 @@
                     return;
                 }
 
+                // ✅ TB Key validation check: block install if key is invalid
+                if (config.use_torbox && config.torbox_key && !_tbValid) {
+                    statusEl.textContent = "❌ Chiave TB non valida o scaduta";
+                    statusEl.style.color = '#FF6B6B';
+                    linkContainer.classList.remove('show');
+                    installButton.disabled = true;
+                    copyButton.disabled = true;
+                    return;
+                }
+
                 // Generate install URL
                 // Fix for Unicode/Emoji in btoa: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
                 const jsonConfig = JSON.stringify(config);
@@ -2148,6 +2187,7 @@
                             torboxKeyInput.disabled = false;
                             if (cfg.torbox_key) {
                                 torboxKeyInput.value = cfg.torbox_key;
+                                if (cfg.torbox_key.trim().length >= 10) validateTbKey(cfg.torbox_key);
                                 console.log('✅ Loaded torbox_key');
                             }
                         }

@@ -20,6 +20,25 @@ const PROVIDER_PRIORITY_MAP = {
 };
 const PROVIDER_PRIORITY_DEFAULT = 10;
 
+// ✅ Helper: parse season/episode from title
+function parseSeasonEpisode(title) {
+  if (!title) return null;
+  const m1 = title.match(/[sS](\d{1,2})[eE](\d{1,5})/);
+  if (m1) return { s: parseInt(m1[1]), e: parseInt(m1[2]) };
+  const m2 = title.match(/(\d{1,2})x(\d{1,5})/);
+  if (m2) return { s: parseInt(m2[1]), e: parseInt(m2[2]) };
+  const m3 = title.match(/\b(\d{1,2})[eE](\d{1,5})\b/);
+  if (m3) return { s: parseInt(m3[1]), e: parseInt(m3[2]) };
+  const m4 = title.match(/[sS](\d{1,2})[eE][pP](\d{1,5})/);
+  if (m4) return { s: parseInt(m4[1]), e: parseInt(m4[2]) };
+  const m5 = title.match(/[sS](\d{1,2})[.\s_-]?[eE](\d{1,5})/);
+  if (m5) return { s: parseInt(m5[1]), e: parseInt(m5[2]) };
+  // Standalone episode (no season): ep.10, ep 10, episode 10
+  const m6 = title.match(/[ée]p(?:isode)?[.\s_-]?(\d{1,5})/i);
+  if (m6) return { s: null, e: parseInt(m6[1]) };
+  return null;
+}
+
 const BLOCKED_FILENAME_EXTENSIONS = ['.exe'];
 
 function getLeafName(value) {
@@ -183,7 +202,7 @@ async function searchByImdbId(imdbId, type = null, providers = null, season = nu
     // Only Custom Manual is excluded because its rows live in the files table
     // with explicit imdb_season/imdb_episode.
 
-    // ✅ SEARCH BY SEASON/EPISODE: Filter title for specific episode patterns
+    // ✅ SEARCH BY SEASON/EPISODE: Use columns + fallback regex
     if (hasSeasonEpisode) {
       const s = String(season);
       const ep = String(episode);
@@ -196,23 +215,29 @@ async function searchByImdbId(imdbId, type = null, providers = null, season = nu
         `[sS]${season}[eE]${episode}`,                       // S4E1
         `[sS]${sPad}[eE][pP]${epPad}`,                       // S04EP10
         `[sS]${season}[eE][pP]${epPad}`,                     // S4EP10
-        `[sS]${sPad}\\\\s*[\\\\-\\u2013\\u2014]\\\\s*[eE]?${epPad}`,  // S04-10, S04 - E10
+        `[sS]${sPad}[.\\s_-]?[eE]${epPad}`,              // S01.E03, S01_E03, S01 E03
+        `[sS]${season}[.\\s_-]?[eE]${epPad}`,             // S4.E03, S4_E03, S4 E03
+        `[sS]${sPad}[.\\s_-]?[eE]${episode}`,             // S04.E1, S04_E1
+        `[sS]${sPad}\\s*[\\-\\u2013\\u2014]\\s*[eE]?${epPad}`,  // S04-10, S04 - E10
         `[sS]${sPad}[pP]${epPad}`,                           // S04P10 (puntata)
         `${sPad}x${epPad}`,                                  // 04x10
         `${season}x${episode}`,                              // 4x1
         `${season}[eE]${episode}`,                           // 4e10 (senza S)
-        `[sS]eason\\\\s*${season}\\\\s*[eE]pisode\\\\s*${episode}`,   // Season 4 Episode 10
-        `[sS]tagione\\\\s*${season}\\\\s*[eE]pisodio\\\\s*${episode}`, // Stagione 4 Episodio 10
+        `[sS]eason\\s*${season}\\s*[eE]pisode\\s*${episode}`,   // Season 4 Episode 10
+        `[sS]tagione\\s*${season}\\s*[eE]pisodio\\s*${episode}`, // Stagione 4 Episodio 10
       ];
-      const conditions = seasonPatterns.map((_, i) => `title ~* $${paramIndex + i}`).join(' OR ');
-      query += ` AND (${conditions})`;
-      params.push(...seasonPatterns);
-      paramIndex += seasonPatterns.length;
+      const regexConditions = seasonPatterns.map((_, i) => `title ~* $${paramIndex + 2 + i}`).join(' OR ');
+      query += ` AND (
+        (imdb_season = $${paramIndex} AND imdb_episode = $${paramIndex + 1})
+        OR (imdb_season IS NULL AND (${regexConditions}))
+      )`;
+      params.push(season, episode, ...seasonPatterns);
+      paramIndex += 2 + seasonPatterns.length;
     }
 
     query += ' ORDER BY cached_rd DESC NULLS LAST, seeders DESC';
     // 🔥 When S/E filter is active, use larger limit (exact episode results are fewer)
-    query += hasSeasonEpisode ? ' LIMIT 200' : ' LIMIT 50';
+    query += hasSeasonEpisode ? ' LIMIT 75' : ' LIMIT 50';
 
     const result = await pool.query(query, params);
     if (DEBUG_MODE) console.log(`💾 [DB] Found ${result.rows.length} torrents for IMDb ${imdbId}`);
@@ -512,22 +537,26 @@ async function updateRdCacheStatus(cacheResults, mediaType = null) {
         const torrentSize = result.size || result.file_size || null;
         const titleToSave = realTitle || 'PLACEHOLDER';
 
-        values.push(`($${paramIndex}, 'rd_cache', $${paramIndex + 1}, $${paramIndex + 2}, NOW(), $${paramIndex + 3}, NOW(), $${paramIndex + 4}, $${paramIndex + 5})`);
+        const parsedSE = parseSeasonEpisode(titleToSave);
+        values.push(`($${paramIndex}, 'rd_cache', $${paramIndex + 1}, $${paramIndex + 2}, NOW(), $${paramIndex + 3}, NOW(), $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7})`);
         params.push(
           hashLower,                           // info_hash
           titleToSave,                         // title
           mediaType || 'unknown',              // type
           cachedValue,                         // cached_rd
           result.file_title || null,           // file_title
-          torrentSize                          // size
+          torrentSize,                          // size
+          parsedSE?.s ?? null,                 // imdb_season
+          parsedSE?.e ?? null                  // imdb_episode
         );
-        paramIndex += 6;
+        paramIndex += 8;
       }
 
       const upsertQuery = `
         INSERT INTO torrents (
           info_hash, provider, title, type, upload_date,
-          cached_rd, last_cached_check, file_title, size
+          cached_rd, last_cached_check, file_title, size,
+          imdb_season, imdb_episode
         )
         VALUES ${values.join(', ')}
         ON CONFLICT (info_hash) DO UPDATE SET
@@ -536,7 +565,9 @@ async function updateRdCacheStatus(cacheResults, mediaType = null) {
           file_title = COALESCE(NULLIF(EXCLUDED.file_title, ''), torrents.file_title),
           size = COALESCE(EXCLUDED.size, torrents.size),
           title = CASE WHEN torrents.provider = 'rd_cache' THEN COALESCE(EXCLUDED.title, torrents.title) ELSE torrents.title END,
-          type = CASE WHEN torrents.type = 'unknown' THEN COALESCE(EXCLUDED.type, torrents.type) ELSE torrents.type END
+          type = CASE WHEN torrents.type = 'unknown' THEN COALESCE(EXCLUDED.type, torrents.type) ELSE torrents.type END,
+          imdb_season = COALESCE(torrents.imdb_season, EXCLUDED.imdb_season),
+          imdb_episode = COALESCE(torrents.imdb_episode, EXCLUDED.imdb_episode)
       `;
 
       const res = await pool.query(upsertQuery, params);
@@ -620,22 +651,26 @@ async function updateTbCacheStatus(cacheResults, mediaType = null) {
         const torrentSize = result.size || result.file_size || null;
         const titleToSave = realTitle || 'PLACEHOLDER';
 
-        values.push(`($${paramIndex}, 'tb_cache', $${paramIndex + 1}, $${paramIndex + 2}, NOW(), $${paramIndex + 3}, NOW(), $${paramIndex + 4}, $${paramIndex + 5})`);
+        const parsedSE = parseSeasonEpisode(titleToSave);
+        values.push(`($${paramIndex}, 'tb_cache', $${paramIndex + 1}, $${paramIndex + 2}, NOW(), $${paramIndex + 3}, NOW(), $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7})`);
         params.push(
           hashLower,                           // info_hash
           titleToSave,                         // title
           mediaType || 'unknown',              // type
           cachedValue,                         // cached_tb
           result.file_title || null,           // file_title
-          torrentSize                          // size
+          torrentSize,                          // size
+          parsedSE?.s ?? null,                 // imdb_season
+          parsedSE?.e ?? null                  // imdb_episode
         );
-        paramIndex += 6;
+        paramIndex += 8;
       }
 
       const upsertQuery = `
         INSERT INTO torrents (
           info_hash, provider, title, type, upload_date,
-          cached_tb, last_cached_check_tb, file_title, size
+          cached_tb, last_cached_check_tb, file_title, size,
+          imdb_season, imdb_episode
         )
         VALUES ${values.join(', ')}
         ON CONFLICT (info_hash) DO UPDATE SET
@@ -644,7 +679,9 @@ async function updateTbCacheStatus(cacheResults, mediaType = null) {
           file_title = COALESCE(NULLIF(EXCLUDED.file_title, ''), torrents.file_title),
           size = COALESCE(EXCLUDED.size, torrents.size),
           title = CASE WHEN torrents.provider = 'tb_cache' THEN COALESCE(EXCLUDED.title, torrents.title) ELSE torrents.title END,
-          type = CASE WHEN torrents.type = 'unknown' THEN COALESCE(EXCLUDED.type, torrents.type) ELSE torrents.type END
+          type = CASE WHEN torrents.type = 'unknown' THEN COALESCE(EXCLUDED.type, torrents.type) ELSE torrents.type END,
+          imdb_season = COALESCE(torrents.imdb_season, EXCLUDED.imdb_season),
+          imdb_episode = COALESCE(torrents.imdb_episode, EXCLUDED.imdb_episode)
       `;
 
       const res = await pool.query(upsertQuery, params);
@@ -846,9 +883,10 @@ async function batchInsertTorrents(torrents) {
           INSERT INTO torrents (
             info_hash, provider, title, size, type, upload_date,
             seeders, imdb_id, tmdb_id, cached_rd, last_cached_check, file_index,
-            cached_tb, last_cached_check_tb
+            cached_tb, last_cached_check_tb,
+            imdb_season, imdb_episode
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
           ON CONFLICT (info_hash) DO UPDATE SET
             imdb_id = COALESCE(torrents.imdb_id, EXCLUDED.imdb_id),
             tmdb_id = COALESCE(torrents.tmdb_id, EXCLUDED.tmdb_id),
@@ -879,9 +917,12 @@ async function batchInsertTorrents(torrents) {
               WHEN EXCLUDED.last_cached_check_tb IS NOT NULL
               THEN GREATEST(EXCLUDED.last_cached_check_tb, COALESCE(torrents.last_cached_check_tb, EXCLUDED.last_cached_check_tb))
               ELSE torrents.last_cached_check_tb
-            END
+            END,
+            imdb_season = COALESCE(torrents.imdb_season, EXCLUDED.imdb_season),
+            imdb_episode = COALESCE(torrents.imdb_episode, EXCLUDED.imdb_episode)
         `;
 
+        const parsedSE = parseSeasonEpisode(torrent.title);
         const values = [
           torrent.info_hash,
           torrent.provider,
@@ -896,7 +937,9 @@ async function batchInsertTorrents(torrents) {
           torrent.last_cached_check,
           torrent.file_index,
           torrent.cached_tb || null,
-          torrent.last_cached_check_tb || null
+          torrent.last_cached_check_tb || null,
+          parsedSE?.s ?? null,       // imdb_season
+          parsedSE?.e ?? null        // imdb_episode
         ];
 
         const res = await pool.query(query, values);
@@ -2431,6 +2474,7 @@ module.exports = {
   updateTbCacheStatus,
   getTbCachedAvailability,
   refreshTbCacheTimestamp,
+  parseSeasonEpisode,
   batchInsertTorrents,
   updateTorrentFileInfo,
   deleteFileInfo,
