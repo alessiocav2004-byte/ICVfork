@@ -23,14 +23,19 @@ const PROVIDER_PRIORITY_DEFAULT = 10;
 // ✅ Helper: parse season/episode from title
 function parseSeasonEpisode(title) {
   if (!title) return null;
-  const m1 = title.match(/[sS](\d{1,2})[eE](\d{1,3})/);
+  const m1 = title.match(/[sS](\d{1,2})[eE](\d{1,5})/);
   if (m1) return { s: parseInt(m1[1]), e: parseInt(m1[2]) };
-  const m2 = title.match(/(\d{1,2})x(\d{1,3})/);
+  const m2 = title.match(/(\d{1,2})x(\d{1,5})/);
   if (m2) return { s: parseInt(m2[1]), e: parseInt(m2[2]) };
-  const m3 = title.match(/\b(\d{1,2})[eE](\d{1,3})\b/);
+  const m3 = title.match(/\b(\d{1,2})[eE](\d{1,5})\b/);
   if (m3) return { s: parseInt(m3[1]), e: parseInt(m3[2]) };
-  const m4 = title.match(/[sS](\d{1,2})[eE][pP](\d{1,3})/);
+  const m4 = title.match(/[sS](\d{1,2})[eE][pP](\d{1,5})/);
   if (m4) return { s: parseInt(m4[1]), e: parseInt(m4[2]) };
+  const m5 = title.match(/[sS](\d{1,2})[.\s_-]?[eE](\d{1,5})/);
+  if (m5) return { s: parseInt(m5[1]), e: parseInt(m5[2]) };
+  // Standalone episode (no season): ep.10, ep 10, episode 10
+  const m6 = title.match(/[ée]p(?:isode)?[.\s_-]?(\d{1,5})/i);
+  if (m6) return { s: null, e: parseInt(m6[1]) };
   return null;
 }
 
@@ -210,6 +215,9 @@ async function searchByImdbId(imdbId, type = null, providers = null, season = nu
         `[sS]${season}[eE]${episode}`,                       // S4E1
         `[sS]${sPad}[eE][pP]${epPad}`,                       // S04EP10
         `[sS]${season}[eE][pP]${epPad}`,                     // S4EP10
+        `[sS]${sPad}[.\\s_-]?[eE]${epPad}`,              // S01.E03, S01_E03, S01 E03
+        `[sS]${season}[.\\s_-]?[eE]${epPad}`,             // S4.E03, S4_E03, S4 E03
+        `[sS]${sPad}[.\\s_-]?[eE]${episode}`,             // S04.E1, S04_E1
         `[sS]${sPad}\\s*[\\-\\u2013\\u2014]\\s*[eE]?${epPad}`,  // S04-10, S04 - E10
         `[sS]${sPad}[pP]${epPad}`,                           // S04P10 (puntata)
         `${sPad}x${epPad}`,                                  // 04x10
