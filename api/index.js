@@ -15,6 +15,22 @@ const dbHelper = require('../db-helper.cjs');
 const { completeIds } = require('../lib/id-converter.cjs');
 const rdCacheChecker = require('../rd-cache-checker.cjs');
 const tbCacheChecker = require('../tb-cache-checker.cjs');
+
+// 🛡️ TB 403 per-key backoff: skip known-bad keys for 30 minutes
+const _tb403backoff = new Map();
+
+function _isTbBlocked(tbKey) {
+    if (!tbKey) return false;
+    if (!_tb403backoff.has(tbKey)) return false;
+    if (Date.now() < _tb403backoff.get(tbKey)) return true;
+    _tb403backoff.delete(tbKey);
+    return false;
+}
+
+function _blockTb(tbKey, minutes = 30) {
+    if (tbKey) _tb403backoff.set(tbKey, Date.now() + minutes * 60 * 1000);
+}
+
 const { searchRARBG } = require('../rarbg.cjs');
 const aioFormatter = require('../aiostreams-formatter.cjs');
 const packFilesHandler = require('../pack-files-handler.cjs');
@@ -448,10 +464,19 @@ const _runSequentialBackgroundJobs = async (options) => {
                 }
                 // Fallback to TB (only if RD not available or not cached)
                 else if (tbKey && (!result || !result.cached)) {
-                    // For TB, we need batch API - check single
-                    const tbResults = await tbCacheChecker.checkCacheBatch([item.hash], tbKey);
-                    if (tbResults && tbResults[item.hash]) {
-                        result = tbResults[item.hash];
+                    if (_isTbBlocked(tbKey)) continue;
+                    try {
+                        const tbResults = await tbCacheChecker.checkCacheBatch([item.hash], tbKey);
+                        if (tbResults && tbResults[item.hash]) {
+                            result = tbResults[item.hash];
+                        }
+                    } catch (e) {
+                        if (/403|Forbidden/i.test(e.message)) {
+                            _blockTb(tbKey);
+                            console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`);
+                        } else {
+                            console.warn(`   ⚠️ TB cache check failed: ${e.message}`);
+                        }
                     }
                     if (DEBUG_MODE) console.log(`   [${i + 1}/${itemsForCacheCheck.length}] TB cache: ${result?.cached ? '✅' : '❌'} ${item.hash.substring(0, 8)}`);
                 }
@@ -10322,10 +10347,17 @@ async function handleStream(type, id, config, workerOrigin) {
                     torboxCacheResults = { ...dbCachedResults };
 
                     // STEP 3: Get user torrents (personal cache)
-                    torboxUserTorrents = await torboxService.getTorrents().catch(e => {
-                        console.error("⚠️ Failed to fetch Torbox user torrents.", e.message);
-                        return [];
-                    });
+                    const _tbUserKey = config.torbox_key;
+                    if (!_isTbBlocked(_tbUserKey)) {
+                        torboxUserTorrents = await torboxService.getTorrents().catch(e => {
+                            console.error("⚠️ Failed to fetch Torbox user torrents.", e.message);
+                            if (/403|Forbidden/i.test(e.message)) { _blockTb(_tbUserKey); console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`); }
+                            return [];
+                        });
+                    } else {
+                        torboxUserTorrents = [];
+                        if (DEBUG_MODE) console.log(`🔇 [TB Backoff] Skipping user torrents — key blocked`);
+                    }
 
                     // STEP 4: Save user's personal cache to DB
                     if (dbEnabled && torboxUserTorrents.length > 0) {
@@ -10399,9 +10431,11 @@ async function handleStream(type, id, config, workerOrigin) {
 
                             if (syncItems.length > 0) {
                                 console.log(`🔍 [TB Live Check] Checking ${syncItems.length} torrents via API...`);
-                                try {
-                                    // ✅ AWAIT: Wait for live check results to include in current response
-                                    const liveCheckResults = await tbCacheChecker.checkCacheSync(syncItems, config.torbox_key, syncLimit);
+                                const _tbLiveKey = config.torbox_key;
+                                if (!_isTbBlocked(_tbLiveKey)) {
+                                    try {
+                                        // ✅ AWAIT: Wait for live check results to include in current response
+                                        const liveCheckResults = await tbCacheChecker.checkCacheSync(syncItems, _tbLiveKey, syncLimit);
 
                                     // Save to DB
                                     const liveResultsToSave = Object.entries(liveCheckResults).map(([hash, data]) => {
@@ -10441,7 +10475,11 @@ async function handleStream(type, id, config, workerOrigin) {
                                     }
                                 } catch (err) {
                                     console.warn(`⚠️ [TB Cache] Live check failed: ${err.message}`);
+                                    if (/403|Forbidden/i.test(err.message)) { _blockTb(_tbLiveKey); console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`); }
                                 }
+                            } else {
+                                if (DEBUG_MODE) console.log(`🔇 [TB Backoff] Skipping live check — key blocked`);
+                            }
                             }
 
                             // 🔄 SEQUENTIAL BACKGROUND: Accumulate remaining items instead of parallel processing
@@ -14629,6 +14667,25 @@ export default async function handler(req, res) {
             _k.forEach((ts, key) => { data[key] = new Date(ts).toISOString(); });
             res.setHeader('Content-Type', 'application/json');
             return res.status(200).send(JSON.stringify(data, null, 2));
+        }
+
+        // 🛡️ TB key validation proxy (avoids CORS issues)
+        if (url.pathname.startsWith('/validate-tb-key/')) {
+            const tbKey = decodeURIComponent(url.pathname.split('/validate-tb-key/')[1] || '');
+            res.setHeader('Content-Type', 'application/json');
+            try {
+                const ac = new AbortController();
+                const tid = setTimeout(() => ac.abort(), 8000);
+                const r = await fetch('https://api.torbox.app/v1/api/user/me', {
+                    headers: { 'Authorization': `Bearer ${tbKey}` },
+                    signal: ac.signal
+                });
+                clearTimeout(tid);
+                const data = await r.json();
+                return res.status(200).send(JSON.stringify({ valid: r.status === 200, success: data.success }));
+            } catch (e) {
+                return res.status(200).send(JSON.stringify({ valid: false, error: e.message }));
+            }
         }
 
         // Health check
