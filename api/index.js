@@ -12593,9 +12593,9 @@ export default async function handler(req, res) {
                                 // New: S08EP02 (Common in Italian releases)
                                 new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x02 (with leading zero, word boundary)
-                                new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
+                                new RegExp(`(?<![0-9])${season}x${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x2 (without leading zero, word boundary)
-                                new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
+                                new RegExp(`(?<![0-9])${season}x${episode}(?![0-9])`, 'i'),
                                 // Dotted: s08.e02
                                 new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                                 // Spaced: Season 8 Episode 2
@@ -12805,9 +12805,9 @@ export default async function handler(req, res) {
                                 // New: S08EP02 (Common in Italian releases)
                                 new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x02 (with leading zero, word boundary)
-                                new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
+                                new RegExp(`(?<![0-9])${season}x${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x2 (without leading zero, word boundary)
-                                new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
+                                new RegExp(`(?<![0-9])${season}x${episode}(?![0-9])`, 'i'),
                                 // Dotted: s08.e02
                                 new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                                 // Spaced: Season 8 Episode 2
@@ -14345,8 +14345,8 @@ export default async function handler(req, res) {
                         const patterns = [
                             new RegExp(`s${seasonStr}e${episodeStr}(?![0-9])`, 'i'),
                             new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
-                            new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
-                            new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
+                            new RegExp(`(?<![0-9])${season}x${episodeStr}(?![0-9])`, 'i'),
+                            new RegExp(`(?<![0-9])${season}x${episode}(?![0-9])`, 'i'),
                             new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                             new RegExp(`season\\s*${season}\\s*episode\\s*${episode}(?![0-9])`, 'i'),
                             new RegExp(`stagione\\s*${season}\\s*episodio\\s*${episode}(?![0-9])`, 'i'),
