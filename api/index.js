@@ -11939,6 +11939,47 @@ export default async function handler(req, res) {
     }
 
 
+    // ☕ Central Ko-fi Stats URL & Custom User Ko-fi Page
+    const KOFI_STATS_URL = process.env.KOFI_STATS_URL || 'https://toastflix.stremio-italia.eu/api/kofi-stats';
+    const DEFAULT_KOFI_URL = process.env.KOFI_URL || 'https://ko-fi.com/prisonmike8899';
+
+    if (url.pathname.endsWith('/donation.html')) {
+        try {
+            const donationPath = path.join(process.cwd(), 'public', 'donation.html');
+            const donationHtml = await fs.readFile(donationPath, 'utf-8');
+            res.setHeader('Content-Type', 'text/html;charset=UTF-8');
+            return res.status(200).send(donationHtml);
+        } catch (e) {
+            console.error('Error reading donation.html:', e);
+            return res.status(500).send('Donation page not found.');
+        }
+    }
+
+    if (url.pathname.endsWith('/api/kofi-stats')) {
+        try {
+            const resp = await fetch(KOFI_STATS_URL);
+            if (resp.ok) {
+                const data = await resp.json();
+                if (!data.kofi_url || data.kofi_url === 'https://ko-fi.com' || data.kofi_url === 'https://ko-fi.com/') {
+                    data.kofi_url = DEFAULT_KOFI_URL;
+                }
+                res.setHeader('Content-Type', 'application/json');
+                return res.status(200).send(JSON.stringify(data));
+            }
+            throw new Error(`Upstream returned ${resp.status}`);
+        } catch (e) {
+            console.error('Error fetching central kofi-stats:', e.message);
+            res.setHeader('Content-Type', 'application/json');
+            return res.status(200).send(JSON.stringify({
+                goal: 18.0,
+                current: 0.0,
+                percentage: 0.0,
+                currency: 'EUR',
+                kofi_url: DEFAULT_KOFI_URL
+            }));
+        }
+    }
+
     // ✅ Serve la pagina di configurazione alla root
     if (url.pathname === '/') {
         try {
@@ -12279,6 +12320,32 @@ export default async function handler(req, res) {
 
             console.log(`✅ Stream request completed in ${responseTime}ms`);
 
+            // ☕ Insert Ko-fi donation stream if monthly goal is NOT yet reached on central server
+            try {
+                const kofiStatsRes = await fetch(KOFI_STATS_URL);
+                if (kofiStatsRes.ok) {
+                    const kofiData = await kofiStatsRes.json();
+                    const current = kofiData.current || 0.0;
+                    const goal = kofiData.goal || 18.0;
+                    if (current < goal) {
+                        if (!result) result = { streams: [] };
+                        if (!Array.isArray(result.streams)) result.streams = [];
+                        const hostUrl = url.origin || '';
+                        const donationStream = {
+                            name: "⏳ DONAZIONE",
+                            title: `☕ Clicca qui per sostenere i server (Obiettivo ${goal.toFixed(0)}€/mese)`,
+                            externalUrl: `${hostUrl}/donation.html`,
+                            behaviorHints: {
+                                notWebReady: true
+                            }
+                        };
+                        result.streams.unshift(donationStream);
+                    }
+                }
+            } catch (err) {
+                console.error('❌ Error checking central Ko-fi stats:', err.message);
+            }
+
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('X-Response-Time', `${responseTime}ms`);
             res.setHeader('X-Results-Count', result.streams?.length || 0);
@@ -12593,9 +12660,9 @@ export default async function handler(req, res) {
                                 // New: S08EP02 (Common in Italian releases)
                                 new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x02 (with leading zero, word boundary)
-                                new RegExp(`(?<![1-9])${season}x${episodeStr}(?![0-9])`, 'i'),
+                                new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x2 (without leading zero, word boundary)
-                                new RegExp(`(?<![1-9])${season}x${episode}(?![0-9])`, 'i'),
+                                new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
                                 // Dotted: s08.e02
                                 new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                                 // Spaced: Season 8 Episode 2
@@ -12805,9 +12872,9 @@ export default async function handler(req, res) {
                                 // New: S08EP02 (Common in Italian releases)
                                 new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x02 (with leading zero, word boundary)
-                                new RegExp(`(?<![1-9])${season}x${episodeStr}(?![0-9])`, 'i'),
+                                new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
                                 // Compact: 8x2 (without leading zero, word boundary)
-                                new RegExp(`(?<![1-9])${season}x${episode}(?![0-9])`, 'i'),
+                                new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
                                 // Dotted: s08.e02
                                 new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                                 // Spaced: Season 8 Episode 2
@@ -14345,8 +14412,8 @@ export default async function handler(req, res) {
                         const patterns = [
                             new RegExp(`s${seasonStr}e${episodeStr}(?![0-9])`, 'i'),
                             new RegExp(`s${seasonStr}ep${episodeStr}(?![0-9])`, 'i'),
-                            new RegExp(`(?<![1-9])${season}x${episodeStr}(?![0-9])`, 'i'),
-                            new RegExp(`(?<![1-9])${season}x${episode}(?![0-9])`, 'i'),
+                            new RegExp(`${season}x${episodeStr}(?![0-9])`, 'i'),
+                            new RegExp(`${season}x${episode}(?![0-9])`, 'i'),
                             new RegExp(`s${seasonStr}\\.e${episodeStr}(?![0-9])`, 'i'),
                             new RegExp(`season\\s*${season}\\s*episode\\s*${episode}(?![0-9])`, 'i'),
                             new RegExp(`stagione\\s*${season}\\s*episodio\\s*${episode}(?![0-9])`, 'i'),
