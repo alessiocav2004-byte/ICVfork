@@ -788,7 +788,7 @@ const DEFAULT_ENABLED = {
     eztv: true,
     solid: true,
     bitsearch: true,
-    dhtindex: true,
+    dhtindex: false,
 };
 
 async function searchAllPublicTrackers({ metadata, parsedId, type, enabled }) {
@@ -801,7 +801,7 @@ async function searchAllPublicTrackers({ metadata, parsedId, type, enabled }) {
     if (en.eztv && type === 'series' && metadata?.imdbId) tasks.push(searchEZTV(ctx));
     if (en.solid) tasks.push(searchSolid(ctx));
     if (en.bitsearch) tasks.push(searchBitsearch(ctx));
-    if (en.dhtindex) tasks.push(searchDhtIndex(ctx));
+    // if (en.dhtindex) tasks.push(searchDhtIndex(ctx));
 
     const buckets = await Promise.all(tasks.map(p => p.catch(err => {
         if (DEBUG_MODE) console.warn('[public-trackers] provider error:', err.message);
