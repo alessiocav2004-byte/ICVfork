@@ -12320,14 +12320,15 @@ export default async function handler(req, res) {
 
             console.log(`✅ Stream request completed in ${responseTime}ms`);
 
-            // ☕ Insert Ko-fi donation stream if monthly goal is NOT yet reached on central server
+            // ☕ Insert Ko-fi donation stream if hiding threshold (or goal) is NOT yet reached on central server
             try {
                 const kofiStatsRes = await fetch(KOFI_STATS_URL);
                 if (kofiStatsRes.ok) {
                     const kofiData = await kofiStatsRes.json();
                     const current = kofiData.current || 0.0;
-                    const goal = kofiData.goal || 18.0;
-                    if (current < goal) {
+                    const goal = kofiData.goal || 23.0;
+                    const hideThreshold = kofiData.hide_threshold !== undefined ? kofiData.hide_threshold : goal;
+                    if (current < hideThreshold) {
                         if (!result) result = { streams: [] };
                         if (!Array.isArray(result.streams)) result.streams = [];
                         const hostUrl = url.origin || '';
