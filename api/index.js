@@ -12272,14 +12272,15 @@ export default async function handler(req, res) {
         }
 
         // Stream endpoint (main functionality)
-        // Gestisce il formato /{config}/stream/{type}/{id} inviato da Stremio
+        // Gestisce il formato /{config}/stream/{type}/{id} o /{config}/free/stream/{type}/{id} inviato da Stremio
         if (url.pathname.includes('/stream/')) {
-            const pathParts = url.pathname.split('/'); // e.g., ['', '{config}', 'stream', '{type}', '{id}.json']
+            const pathParts = url.pathname.split('/');
+            const isFreeMode = url.pathname.includes('/free/') || pathParts.includes('free');
 
             // Estrae la configurazione dal primo segmento del path
             const encodedConfigStr = pathParts[1];
             let config = {};
-            if (encodedConfigStr && encodedConfigStr !== 'stream') {
+            if (encodedConfigStr && encodedConfigStr !== 'stream' && encodedConfigStr !== 'free') {
                 try {
                     config = JSON.parse(decodeBase64Url(encodedConfigStr));
                 } catch (e) {
@@ -12302,9 +12303,10 @@ export default async function handler(req, res) {
                 console.log('🔀 [MediaFlow] Using ENV configuration for RD sharing');
             }
 
-            // Estrae tipo e id dalle posizioni corrette
-            const type = pathParts[3];
-            const idWithSuffix = pathParts[4] || '';
+            // Estrae tipo e id in base alla posizione di 'stream'
+            const streamIdx = pathParts.indexOf('stream');
+            const type = streamIdx !== -1 ? pathParts[streamIdx + 1] : pathParts[3];
+            const idWithSuffix = streamIdx !== -1 ? (pathParts[streamIdx + 2] || '') : (pathParts[4] || '');
             const id = idWithSuffix.replace(/\.json$/, '');
 
             if (!type || !id || id.includes('config=')) { // Aggiunto controllo per evitare ID errati
@@ -12320,31 +12322,33 @@ export default async function handler(req, res) {
 
             console.log(`✅ Stream request completed in ${responseTime}ms`);
 
-            // ☕ Insert Ko-fi donation stream if hiding threshold (or goal) is NOT yet reached on central server
-            try {
-                const kofiStatsRes = await fetch(KOFI_STATS_URL);
-                if (kofiStatsRes.ok) {
-                    const kofiData = await kofiStatsRes.json();
-                    const current = kofiData.current || 0.0;
-                    const goal = kofiData.goal || 23.0;
-                    const hideThreshold = kofiData.hide_threshold !== undefined ? kofiData.hide_threshold : goal;
-                    if (current < hideThreshold) {
-                        if (!result) result = { streams: [] };
-                        if (!Array.isArray(result.streams)) result.streams = [];
-                        const hostUrl = url.origin || '';
-                        const donationStream = {
-                            name: "⏳ DONAZIONE",
-                            title: `☕ Clicca qui per sostenere i server (Obiettivo ${goal.toFixed(0)}€/mese)`,
-                            externalUrl: `${hostUrl}/donation.html`,
-                            behaviorHints: {
-                                notWebReady: true
-                            }
-                        };
-                        result.streams.unshift(donationStream);
+            // ☕ Insert Ko-fi donation stream if hiding threshold (or goal) is NOT yet reached on central server AND NOT in /free/ mode
+            if (!isFreeMode) {
+                try {
+                    const kofiStatsRes = await fetch(KOFI_STATS_URL);
+                    if (kofiStatsRes.ok) {
+                        const kofiData = await kofiStatsRes.json();
+                        const current = kofiData.current || 0.0;
+                        const goal = kofiData.goal || 23.0;
+                        const hideThreshold = kofiData.hide_threshold !== undefined ? kofiData.hide_threshold : goal;
+                        if (current < hideThreshold) {
+                            if (!result) result = { streams: [] };
+                            if (!Array.isArray(result.streams)) result.streams = [];
+                            const hostUrl = url.origin || '';
+                            const donationStream = {
+                                name: "⏳ DONAZIONE",
+                                title: `☕ Clicca qui per sostenere i server (Obiettivo ${goal.toFixed(0)}€/mese)`,
+                                externalUrl: `${hostUrl}/donation.html`,
+                                behaviorHints: {
+                                    notWebReady: true
+                                }
+                            };
+                            result.streams.unshift(donationStream);
+                        }
                     }
+                } catch (err) {
+                    console.error('❌ Error checking central Ko-fi stats:', err.message);
                 }
-            } catch (err) {
-                console.error('❌ Error checking central Ko-fi stats:', err.message);
             }
 
             res.setHeader('Content-Type', 'application/json');
