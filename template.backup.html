@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/png" href="https://github.com/qwertyuiop8899/logo/blob/main/logo.png?raw=true">
     <link rel="shortcut icon" type="image/png"
         href="https://github.com/qwertyuiop8899/logo/blob/main/logo.png?raw=true">
@@ -520,796 +520,6 @@
             transition: filter 0.4s ease;
         }
     </style>
-    <style id="icv-refresh">
-        :root {
-            color-scheme: dark;
-            --icv-ink: #0c0713;
-            --icv-panel: #241347;
-            --icv-panel-soft: rgba(69, 39, 128, 0.72);
-            --icv-violet: #7547ed;
-            --icv-violet-light: #a985ff;
-            --icv-orange: #f4a64b;
-            --icv-orange-light: #ffc47d;
-            --icv-paper: #f5f0e8;
-            --icv-muted: #aaa1b7;
-            --icv-line: rgba(222, 207, 255, 0.18);
-            --bg-x: 72%;
-            --bg-y: 18%;
-            --active-glow: 0.22;
-        }
-
-        html,
-        body {
-            min-height: 100%;
-            height: auto;
-            background: var(--icv-ink);
-        }
-
-        body {
-            padding: clamp(14px, 2.4vw, 30px);
-            color: var(--icv-paper);
-            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        #container {
-            z-index: 0;
-            pointer-events: none;
-            touch-action: auto;
-            background:
-                radial-gradient(
-                    900px circle at 10% 4%,
-                    rgba(117, 71, 237, 0.28),
-                    transparent 58%
-                ),
-                linear-gradient(145deg, #0b0712 0%, #180b2b 48%, #08060c 100%);
-            transition: background 0.35s ease;
-        }
-
-        #container::before {
-            content: "";
-            position: absolute;
-            z-index: 2;
-            inset: 0;
-            background:
-                radial-gradient(
-                    680px circle at var(--bg-x) var(--bg-y),
-                    rgba(244, 166, 75, var(--active-glow)),
-                    transparent 64%
-                ),
-                radial-gradient(
-                    760px circle at 14% 14%,
-                    rgba(117, 71, 237, 0.20),
-                    transparent 70%
-                ),
-                radial-gradient(
-                    540px circle at 92% 88%,
-                    rgba(244, 166, 75, 0.16),
-                    transparent 72%
-                );
-            mix-blend-mode: screen;
-            pointer-events: none;
-        }
-
-        #container::after {
-            content: "";
-            position: absolute;
-            z-index: 3;
-            inset: 0;
-            opacity: 0.11;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent 0 95px,
-                rgba(255, 255, 255, 0.035) 96px
-            );
-            mask-image: linear-gradient(to bottom, #000, transparent 86%);
-            pointer-events: none;
-        }
-
-        #container canvas {
-            position: absolute !important;
-            z-index: 1 !important;
-            inset: 0 !important;
-            display: block !important;
-            opacity: 0.84;
-            filter: brightness(0.70) contrast(1.12) saturate(1.28);
-        }
-
-        .container {
-            width: min(1240px, 100%);
-            max-width: none;
-        }
-
-        .header {
-            display: grid;
-            grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.25fr);
-            align-items: center;
-            gap: clamp(28px, 5vw, 70px);
-            margin-bottom: 24px;
-            padding: 22px 0 28px;
-            border-bottom: 1px solid var(--icv-line);
-        }
-
-        .header-left {
-            width: auto;
-            justify-content: flex-start;
-            gap: 16px;
-            padding: 0;
-        }
-
-        .prisonmike-img {
-            display: none;
-        }
-
-        .header-left .logo-container {
-            display: grid;
-            grid-template-columns: 72px minmax(0, 1fr);
-            align-items: center;
-            gap: 18px;
-            text-align: left;
-        }
-
-        .logo {
-            width: 72px;
-            height: 72px;
-            border: 2px solid var(--icv-orange);
-            border-radius: 17px 5px 17px 5px;
-            box-shadow: 7px 7px 0 rgba(117, 71, 237, 0.55);
-        }
-
-        .brand {
-            min-width: 0;
-            text-align: left !important;
-        }
-
-        .brand h1 {
-            margin: 0 0 5px !important;
-            background: none;
-            color: var(--icv-paper);
-            -webkit-text-fill-color: currentColor;
-            font-size: clamp(2rem, 4vw, 3.15rem);
-            font-weight: 900;
-            letter-spacing: -0.065em;
-            line-height: 0.95;
-            text-align: left;
-            animation: none;
-            word-break: normal;
-        }
-
-        .brand small {
-            max-width: 390px;
-            color: var(--icv-muted) !important;
-            font-size: 11px !important;
-            line-height: 1.4 !important;
-            text-align: left;
-        }
-
-        .brand a,
-        .service-card a {
-            color: var(--icv-orange-light) !important;
-        }
-
-        .header-right {
-            display: grid;
-            grid-template-columns: minmax(190px, 0.6fr) minmax(320px, 1.4fr);
-            gap: 12px;
-            align-items: stretch;
-            max-width: none;
-        }
-
-        .header-right > div:first-child {
-            display: flex !important;
-            min-width: 0;
-            margin: 0 !important;
-            overflow: hidden !important;
-            border: 1px solid var(--icv-line) !important;
-            border-radius: 13px 4px 13px 4px !important;
-            background: rgba(24, 12, 45, 0.72);
-        }
-
-        #lang_it,
-        #lang_en {
-            min-width: 0;
-            min-height: 50px;
-            padding: 10px 14px !important;
-            border: 0 !important;
-            border-radius: 0 !important;
-            background: var(--icv-violet) !important;
-            box-shadow: none !important;
-            color: #fff !important;
-            font-size: 13px !important;
-            opacity: 0.72;
-        }
-
-        #lang_it.active,
-        #lang_en.active {
-            background: var(--icv-orange) !important;
-            color: var(--icv-ink) !important;
-            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.48) !important;
-            opacity: 1;
-        }
-
-        #lang_it.active::after,
-        #lang_en.active::after {
-            content: "✓";
-            margin-left: 8px;
-            font-weight: 950;
-        }
-
-        .header-right > .button-group {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            margin: 0 !important;
-        }
-
-        .header-right > .button-group > a {
-            min-width: 0 !important;
-            padding: 11px 14px !important;
-            border: 1px solid rgba(169, 133, 255, 0.40) !important;
-            border-radius: 13px 4px 13px 4px !important;
-            background: rgba(77, 43, 148, 0.62) !important;
-            box-shadow: none;
-            backdrop-filter: none !important;
-        }
-
-        .header-right > .button-group > a:hover {
-            border-color: var(--icv-orange) !important;
-            background: rgba(117, 71, 237, 0.75) !important;
-        }
-
-        .config-info {
-            grid-column: 1 / -1;
-            padding: 12px 15px;
-            border: 1px solid rgba(244, 166, 75, 0.30);
-            border-radius: 4px 13px 4px 13px;
-            background: rgba(244, 166, 75, 0.08);
-        }
-
-        .config-info p {
-            color: var(--icv-muted);
-        }
-
-        #status {
-            color: var(--icv-orange-light) !important;
-        }
-
-        .torbox-referrals {
-            display: grid;
-            grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
-            gap: 14px;
-            align-items: stretch;
-            margin-bottom: 18px !important;
-        }
-
-        .torbox-referrals .torbox-ref-card,
-        .torbox-referrals .kofi-card {
-            height: 100%;
-            margin: 0 !important;
-            padding: clamp(20px, 2.8vw, 30px) !important;
-            border-radius: 20px 6px 20px 6px !important;
-            backdrop-filter: none !important;
-            box-shadow: none !important;
-        }
-
-        .torbox-referrals .torbox-ref-card {
-            border: 1px solid rgba(169, 133, 255, 0.42) !important;
-            background: linear-gradient(145deg, rgba(78, 42, 151, 0.92), rgba(40, 20, 81, 0.94)) !important;
-            text-align: left;
-        }
-
-        .torbox-ref-card .tb-header {
-            justify-content: flex-start;
-        }
-
-        .torbox-ref-card .tb-accent {
-            color: var(--icv-orange-light) !important;
-        }
-
-        .torbox-ref-card h3 {
-            font-size: clamp(1.25rem, 2.2vw, 1.75rem);
-            letter-spacing: -0.035em;
-            text-shadow: none;
-        }
-
-        .torbox-ref-card .tb-sub {
-            margin: 10px 0 18px;
-            color: #d3c9e4;
-            font-size: 13px;
-            text-shadow: none;
-        }
-
-        .torbox-ref-card .tb-btns {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .torbox-ref-card .tb-btn {
-            min-width: 0;
-            max-width: none;
-            padding: 11px 10px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 11px 3px 11px 3px;
-            background: rgba(14, 7, 25, 0.42);
-            box-shadow: none;
-            font-size: 12px;
-        }
-
-        .torbox-ref-card .tb-btn:hover {
-            background: var(--icv-orange);
-            color: var(--icv-ink);
-            box-shadow: none;
-            transform: translateY(-2px);
-        }
-
-        .torbox-ref-card .tb-btn small {
-            color: inherit;
-            font-size: 9px;
-        }
-
-        .torbox-referrals .kofi-card {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            border: 1px solid var(--icv-orange-light) !important;
-            background: var(--icv-orange) !important;
-            color: var(--icv-ink);
-        }
-
-        .torbox-referrals .kofi-title,
-        .torbox-referrals .kofi-amounts,
-        .torbox-referrals .kofi-subtext {
-            color: var(--icv-ink) !important;
-        }
-
-        .torbox-referrals .kofi-title {
-            font-size: 13px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .torbox-referrals .kofi-amounts {
-            font-family: inherit;
-            font-size: clamp(18px, 2.2vw, 28px);
-            font-weight: 900;
-            letter-spacing: -0.05em;
-        }
-
-        .torbox-referrals .kofi-progress-bar {
-            height: 13px;
-            border: 1px solid var(--icv-ink);
-            border-radius: 8px 2px 8px 2px;
-            background: rgba(12, 7, 19, 0.18);
-        }
-
-        .torbox-referrals .kofi-progress-fill {
-            background: var(--icv-violet);
-        }
-
-        .torbox-referrals .kofi-footer {
-            align-items: flex-end;
-        }
-
-        .torbox-referrals .kofi-subtext {
-            flex: 1;
-            font-size: 10px;
-            font-weight: 650;
-            opacity: 0.72;
-        }
-
-        .torbox-referrals .btn-kofi-widget {
-            padding: 10px 14px;
-            border: 1px solid var(--icv-ink);
-            border-radius: 10px 3px 10px 3px;
-            background: var(--icv-ink);
-            color: #fff !important;
-            font-size: 11px;
-            font-weight: 850;
-        }
-
-        .torbox-referrals .btn-kofi-widget:hover {
-            background: var(--icv-violet);
-        }
-
-        .config-grid {
-            gap: 14px;
-            margin-bottom: 18px;
-        }
-
-        .container .service-card,
-        .container .action-section {
-            border: 1px solid rgba(169, 133, 255, 0.33);
-            border-radius: 18px 5px 18px 5px;
-            background: linear-gradient(145deg, rgba(66, 35, 128, 0.86), rgba(31, 16, 61, 0.92));
-            box-shadow: none;
-            backdrop-filter: none;
-        }
-
-        .container .service-card {
-            padding: clamp(17px, 2vw, 23px);
-        }
-
-        .container .service-card:hover {
-            border-color: rgba(244, 166, 75, 0.58);
-            box-shadow: none;
-            transform: translateY(-1px);
-        }
-
-        .container .service-card:has(> .service-header input[type="checkbox"]:checked) {
-            border-color: var(--icv-orange-light);
-            background: var(--icv-orange);
-            color: var(--icv-ink);
-        }
-
-        .container .service-card:has(> .service-header input[type="checkbox"]:checked) .service-title,
-        .container .service-card:has(> .service-header input[type="checkbox"]:checked) small,
-        .container .service-card:has(> .service-header input[type="checkbox"]:checked) a {
-            color: var(--icv-ink) !important;
-        }
-
-        .service-header {
-            margin-bottom: 13px;
-        }
-
-        .service-title,
-        .section-title {
-            color: var(--icv-orange-light);
-            font-weight: 850;
-            letter-spacing: -0.025em;
-        }
-
-        .service-title {
-            font-size: 1.05rem;
-        }
-
-        .section-title {
-            text-align: left;
-        }
-
-        small {
-            color: var(--icv-muted);
-        }
-
-        input[type="text"],
-        input[type="password"],
-        input[type="number"],
-        textarea,
-        select {
-            border: 1px solid rgba(207, 187, 255, 0.30);
-            border-radius: 11px 3px 11px 3px;
-            background: rgba(10, 5, 19, 0.58);
-            color: var(--icv-paper);
-            box-shadow: none;
-        }
-
-        input:focus,
-        textarea:focus,
-        select:focus {
-            outline: 2px solid var(--icv-orange);
-            outline-offset: 2px;
-            border-color: var(--icv-orange);
-            box-shadow: none;
-        }
-
-        input:disabled {
-            opacity: 0.46;
-        }
-
-        .container input[type="checkbox"] {
-            width: 22px !important;
-            height: 22px !important;
-            min-width: 22px;
-            flex: 0 0 22px;
-            margin: 0 9px 0 0 !important;
-            appearance: none;
-            display: inline-grid;
-            place-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.58);
-            border-radius: 7px 2px 7px 2px;
-            background: var(--icv-violet);
-            cursor: pointer;
-            vertical-align: middle;
-            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-        }
-
-        .container input[type="checkbox"]::after {
-            content: "✓";
-            color: var(--icv-ink);
-            font-size: 14px;
-            font-weight: 950;
-            line-height: 1;
-            opacity: 0;
-            transform: scale(0.5);
-            transition: opacity 0.16s ease, transform 0.16s ease;
-        }
-
-        .container input[type="checkbox"]:checked {
-            border-color: var(--icv-ink);
-            background: var(--icv-orange);
-        }
-
-        .container input[type="checkbox"]:checked::after {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .container input[type="checkbox"]:disabled {
-            background: #534e59;
-            cursor: not-allowed;
-        }
-
-        .container label:has(input[type="checkbox"]) {
-            border: 1px solid rgba(169, 133, 255, 0.36) !important;
-            border-radius: 12px 4px 12px 4px !important;
-            background: rgba(117, 71, 237, 0.24) !important;
-            color: var(--icv-paper) !important;
-            transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-
-        .container label:has(input[type="checkbox"]:checked) {
-            border-color: var(--icv-orange-light) !important;
-            background: var(--icv-orange) !important;
-            color: var(--icv-ink) !important;
-            box-shadow: inset 4px 0 0 var(--icv-violet);
-        }
-
-        /* Anche descrizioni e note con colori inline diventano nere nello stato attivo. */
-        .container label:has(input[type="checkbox"]:checked)
-            *:not(input):not(select):not(option):not(textarea) {
-            color: var(--icv-ink) !important;
-            opacity: 1 !important;
-        }
-
-        .choice-emoji {
-            width: 29px;
-            height: 29px;
-            display: inline-grid;
-            place-items: center;
-            flex: 0 0 29px;
-            margin-right: 6px;
-            border: 1px solid rgba(169, 133, 255, 0.42);
-            border-radius: 8px 3px 8px 3px;
-            background: rgba(21, 10, 42, 0.42);
-            color: initial !important;
-            font-size: 17px;
-            line-height: 1;
-            vertical-align: middle;
-            filter: saturate(1.15) drop-shadow(0 1px 1px rgba(255, 255, 255, 0.16));
-            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-        }
-
-        .container label:has(input[type="checkbox"]:checked) .choice-emoji,
-        .container .service-card:has(> .service-header input[type="checkbox"]:checked) .choice-emoji {
-            border-color: #6f2900 !important;
-            background: #a84705 !important;
-            box-shadow:
-                inset 0 0 0 1px rgba(255, 196, 125, 0.28),
-                0 2px 5px rgba(75, 25, 0, 0.25);
-            color: initial !important;
-        }
-
-        .container label:has(input[type="checkbox"]:not(:disabled)):hover {
-            transform: translateY(-1px);
-            border-color: var(--icv-orange) !important;
-        }
-
-        .container label:has(input[type="checkbox"]:disabled) {
-            border-color: rgba(255, 255, 255, 0.12) !important;
-            background: rgba(92, 87, 99, 0.18) !important;
-            color: #77717d !important;
-        }
-
-        .search-sites {
-            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-            gap: 8px;
-        }
-
-        .search-sites label {
-            min-height: 48px;
-            white-space: normal;
-        }
-
-        details {
-            border-color: var(--icv-line) !important;
-            background: rgba(10, 5, 19, 0.22) !important;
-        }
-
-        summary {
-            color: var(--icv-orange-light);
-        }
-
-        button {
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px 4px 12px 4px;
-            background: var(--icv-violet);
-            box-shadow: none;
-            font-weight: 800;
-        }
-
-        button:hover:not(:disabled) {
-            border-color: var(--icv-orange-light);
-            background: var(--icv-orange);
-            color: var(--icv-ink);
-            box-shadow: none;
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            background: rgba(103, 94, 114, 0.38);
-        }
-
-        #manual_import_button {
-            width: min(340px, 100%) !important;
-            border: 1px solid rgba(169, 133, 255, 0.45) !important;
-            background: var(--icv-violet) !important;
-            box-shadow: none !important;
-        }
-
-        #install_button {
-            border-color: var(--icv-orange-light);
-            background: var(--icv-orange);
-            color: var(--icv-ink);
-        }
-
-        #copy_button {
-            background: var(--icv-violet);
-        }
-
-        .custom-kofi-union {
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 12px 4px 12px 4px !important;
-            background: #39206e !important;
-            box-shadow: none !important;
-        }
-
-        .custom-kofi-union:hover {
-            background: var(--icv-violet) !important;
-            box-shadow: none !important;
-        }
-
-        .action-section {
-            padding: clamp(20px, 3.3vw, 38px);
-        }
-
-        #link-container {
-            padding-top: 12px;
-        }
-
-        #install_link_display {
-            color: var(--icv-orange-light);
-        }
-
-        #info_modal {
-            background: rgba(6, 3, 10, 0.84) !important;
-        }
-
-        #info_modal > div {
-            border-color: var(--icv-orange) !important;
-            border-radius: 18px 5px 18px 5px !important;
-            background: #1e1038 !important;
-            box-shadow: 8px 8px 0 rgba(117, 71, 237, 0.48) !important;
-        }
-
-        @media (max-width: 980px) {
-            .header {
-                grid-template-columns: 1fr;
-                gap: 24px;
-            }
-
-            .header-right {
-                grid-template-columns: minmax(180px, 0.6fr) minmax(320px, 1.4fr);
-            }
-
-            .torbox-referrals {
-                grid-template-columns: 1fr;
-            }
-
-            .torbox-referrals .kofi-card {
-                min-height: 210px;
-            }
-        }
-
-        @media (max-width: 680px) {
-            body {
-                padding: 12px;
-            }
-
-            .header {
-                padding-top: 10px;
-            }
-
-            .header-left .logo-container {
-                grid-template-columns: 58px minmax(0, 1fr);
-                gap: 13px;
-            }
-
-            .logo {
-                width: 58px;
-                height: 58px;
-                border-radius: 14px 4px 14px 4px;
-                box-shadow: 5px 5px 0 rgba(117, 71, 237, 0.55);
-            }
-
-            .brand h1 {
-                font-size: clamp(1.75rem, 9vw, 2.4rem);
-            }
-
-            .brand small {
-                font-size: 9px !important;
-            }
-
-            .header-right {
-                grid-template-columns: 1fr;
-            }
-
-            .header-right > .button-group {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .config-info {
-                grid-column: auto;
-            }
-
-            .torbox-referrals .torbox-ref-card,
-            .torbox-referrals .kofi-card {
-                padding: 20px !important;
-            }
-
-            .torbox-ref-card .tb-btns {
-                grid-template-columns: 1fr;
-            }
-
-            .torbox-referrals .kofi-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .torbox-referrals .kofi-footer {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .torbox-referrals .btn-kofi-widget {
-                text-align: center;
-            }
-
-            .config-grid {
-                gap: 11px;
-            }
-
-            .container .service-card {
-                border-radius: 15px 4px 15px 4px;
-            }
-
-            .button-group {
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-
-            .button-group > * {
-                width: 100% !important;
-                min-width: 0 !important;
-            }
-
-            #container canvas {
-                opacity: 0.72;
-                filter: brightness(0.62) contrast(1.10) saturate(1.22);
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *,
-            *::before,
-            *::after {
-                scroll-behavior: auto !important;
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.waves.min.js"></script>
 </head>
@@ -1342,8 +552,8 @@
 
             <div class="header-right">
                 <div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(147,51,234,0.25);width:100%;margin-bottom:16px;">
-                    <button class="lang-btn active" id="lang_it" type="button" aria-pressed="true" onclick="switchUILanguage('it')" style="flex:1;padding:12px 20px;border:none;background:linear-gradient(135deg,#9333ea,#7c3aed);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇮🇹 Italiano</button>
-                    <button class="lang-btn" id="lang_en" type="button" aria-pressed="false" onclick="switchUILanguage('en')" style="flex:1;padding:12px 20px;border:none;background:transparent;color:#9ca3af;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇬🇧 English</button>
+                    <button class="lang-btn active" id="lang_it" onclick="switchUILanguage('it')" style="flex:1;padding:12px 20px;border:none;background:linear-gradient(135deg,#9333ea,#7c3aed);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇮🇹 Italiano</button>
+                    <button class="lang-btn" id="lang_en" onclick="switchUILanguage('en')" style="flex:1;padding:12px 20px;border:none;background:transparent;color:#9ca3af;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇬🇧 English</button>
                 </div>
                 <div class="button-group" style="margin-bottom: 20px;">
                     <a href="https://dmv.stremio-italia.eu/" target="_blank" style="flex:1;min-width:200px;padding:16px 20px;background:rgba(20,20,40,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#e0e0e0;font-size:1em;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.3s ease;" onmouseover="this.style.borderColor='rgba(147,51,234,0.6)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(147,51,234,0.3)';this.style.transform=''">
@@ -1476,142 +686,52 @@
                         Acquista TorBox →
                         <small>Referral di @realbestia</small>
                     </a>
-                </div>
             </div>
 
             <!-- Ko-fi Monthly Goal Card -->
             <style>
                 .kofi-card {
-                    background:
-                        linear-gradient(105deg, rgba(124, 58, 237, 0.13), transparent 42%),
-                        rgba(20, 18, 30, 0.72);
+                    background: rgba(20, 18, 30, 0.5);
                     backdrop-filter: blur(10px);
-                    border: 1px solid rgba(167, 139, 250, 0.34);
-                    border-left: 4px solid #f5a64b;
-                    border-radius: 14px 5px 14px 5px;
-                    padding: 14px 16px;
+                    border: 1px solid rgba(124, 58, 237, 0.4);
+                    border-radius: 12px;
+                    padding: 16px 20px;
                     margin-top: 15px;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
                 }
                 .kofi-header {
-                    display: grid;
-                    grid-template-columns: minmax(0, 1fr) auto;
-                    gap: 14px;
+                    display: flex;
+                    justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 9px;
+                    margin-bottom: 10px;
                 }
                 .kofi-title {
+                    font-weight: 700;
+                    font-size: 1rem;
+                    color: #e0b3ff;
                     display: flex;
                     align-items: center;
-                    gap: 10px;
-                    min-width: 0;
-                }
-                .kofi-title-icon {
-                    display: grid;
-                    place-items: center;
-                    width: 34px;
-                    height: 34px;
-                    flex: 0 0 34px;
-                    background: #f5a64b;
-                    border: 1px solid #ffc57f;
-                    border-radius: 10px 3px 10px 3px;
-                    color: #1b0d26;
-                    font-size: 1.05rem;
-                    box-shadow: 3px 3px 0 rgba(124, 58, 237, 0.35);
-                }
-                .kofi-title-copy {
-                    min-width: 0;
-                }
-                .kofi-kicker {
-                    display: block;
-                    margin-bottom: 1px;
-                    color: #f5a64b;
-                    font-size: 0.62rem;
-                    font-weight: 900;
-                    letter-spacing: 0.11em;
-                    line-height: 1;
-                    text-transform: uppercase;
-                }
-                .kofi-title-text {
-                    display: block;
-                    overflow: hidden;
-                    color: #f5f0e8;
-                    font-size: 0.95rem;
-                    font-weight: 800;
-                    line-height: 1.15;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
+                    gap: 8px;
                 }
                 .kofi-amounts {
-                    display: grid;
-                    grid-template-columns: auto auto;
-                    grid-template-rows: auto auto;
-                    column-gap: 10px;
-                    align-items: center;
-                    min-width: 154px;
-                    padding: 7px 9px 7px 11px;
-                    background: rgba(8, 5, 15, 0.52);
-                    border: 1px solid rgba(245, 166, 75, 0.32);
-                    border-radius: 11px 3px 11px 3px;
-                    font-variant-numeric: tabular-nums;
-                }
-                .kofi-current {
-                    grid-row: 1 / 3;
-                    color: #ffc57f;
-                    font-size: 1.18rem;
-                    font-weight: 900;
-                    letter-spacing: -0.04em;
-                    line-height: 1;
-                    white-space: nowrap;
-                }
-                .kofi-goal {
-                    align-self: end;
-                    color: rgba(245, 240, 232, 0.58);
-                    font-size: 0.67rem;
                     font-weight: 700;
-                    line-height: 1;
-                    white-space: nowrap;
-                }
-                .kofi-goal strong {
-                    color: #f5f0e8;
-                    font-weight: 800;
-                }
-                .kofi-percent {
-                    align-self: start;
-                    justify-self: start;
-                    margin-top: 3px;
-                    padding: 2px 6px;
-                    background: #7c3aed;
-                    border-radius: 5px 2px 5px 2px;
-                    color: #ffffff;
-                    font-size: 0.66rem;
-                    font-weight: 900;
-                    line-height: 1.1;
-                }
-                .kofi-card.is-complete .kofi-percent {
-                    background: #f5a64b;
-                    color: #1b0d26;
-                }
-                .kofi-card.is-complete .kofi-amounts {
-                    border-color: rgba(245, 166, 75, 0.62);
+                    font-family: monospace;
+                    color: #4ade80;
+                    font-size: 0.95rem;
                 }
                 .kofi-progress-bar {
                     width: 100%;
-                    height: 8px;
+                    height: 10px;
                     background: #1a162b;
-                    border: 1px solid rgba(167, 139, 250, 0.16);
-                    border-radius: 4px;
+                    border-radius: 5px;
                     overflow: hidden;
-                    margin-bottom: 10px;
+                    margin-bottom: 12px;
                 }
                 .kofi-progress-fill {
                     height: 100%;
-                    background: linear-gradient(90deg, #7c3aed 0%, #a855f7 64%, #f5a64b 100%);
+                    background: linear-gradient(90deg, #7c3aed, #4ade80);
                     width: 0%;
                     transition: width 0.6s ease;
-                }
-                .kofi-card.is-complete .kofi-progress-fill {
-                    background: linear-gradient(90deg, #7c3aed 0%, #f5a64b 100%);
                 }
                 .kofi-footer {
                     display: flex;
@@ -1637,66 +757,14 @@
                 .btn-kofi-widget:hover {
                     background: #6d28d9;
                 }
-                @media (max-width: 560px) {
-                    .kofi-card {
-                        padding: 12px;
-                    }
-                    .kofi-header {
-                        gap: 9px;
-                    }
-                    .kofi-title-icon {
-                        width: 30px;
-                        height: 30px;
-                        flex-basis: 30px;
-                    }
-                    .kofi-kicker {
-                        font-size: 0.56rem;
-                    }
-                    .kofi-title-text {
-                        font-size: 0.82rem;
-                    }
-                    .kofi-amounts {
-                        min-width: 137px;
-                        column-gap: 7px;
-                        padding: 6px 7px 6px 9px;
-                    }
-                    .kofi-current {
-                        font-size: 1.02rem;
-                    }
-                    .kofi-goal,
-                    .kofi-percent {
-                        font-size: 0.6rem;
-                    }
-                }
-                @media (max-width: 390px) {
-                    .kofi-title-icon {
-                        display: none;
-                    }
-                    .kofi-header {
-                        grid-template-columns: minmax(0, 1fr) auto;
-                    }
-                    .kofi-kicker {
-                        display: none;
-                    }
-                }
             </style>
 
             <div class="kofi-card" id="kofiCard">
               <div class="kofi-header">
-                <div class="kofi-title">
-                  <span class="kofi-title-icon" aria-hidden="true">☕</span>
-                  <span class="kofi-title-copy">
-                    <span class="kofi-kicker">Sostieni ICV</span>
-                    <span class="kofi-title-text">Obiettivo Server del Mese</span>
-                  </span>
-                </div>
-                <div class="kofi-amounts" id="kofiAmountsWidget" aria-label="0 euro raccolti su un obiettivo di 18 euro, 0 percento">
-                  <strong class="kofi-current" id="kofiCurrentWidget">0.00€</strong>
-                  <span class="kofi-goal">su <strong id="kofiGoalWidget">18.00€</strong></span>
-                  <span class="kofi-percent" id="kofiPercentWidget">0%</span>
-                </div>
+                <div class="kofi-title">☕ Obiettivo Server del Mese</div>
+                <div class="kofi-amounts" id="kofiAmountsWidget">0.00€ / 18.00€</div>
               </div>
-              <div class="kofi-progress-bar" id="kofiProgressWidget" role="progressbar" aria-label="Progresso obiettivo server mensile" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="kofi-progress-bar">
                 <div class="kofi-progress-fill" id="kofiProgressFillWidget" style="width: 0%;"></div>
               </div>
               <div class="kofi-footer">
@@ -2583,12 +1651,12 @@
                  var btnIt = document.getElementById('lang_it');
                  var btnEn = document.getElementById('lang_en');
                  if (btnIt) {
-                     btnIt.classList.toggle('active', l === 'it');
-                     btnIt.setAttribute('aria-pressed', l === 'it' ? 'true' : 'false');
+                     btnIt.style.background = (l === 'it') ? 'linear-gradient(135deg,#9333ea,#7c3aed)' : 'transparent';
+                     btnIt.style.color = (l === 'it') ? '#fff' : '#9ca3af';
                  }
                  if (btnEn) {
-                     btnEn.classList.toggle('active', l === 'en');
-                     btnEn.setAttribute('aria-pressed', l === 'en' ? 'true' : 'false');
+                     btnEn.style.background = (l === 'en') ? 'linear-gradient(135deg,#9333ea,#7c3aed)' : 'transparent';
+                     btnEn.style.color = (l === 'en') ? '#fff' : '#9ca3af';
                  }
                 // textContent
                 document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -3837,137 +2905,62 @@
             switchUILanguage('it');
         </script>
         <script>
-            // Onde viola scure + luce arancione coordinata con le selezioni.
+            // Vanta.WAVES animated background (html5up-vantajs style)
+            // Amplifica l'effetto nativo di Vanta al movimento del mouse
+            // sovrascrivendo mouseX/mouseY con offset moltiplicati rispetto al centro.
             (function () {
-                var root = document.documentElement;
-                var frameRequested = false;
-                var nextX = 72;
-                var nextY = 18;
-                var waveEffect = null;
-                var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                var leadingEmojiPattern = /^(\s*)((?:\p{Regional_Indicator}{2})|(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)|(?:[#*0-9]\uFE0F?\u20E3))\s*/u;
+                const BASE_COLOR = 0x2a1d5e;       // viola scuro costante
+                const SHININESS = 90.00;
+                const MOUSE_AMP_X = 3.4;           // amplificazione orizzontale
+                const MOUSE_AMP_Y_UP = 3.4;        // amplificazione quando il mouse sale
+                const MOUSE_AMP_Y_DOWN = 1.9;      // amplificazione ridotta quando il mouse scende
+                const MAX_DOWN_Y_RATIO = 0.62;     // limite in basso per evitare effetto "sotto l'immagine"
 
-                function wrapLeadingEmoji(element) {
-                    if (!element || element.querySelector('.choice-emoji')) return;
+                let vantaEffect = null;
 
-                    var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-                    var textNode;
-
-                    while ((textNode = walker.nextNode())) {
-                        var match = textNode.nodeValue.match(leadingEmojiPattern);
-                        if (!match) continue;
-
-                        var fragment = document.createDocumentFragment();
-                        if (match[1]) fragment.appendChild(document.createTextNode(match[1]));
-
-                        var badge = document.createElement('span');
-                        badge.className = 'choice-emoji';
-                        badge.setAttribute('aria-hidden', 'true');
-                        badge.textContent = match[2];
-                        fragment.appendChild(badge);
-                        fragment.appendChild(document.createTextNode(textNode.nodeValue.slice(match[0].length)));
-                        textNode.parentNode.replaceChild(fragment, textNode);
-                        break;
+                function initVanta() {
+                    if (typeof VANTA === 'undefined' || !VANTA.WAVES) {
+                        return setTimeout(initVanta, 100);
                     }
-                }
-
-                function decorateChoiceEmojis() {
-                    var targets = Array.prototype.slice.call(
-                        document.querySelectorAll('.container .service-title')
-                    );
-
-                    Array.prototype.forEach.call(
-                        document.querySelectorAll('.container label'),
-                        function (label) {
-                            if (label.querySelector('input[type="checkbox"]')) targets.push(label);
-                        }
-                    );
-
-                    targets.forEach(wrapLeadingEmoji);
-                }
-
-                function initWaves() {
-                    if (!window.VANTA || !window.VANTA.WAVES) return;
-
-                    waveEffect = window.VANTA.WAVES({
+                    vantaEffect = VANTA.WAVES({
                         el: '#container',
-                        mouseControls: !reduceMotion,
-                        touchControls: !reduceMotion,
+                        mouseControls: true,
+                        touchControls: true,
                         gyroControls: false,
-                        minHeight: 200,
-                        minWidth: 200,
-                        scale: 1,
-                        scaleMobile: 0.78,
-                        color: 0x4a2387,
-                        shininess: 42,
-                        waveHeight: 25,
-                        waveSpeed: reduceMotion ? 0.20 : 0.64,
-                        zoom: 0.82
+                        minHeight: 200.00,
+                        minWidth: 200.00,
+                        scale: 1.00,
+                        scaleMobile: 1.00,
+                        color: BASE_COLOR,
+                        shininess: SHININESS,
+                        waveHeight: 40.00,
+                        waveSpeed: 1.20,
+                        zoom: 0.72
                     });
                 }
+                initVanta();
 
-                function syncVisualState() {
-                    var visibleChecks = Array.prototype.filter.call(
-                        document.querySelectorAll('.container input[type="checkbox"]'),
-                        function (checkbox) {
-                            return checkbox.offsetParent !== null && !checkbox.disabled;
-                        }
-                    );
-                    var selected = visibleChecks.filter(function (checkbox) {
-                        return checkbox.checked;
-                    }).length;
-                    var intensity = 0.22 + Math.min(selected, 10) * 0.030;
-
-                    root.style.setProperty('--active-glow', intensity.toFixed(3));
-                    root.setAttribute('data-active-count', String(selected));
-
-                    if (waveEffect && typeof waveEffect.setOptions === 'function') {
-                        waveEffect.setOptions({
-                            shininess: 42 + Math.min(selected, 10)
-                        });
-                    }
-                }
-
-                function paintPointer() {
-                    root.style.setProperty('--bg-x', nextX.toFixed(2) + '%');
-                    root.style.setProperty('--bg-y', nextY.toFixed(2) + '%');
-                    frameRequested = false;
-                }
-
-                window.addEventListener('pointermove', function (event) {
-                    if (event.pointerType === 'touch') return;
-                    nextX = Math.max(0, Math.min(100, event.clientX / window.innerWidth * 100));
-                    nextY = Math.max(0, Math.min(100, event.clientY / window.innerHeight * 100));
-                    if (!frameRequested) {
-                        frameRequested = true;
-                        window.requestAnimationFrame(paintPointer);
+                // Amplifica l'effetto mouse nativo: sovrascrive mouseX/mouseY dopo
+                // che Vanta li ha aggiornati, con controllo separato dell'asse Y.
+                window.addEventListener('mousemove', function (e) {
+                    if (!vantaEffect || !vantaEffect.el) return;
+                    const rect = vantaEffect.el.getBoundingClientRect();
+                    const cx = rect.width / 2;
+                    const cy = rect.height / 2;
+                    const dx = (e.clientX - rect.left) - cx;
+                    const dy = (e.clientY - rect.top) - cy;
+                    const ampY = dy < 0 ? MOUSE_AMP_Y_UP : MOUSE_AMP_Y_DOWN;
+                    const amplifiedX = cx + dx * MOUSE_AMP_X;
+                    const amplifiedY = cy + dy * ampY;
+                    const maxDownY = cy + rect.height * MAX_DOWN_Y_RATIO;
+                    vantaEffect.mouseX = amplifiedX;
+                    vantaEffect.mouseY = Math.min(amplifiedY, maxDownY);
+                    if (typeof vantaEffect.triggerMouseMove === 'function') {
+                        try {
+                            vantaEffect.triggerMouseMove(vantaEffect.mouseX, vantaEffect.mouseY);
+                        } catch (_) {}
                     }
                 }, { passive: true });
-
-                document.addEventListener('change', function (event) {
-                    if (event.target.matches('input[type="checkbox"]')) {
-                        syncVisualState();
-                    }
-                });
-
-                document.addEventListener('click', function () {
-                    window.setTimeout(function () {
-                        decorateChoiceEmojis();
-                        syncVisualState();
-                    }, 0);
-                }, { passive: true });
-
-                window.syncICVVisualState = syncVisualState;
-                window.decorateChoiceEmojis = decorateChoiceEmojis;
-                decorateChoiceEmojis();
-                initWaves();
-                syncVisualState();
-
-                window.addEventListener('beforeunload', function () {
-                    if (waveEffect && typeof waveEffect.destroy === 'function') {
-                        waveEffect.destroy();
-                    }
-                });
             })();
         </script>
         <!-- Info Modal -->
@@ -4047,22 +3040,12 @@
                             kofiUrl = "https://ko-fi.com/prisonmike8899";
                         }
 
-                        var cardEl = document.getElementById("kofiCard");
                         var amountsEl = document.getElementById("kofiAmountsWidget");
-                        var currentEl = document.getElementById("kofiCurrentWidget");
-                        var goalEl = document.getElementById("kofiGoalWidget");
-                        var percentEl = document.getElementById("kofiPercentWidget");
-                        var progressEl = document.getElementById("kofiProgressWidget");
                         var fillEl = document.getElementById("kofiProgressFillWidget");
                         var btnEl = document.getElementById("kofiBtnWidget");
 
-                        if (currentEl) currentEl.textContent = current.toFixed(2) + "€";
-                        if (goalEl) goalEl.textContent = goal.toFixed(2) + "€";
-                        if (percentEl) percentEl.textContent = pct + "%";
-                        if (amountsEl) amountsEl.setAttribute("aria-label", current.toFixed(2) + " euro raccolti su un obiettivo di " + goal.toFixed(2) + " euro, " + pct + " percento");
-                        if (progressEl) progressEl.setAttribute("aria-valuenow", String(Math.max(0, Math.min(100, pct))));
+                        if (amountsEl) amountsEl.textContent = current.toFixed(2) + "€ / " + goal.toFixed(2) + "€ (" + pct + "%)";
                         if (fillEl) fillEl.style.width = pct + "%";
-                        if (cardEl) cardEl.classList.toggle("is-complete", pct >= 100);
                         if (btnEl && kofiUrl) btnEl.href = kofiUrl;
                     })
                     .catch(function (e) {
