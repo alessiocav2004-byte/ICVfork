@@ -1,0 +1,3925 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" type="image/png" href="https://github.com/qwertyuiop8899/logo/blob/main/logo.png?raw=true">
+    <link rel="shortcut icon" type="image/png"
+        href="https://github.com/qwertyuiop8899/logo/blob/main/logo.png?raw=true">
+    <title>IlCorsaroViola | Configurazione</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            background: #0a0515;
+            position: relative;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Three.js / Vanta background container */
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            z-index: 0;
+            touch-action: none;
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        #container canvas {
+            pointer-events: auto;
+        }
+
+        /* Remove old elements */
+        #canvas-bg,
+        #stars-container {
+            display: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding: clamp(10px, 2vw, 20px);
+            position: relative;
+            background: #0a0515;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 10px;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        /* Make all interactive elements clickable */
+        input,
+        button,
+        a,
+        label {
+            pointer-events: auto;
+        }
+
+        /* Header Section */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 40px;
+            gap: 30px;
+        }
+
+        .logo {
+            width: clamp(60px, 15vw, 100px);
+            height: clamp(60px, 15vw, 100px);
+            border-radius: 50%;
+            box-shadow: 0 8px 32px rgba(138, 43, 226, 0.4);
+        }
+
+        .brand h1 {
+            font-size: clamp(1.8rem, 8vw, 4.5em);
+            font-weight: 700;
+            background: linear-gradient(90deg,
+                    #ffffff 0%,
+                    #e0b3ff 20%,
+                    #9333ea 40%,
+                    #9333ea 60%,
+                    #e0b3ff 80%,
+                    #ffffff 100%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 5px;
+            text-align: center;
+            animation: waveColor 3s ease-in-out infinite;
+            word-break: break-word;
+            hyphens: auto;
+        }
+
+        @keyframes waveColor {
+            0% {
+                background-position: 0% 0%;
+            }
+
+            50% {
+                background-position: 100% 0%;
+            }
+
+            100% {
+                background-position: 0% 0%;
+            }
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: clamp(10px, 3vw, 30px);
+            justify-content: center;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        @media (max-width: 640px) {
+            .header-left {
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+        }
+
+        .header-left .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .prisonmike-img {
+            width: clamp(40px, 8vw, 60px);
+            height: auto;
+            opacity: 0.9;
+            transition: transform 0.3s ease;
+            align-self: center;
+        }
+
+        .prisonmike-img:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 640px) {
+            .prisonmike-img {
+                width: clamp(30px, 10vw, 50px);
+            }
+        }
+
+        .header-right {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .features-box {
+            background: rgba(20, 20, 40, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 12px;
+            padding: clamp(12px, 3vw, 20px);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: clamp(10px, 2vw, 20px);
+        }
+
+        @media (max-width: 640px) {
+            .features-box {
+                grid-template-columns: 1fr;
+                padding: 15px;
+            }
+        }
+
+        .features-box h4 {
+            color: #c084fc;
+            margin-bottom: 8px;
+            font-size: clamp(0.9em, 2vw, 1em);
+            grid-column: span 1;
+        }
+
+        @media (max-width: 640px) {
+            .features-box h4 {
+                grid-column: span 1;
+            }
+        }
+
+        .features-box ul {
+            list-style: none;
+            padding: 0;
+            grid-column: span 1;
+        }
+
+        .features-box li {
+            color: #d1d5db;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+            padding-left: 18px;
+            position: relative;
+        }
+
+        .features-box li::before {
+            content: '✦';
+            position: absolute;
+            left: 0;
+            color: #9333ea;
+        }
+
+        .config-info {
+            background: rgba(147, 51, 234, 0.2);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            grid-column: span 1;
+        }
+
+        .config-info p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #e5e7eb;
+        }
+
+        #status {
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 1em;
+        }
+
+        /* Main Grid Layout - Responsive Areas */
+        .config-grid {
+            /* Mobile: Stacked Flex (Most robust for no-overflow) */
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Tablet: 2 Columns */
+        @media (min-width: 900px) {
+            .config-grid {
+                display: grid;
+                /* Restore Grid behavior */
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas:
+                    "tb rd"
+                    "proxy jackett"
+                    "search search";
+            }
+        }
+
+        /* Desktop: 3 Columns */
+        @media (min-width: 1200px) {
+            .config-grid {
+                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-areas:
+                    "tb rd search"
+                    "proxy jackett search";
+            }
+        }
+
+        /* Grid Area Assignments */
+        .area-rd {
+            grid-area: rd;
+            order: 2;
+        }
+
+        .area-tb {
+            grid-area: tb;
+            order: 1;
+        }
+
+        .area-proxy {
+            grid-area: proxy;
+        }
+
+        .area-jackett {
+            grid-area: jackett;
+        }
+
+        .area-search {
+            grid-area: search;
+        }
+
+
+        /* Service Cards */
+        .service-card {
+            background: rgba(20, 20, 40, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            height: 100%;
+            /* Fill grid cell */
+        }
+
+        .service-card:hover {
+            border-color: rgba(147, 51, 234, 0.6);
+            box-shadow: 0 8px 32px rgba(147, 51, 234, 0.2);
+        }
+
+        .service-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .service-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #c084fc;
+        }
+
+        .service-title a {
+            color: #9333ea;
+            text-decoration: none;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .service-title a:hover {
+            opacity: 1;
+        }
+
+        .key-icon {
+            font-size: 1em;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #9333ea;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(10, 10, 26, 0.6);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #9333ea;
+            box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.2);
+        }
+
+        input:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Search Sites Internal Grid - Auto-responsive */
+        .search-sites {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .search-sites label {
+            background: rgba(10, 10, 26, 0.4);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            transition: all 0.3s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .search-sites label:hover {
+            border-color: rgba(147, 51, 234, 0.5);
+            background: rgba(10, 10, 26, 0.6);
+        }
+
+        /* Action Section */
+        .action-section {
+            background: rgba(20, 20, 40, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 12px;
+            padding: 35px;
+            pointer-events: auto;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 18px 35px;
+            background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(147, 51, 234, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(147, 51, 234, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: rgba(100, 100, 120, 0.3);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #link-container {
+            display: none;
+        }
+
+        #link-container.show {
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 1em;
+            padding: 15px;
+            background: rgba(10, 10, 26, 0.6);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 8px;
+            color: #ffffff;
+        }
+
+        .section-title {
+            color: #c084fc;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        small {
+            color: #9ca3af;
+            font-size: clamp(0.7rem, 1.5vw, 0.875rem);
+        }
+
+        .lang-switch { display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:16px; }
+        .lang-btn { padding:4px 14px; border-radius:20px; border:1px solid rgba(147,51,234,0.3); background:rgba(20,20,40,0.4); color:#9ca3af; cursor:pointer; font-size:0.85em; transition:all 0.3s ease; }
+        .lang-btn.active { background:rgba(147,51,234,0.3); border-color:#9333ea; color:#fff; }
+        .lang-btn:hover { border-color:rgba(147,51,234,0.6); }
+        .content-lang-select { background:rgba(20,20,40,0.6); border:1px solid rgba(147,51,234,0.3); border-radius:8px; color:#fff; padding:6px 10px; font-size:0.85em; cursor:pointer; }
+        .content-lang-select option { background:#1a1a2e; color:#fff; }
+    </style>
+    <style>
+        /* Vanta WAVES background container */
+        #container {
+            transition: filter 0.4s ease;
+        }
+    </style>
+    <style id="icv-refresh">
+        :root {
+            color-scheme: dark;
+            --icv-ink: #0c0713;
+            --icv-panel: #241347;
+            --icv-panel-soft: rgba(69, 39, 128, 0.72);
+            --icv-violet: #7547ed;
+            --icv-violet-light: #a985ff;
+            --icv-orange: #f4a64b;
+            --icv-orange-light: #ffc47d;
+            --icv-paper: #f5f0e8;
+            --icv-muted: #aaa1b7;
+            --icv-line: rgba(222, 207, 255, 0.18);
+            --bg-x: 72%;
+            --bg-y: 18%;
+            --active-glow: 0.22;
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            height: auto;
+            background: var(--icv-ink);
+        }
+
+        body {
+            padding: clamp(14px, 2.4vw, 30px);
+            color: var(--icv-paper);
+            font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #container {
+            z-index: 0;
+            pointer-events: none;
+            touch-action: auto;
+            background:
+                radial-gradient(
+                    900px circle at 10% 4%,
+                    rgba(117, 71, 237, 0.28),
+                    transparent 58%
+                ),
+                linear-gradient(145deg, #0b0712 0%, #180b2b 48%, #08060c 100%);
+            transition: background 0.35s ease;
+        }
+
+        #container::before {
+            content: "";
+            position: absolute;
+            z-index: 2;
+            inset: 0;
+            background:
+                radial-gradient(
+                    680px circle at var(--bg-x) var(--bg-y),
+                    rgba(244, 166, 75, var(--active-glow)),
+                    transparent 64%
+                ),
+                radial-gradient(
+                    760px circle at 14% 14%,
+                    rgba(117, 71, 237, 0.20),
+                    transparent 70%
+                ),
+                radial-gradient(
+                    540px circle at 92% 88%,
+                    rgba(244, 166, 75, 0.16),
+                    transparent 72%
+                );
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+        #container::after {
+            content: "";
+            position: absolute;
+            z-index: 3;
+            inset: 0;
+            opacity: 0.11;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0 95px,
+                rgba(255, 255, 255, 0.035) 96px
+            );
+            mask-image: linear-gradient(to bottom, #000, transparent 86%);
+            pointer-events: none;
+        }
+
+        #container canvas {
+            position: absolute !important;
+            z-index: 1 !important;
+            inset: 0 !important;
+            display: block !important;
+            opacity: 0.84;
+            filter: brightness(0.70) contrast(1.12) saturate(1.28);
+        }
+
+        .container {
+            width: min(1240px, 100%);
+            max-width: none;
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.25fr);
+            align-items: center;
+            gap: clamp(28px, 5vw, 70px);
+            margin-bottom: 24px;
+            padding: 22px 0 28px;
+            border-bottom: 1px solid var(--icv-line);
+        }
+
+        .header-left {
+            width: auto;
+            justify-content: flex-start;
+            gap: 16px;
+            padding: 0;
+        }
+
+        .prisonmike-img {
+            display: none;
+        }
+
+        .header-left .logo-container {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr);
+            align-items: center;
+            gap: 18px;
+            text-align: left;
+        }
+
+        .logo {
+            width: 72px;
+            height: 72px;
+            border: 2px solid var(--icv-orange);
+            border-radius: 17px 5px 17px 5px;
+            box-shadow: 7px 7px 0 rgba(117, 71, 237, 0.55);
+        }
+
+        .brand {
+            min-width: 0;
+            text-align: left !important;
+        }
+
+        .brand h1 {
+            margin: 0 0 5px !important;
+            background: none;
+            color: var(--icv-paper);
+            -webkit-text-fill-color: currentColor;
+            font-size: clamp(2rem, 4vw, 3.15rem);
+            font-weight: 900;
+            letter-spacing: -0.065em;
+            line-height: 0.95;
+            text-align: left;
+            animation: none;
+            word-break: normal;
+        }
+
+        .brand small {
+            max-width: 390px;
+            color: var(--icv-muted) !important;
+            font-size: 11px !important;
+            line-height: 1.4 !important;
+            text-align: left;
+        }
+
+        .brand a,
+        .service-card a {
+            color: var(--icv-orange-light) !important;
+        }
+
+        .header-right {
+            display: grid;
+            grid-template-columns: minmax(190px, 0.6fr) minmax(320px, 1.4fr);
+            gap: 12px;
+            align-items: stretch;
+            max-width: none;
+        }
+
+        .header-right > div:first-child {
+            display: flex !important;
+            min-width: 0;
+            margin: 0 !important;
+            overflow: hidden !important;
+            border: 1px solid var(--icv-line) !important;
+            border-radius: 13px 4px 13px 4px !important;
+            background: rgba(24, 12, 45, 0.72);
+        }
+
+        #lang_it,
+        #lang_en {
+            min-width: 0;
+            min-height: 50px;
+            padding: 10px 14px !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: var(--icv-violet) !important;
+            box-shadow: none !important;
+            color: #fff !important;
+            font-size: 13px !important;
+            opacity: 0.72;
+        }
+
+        #lang_it.active,
+        #lang_en.active {
+            background: var(--icv-orange) !important;
+            color: var(--icv-ink) !important;
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.48) !important;
+            opacity: 1;
+        }
+
+        #lang_it.active::after,
+        #lang_en.active::after {
+            content: "✓";
+            margin-left: 8px;
+            font-weight: 950;
+        }
+
+        .header-right > .button-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin: 0 !important;
+        }
+
+        .header-right > .button-group > a {
+            min-width: 0 !important;
+            padding: 11px 14px !important;
+            border: 1px solid rgba(169, 133, 255, 0.40) !important;
+            border-radius: 13px 4px 13px 4px !important;
+            background: rgba(77, 43, 148, 0.62) !important;
+            box-shadow: none;
+            backdrop-filter: none !important;
+        }
+
+        .header-right > .button-group > a:hover {
+            border-color: var(--icv-orange) !important;
+            background: rgba(117, 71, 237, 0.75) !important;
+        }
+
+        .config-info {
+            grid-column: 1 / -1;
+            padding: 12px 15px;
+            border: 1px solid rgba(244, 166, 75, 0.30);
+            border-radius: 4px 13px 4px 13px;
+            background: rgba(244, 166, 75, 0.08);
+        }
+
+        .config-info p {
+            color: var(--icv-muted);
+        }
+
+        #status {
+            color: var(--icv-orange-light) !important;
+        }
+
+        .torbox-referrals {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr);
+            gap: 14px;
+            align-items: stretch;
+            margin-bottom: 18px !important;
+        }
+
+        .torbox-referrals .torbox-ref-card,
+        .torbox-referrals .kofi-card {
+            height: 100%;
+            margin: 0 !important;
+            padding: clamp(20px, 2.8vw, 30px) !important;
+            border-radius: 20px 6px 20px 6px !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
+        }
+
+        .torbox-referrals .torbox-ref-card {
+            border: 1px solid rgba(169, 133, 255, 0.42) !important;
+            background: linear-gradient(145deg, rgba(78, 42, 151, 0.92), rgba(40, 20, 81, 0.94)) !important;
+            text-align: left;
+        }
+
+        .torbox-ref-card .tb-header {
+            justify-content: flex-start;
+        }
+
+        .torbox-ref-card .tb-accent {
+            color: var(--icv-orange-light) !important;
+        }
+
+        .torbox-ref-card h3 {
+            font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+            letter-spacing: -0.035em;
+            text-shadow: none;
+        }
+
+        .torbox-ref-card .tb-sub {
+            margin: 10px 0 18px;
+            color: #d3c9e4;
+            font-size: 13px;
+            text-shadow: none;
+        }
+
+        .torbox-ref-card .tb-btns {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .torbox-ref-card .tb-btn {
+            min-width: 0;
+            max-width: none;
+            padding: 11px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 11px 3px 11px 3px;
+            background: rgba(14, 7, 25, 0.42);
+            box-shadow: none;
+            font-size: 12px;
+        }
+
+        .torbox-ref-card .tb-btn:hover {
+            background: var(--icv-orange);
+            color: var(--icv-ink);
+            box-shadow: none;
+            transform: translateY(-2px);
+        }
+
+        .torbox-ref-card .tb-btn small {
+            color: inherit;
+            font-size: 9px;
+        }
+
+        .torbox-referrals .kofi-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid var(--icv-orange-light) !important;
+            background: var(--icv-orange) !important;
+            color: var(--icv-ink);
+        }
+
+        .torbox-referrals .kofi-title,
+        .torbox-referrals .kofi-amounts,
+        .torbox-referrals .kofi-subtext {
+            color: var(--icv-ink) !important;
+        }
+
+        .torbox-referrals .kofi-title {
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .torbox-referrals .kofi-amounts {
+            font-family: inherit;
+            font-size: clamp(18px, 2.2vw, 28px);
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+
+        .torbox-referrals .kofi-progress-bar {
+            height: 13px;
+            border: 1px solid var(--icv-ink);
+            border-radius: 8px 2px 8px 2px;
+            background: rgba(12, 7, 19, 0.18);
+        }
+
+        .torbox-referrals .kofi-progress-fill {
+            background: var(--icv-violet);
+        }
+
+        .torbox-referrals .kofi-footer {
+            align-items: flex-end;
+        }
+
+        .torbox-referrals .kofi-subtext {
+            flex: 1;
+            font-size: 10px;
+            font-weight: 650;
+            opacity: 0.72;
+        }
+
+        .torbox-referrals .btn-kofi-widget {
+            padding: 10px 14px;
+            border: 1px solid var(--icv-ink);
+            border-radius: 10px 3px 10px 3px;
+            background: var(--icv-ink);
+            color: #fff !important;
+            font-size: 11px;
+            font-weight: 850;
+        }
+
+        .torbox-referrals .btn-kofi-widget:hover {
+            background: var(--icv-violet);
+        }
+
+        .config-grid {
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .container .service-card,
+        .container .action-section {
+            border: 1px solid rgba(169, 133, 255, 0.33);
+            border-radius: 18px 5px 18px 5px;
+            background: linear-gradient(145deg, rgba(66, 35, 128, 0.86), rgba(31, 16, 61, 0.92));
+            box-shadow: none;
+            backdrop-filter: none;
+        }
+
+        .container .service-card {
+            padding: clamp(17px, 2vw, 23px);
+        }
+
+        .container .service-card:hover {
+            border-color: rgba(244, 166, 75, 0.58);
+            box-shadow: none;
+            transform: translateY(-1px);
+        }
+
+        .container .service-card:has(> .service-header input[type="checkbox"]:checked) {
+            border-color: var(--icv-orange-light);
+            background: var(--icv-orange);
+            color: var(--icv-ink);
+        }
+
+        .container .service-card:has(> .service-header input[type="checkbox"]:checked) .service-title,
+        .container .service-card:has(> .service-header input[type="checkbox"]:checked) small,
+        .container .service-card:has(> .service-header input[type="checkbox"]:checked) a {
+            color: var(--icv-ink) !important;
+        }
+
+        .service-header {
+            margin-bottom: 13px;
+        }
+
+        .service-title,
+        .section-title {
+            color: var(--icv-orange-light);
+            font-weight: 850;
+            letter-spacing: -0.025em;
+        }
+
+        .service-title {
+            font-size: 1.05rem;
+        }
+
+        .section-title {
+            text-align: left;
+        }
+
+        small {
+            color: var(--icv-muted);
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        textarea,
+        select {
+            border: 1px solid rgba(207, 187, 255, 0.30);
+            border-radius: 11px 3px 11px 3px;
+            background: rgba(10, 5, 19, 0.58);
+            color: var(--icv-paper);
+            box-shadow: none;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: 2px solid var(--icv-orange);
+            outline-offset: 2px;
+            border-color: var(--icv-orange);
+            box-shadow: none;
+        }
+
+        input:disabled {
+            opacity: 0.46;
+        }
+
+        .container input[type="checkbox"] {
+            width: 22px !important;
+            height: 22px !important;
+            min-width: 22px;
+            flex: 0 0 22px;
+            margin: 0 9px 0 0 !important;
+            appearance: none;
+            display: inline-grid;
+            place-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.58);
+            border-radius: 7px 2px 7px 2px;
+            background: var(--icv-violet);
+            cursor: pointer;
+            vertical-align: middle;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        }
+
+        .container input[type="checkbox"]::after {
+            content: "✓";
+            color: var(--icv-ink);
+            font-size: 14px;
+            font-weight: 950;
+            line-height: 1;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 0.16s ease, transform 0.16s ease;
+        }
+
+        .container input[type="checkbox"]:checked {
+            border-color: var(--icv-ink);
+            background: var(--icv-orange);
+        }
+
+        .container input[type="checkbox"]:checked::after {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .container input[type="checkbox"]:disabled {
+            background: #534e59;
+            cursor: not-allowed;
+        }
+
+        .container label:has(input[type="checkbox"]) {
+            border: 1px solid rgba(169, 133, 255, 0.36) !important;
+            border-radius: 12px 4px 12px 4px !important;
+            background: rgba(117, 71, 237, 0.24) !important;
+            color: var(--icv-paper) !important;
+            transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .container label:has(input[type="checkbox"]:checked) {
+            border-color: var(--icv-orange-light) !important;
+            background: var(--icv-orange) !important;
+            color: var(--icv-ink) !important;
+            box-shadow: inset 4px 0 0 var(--icv-violet);
+        }
+
+        /* Anche descrizioni e note con colori inline diventano nere nello stato attivo. */
+        .container label:has(input[type="checkbox"]:checked)
+            *:not(input):not(select):not(option):not(textarea) {
+            color: var(--icv-ink) !important;
+            opacity: 1 !important;
+        }
+
+        .choice-emoji {
+            width: 29px;
+            height: 29px;
+            display: inline-grid;
+            place-items: center;
+            flex: 0 0 29px;
+            margin-right: 6px;
+            border: 1px solid rgba(169, 133, 255, 0.42);
+            border-radius: 8px 3px 8px 3px;
+            background: rgba(21, 10, 42, 0.42);
+            color: initial !important;
+            font-size: 17px;
+            line-height: 1;
+            vertical-align: middle;
+            filter: saturate(1.15) drop-shadow(0 1px 1px rgba(255, 255, 255, 0.16));
+            transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .container label:has(input[type="checkbox"]:checked) .choice-emoji,
+        .container .service-card:has(> .service-header input[type="checkbox"]:checked) .choice-emoji {
+            border-color: #6f2900 !important;
+            background: #a84705 !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 196, 125, 0.28),
+                0 2px 5px rgba(75, 25, 0, 0.25);
+            color: initial !important;
+        }
+
+        .container label:has(input[type="checkbox"]:not(:disabled)):hover {
+            transform: translateY(-1px);
+            border-color: var(--icv-orange) !important;
+        }
+
+        .container label:has(input[type="checkbox"]:disabled) {
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            background: rgba(92, 87, 99, 0.18) !important;
+            color: #77717d !important;
+        }
+
+        .search-sites {
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 8px;
+        }
+
+        .search-sites label {
+            min-height: 48px;
+            white-space: normal;
+        }
+
+        details {
+            border-color: var(--icv-line) !important;
+            background: rgba(10, 5, 19, 0.22) !important;
+        }
+
+        summary {
+            color: var(--icv-orange-light);
+        }
+
+        button {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px 4px 12px 4px;
+            background: var(--icv-violet);
+            box-shadow: none;
+            font-weight: 800;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--icv-orange-light);
+            background: var(--icv-orange);
+            color: var(--icv-ink);
+            box-shadow: none;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: rgba(103, 94, 114, 0.38);
+        }
+
+        #manual_import_button {
+            width: min(340px, 100%) !important;
+            border: 1px solid rgba(169, 133, 255, 0.45) !important;
+            background: var(--icv-violet) !important;
+            box-shadow: none !important;
+        }
+
+        #install_button {
+            border-color: var(--icv-orange-light);
+            background: var(--icv-orange);
+            color: var(--icv-ink);
+        }
+
+        #copy_button {
+            background: var(--icv-violet);
+        }
+
+        .custom-kofi-union {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px 4px 12px 4px !important;
+            background: #39206e !important;
+            box-shadow: none !important;
+        }
+
+        .custom-kofi-union:hover {
+            background: var(--icv-violet) !important;
+            box-shadow: none !important;
+        }
+
+        .action-section {
+            padding: clamp(20px, 3.3vw, 38px);
+        }
+
+        #link-container {
+            padding-top: 12px;
+        }
+
+        #install_link_display {
+            color: var(--icv-orange-light);
+        }
+
+        #info_modal {
+            background: rgba(6, 3, 10, 0.84) !important;
+        }
+
+        #info_modal > div {
+            border-color: var(--icv-orange) !important;
+            border-radius: 18px 5px 18px 5px !important;
+            background: #1e1038 !important;
+            box-shadow: 8px 8px 0 rgba(117, 71, 237, 0.48) !important;
+        }
+
+        @media (max-width: 980px) {
+            .header {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .header-right {
+                grid-template-columns: minmax(180px, 0.6fr) minmax(320px, 1.4fr);
+            }
+
+            .torbox-referrals {
+                grid-template-columns: 1fr;
+            }
+
+            .torbox-referrals .kofi-card {
+                min-height: 210px;
+            }
+        }
+
+        @media (max-width: 680px) {
+            body {
+                padding: 12px;
+            }
+
+            .header {
+                padding-top: 10px;
+            }
+
+            .header-left .logo-container {
+                grid-template-columns: 58px minmax(0, 1fr);
+                gap: 13px;
+            }
+
+            .logo {
+                width: 58px;
+                height: 58px;
+                border-radius: 14px 4px 14px 4px;
+                box-shadow: 5px 5px 0 rgba(117, 71, 237, 0.55);
+            }
+
+            .brand h1 {
+                font-size: clamp(1.75rem, 9vw, 2.4rem);
+            }
+
+            .brand small {
+                font-size: 9px !important;
+            }
+
+            .header-right {
+                grid-template-columns: 1fr;
+            }
+
+            .header-right > .button-group {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .config-info {
+                grid-column: auto;
+            }
+
+            .torbox-referrals .torbox-ref-card,
+            .torbox-referrals .kofi-card {
+                padding: 20px !important;
+            }
+
+            .torbox-ref-card .tb-btns {
+                grid-template-columns: 1fr;
+            }
+
+            .torbox-referrals .kofi-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .torbox-referrals .kofi-footer {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .torbox-referrals .btn-kofi-widget {
+                text-align: center;
+            }
+
+            .config-grid {
+                gap: 11px;
+            }
+
+            .container .service-card {
+                border-radius: 15px 4px 15px 4px;
+            }
+
+            .button-group {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .button-group > * {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            #container canvas {
+                opacity: 0.72;
+                filter: brightness(0.62) contrast(1.10) saturate(1.22);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.waves.min.js"></script>
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <img src="/prisonmike.png" alt="Prison Mike" class="prisonmike-img">
+
+                <div class="logo-container">
+                    <img src="https://github.com/qwertyuiop8899/logo/blob/main/logo.png?raw=true" alt="Logo"
+                        class="logo">
+                    <div class="brand" style="text-align: center;">
+                        <h1 style="margin-bottom: 5px;">IlCorsaroViola</h1>
+                        <small style="font-size: 14px; color: #9ca3af; display: block; line-height: 1.5;">
+                            Addon creato partendo da <a href="https://stremizio.vercel.app/" target="_blank"
+                                style="color: #9333ea; text-decoration: none;">Stremizio 2.0</a>, grazie a
+                            <a href="https://github.com/StremioItalia/stremizio" target="_blank"
+                                style="color: #9333ea; text-decoration: none;">Steve Celticus</a>
+                        </small>
+                    </div>
+                </div>
+
+                <img src="/prisonmike.png" alt="Prison Mike" class="prisonmike-img">
+            </div>
+
+            <div class="header-right">
+                <div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(147,51,234,0.25);width:100%;margin-bottom:16px;">
+                    <button class="lang-btn active" id="lang_it" type="button" aria-pressed="true" onclick="switchUILanguage('it')" style="flex:1;padding:12px 20px;border:none;background:linear-gradient(135deg,#9333ea,#7c3aed);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇮🇹 Italiano</button>
+                    <button class="lang-btn" id="lang_en" type="button" aria-pressed="false" onclick="switchUILanguage('en')" style="flex:1;padding:12px 20px;border:none;background:transparent;color:#9ca3af;cursor:pointer;font-weight:600;font-family:inherit;font-size:1em;transition:all 0.3s ease;">🇬🇧 English</button>
+                </div>
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <a href="https://dmv.stremio-italia.eu/" target="_blank" style="flex:1;min-width:200px;padding:16px 20px;background:rgba(20,20,40,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#e0e0e0;font-size:1em;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.3s ease;" onmouseover="this.style.borderColor='rgba(147,51,234,0.6)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(147,51,234,0.3)';this.style.transform=''">
+                        <span style="opacity:0.7;">DMV 🟣</span>
+                        <span style="font-size:0.85em;opacity:0.6;">Debrid Manager Viola</span>
+                    </a>
+                    <a href="https://dmv.stremio-italia.eu/db" target="_blank" style="flex:1;min-width:200px;padding:16px 20px;background:rgba(20,20,40,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(147,51,234,0.3);border-radius:12px;color:#e0e0e0;font-size:1em;font-weight:600;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.3s ease;" onmouseover="this.style.borderColor='rgba(147,51,234,0.6)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(147,51,234,0.3)';this.style.transform=''">
+                        <span style="opacity:0.7;">🗄️</span>
+                        <span style="font-size:0.85em;opacity:0.6;">ICV Database</span>
+                    </a>
+                </div>
+
+                <div class="config-info">
+                    <p style="text-align: center;" data-i18n="config_text">Configura i servizi che vuoi utilizzare:</p>
+                    <div id="status" style="text-align: center;" data-i18n="config_ready">✓ 🚀 Configurazione pronta (Solo P2P)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TorBox Referral Card (1 card, 3 buttons) -->
+        <div class="torbox-referrals" style="margin-bottom: 24px;">
+            <style>
+                .torbox-ref-card {
+                    background: rgba(20, 20, 40, 0.35);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(0, 184, 148, 0.35);
+                    border-radius: 12px;
+                    padding: 26px 22px;
+                    color: #fff;
+                    text-align: center;
+                    transition: all 0.3s ease;
+                    box-sizing: border-box;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                }
+                .torbox-ref-card:hover {
+                    border-color: rgba(0, 184, 148, 0.7);
+                    box-shadow: 0 8px 32px rgba(0, 184, 148, 0.2);
+                }
+                .torbox-ref-card h3 {
+                    margin: 0;
+                    font-size: 1.4em;
+                    font-weight: 700;
+                    line-height: 1.3;
+                    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+                }
+                .torbox-ref-card .tb-accent { color: #00b894; }
+                .torbox-ref-card .tb-sub {
+                    margin: 12px 0 22px 0;
+                    font-size: 1em;
+                    line-height: 1.5;
+                    opacity: 0.9;
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                }
+                .torbox-ref-card .tb-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    margin-bottom: 4px;
+                    flex-wrap: wrap;
+                }
+                .torbox-ref-card .tb-logo {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+                }
+                .torbox-ref-card .tb-btns {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                    justify-content: center;
+                    align-items: stretch;
+                }
+                .torbox-ref-card .tb-btn {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+                    color: #fff;
+                    padding: 12px 18px;
+                    border-radius: 10px;
+                    font-size: 0.95em;
+                    font-weight: 700;
+                    text-decoration: none;
+                    box-shadow: 0 4px 12px rgba(0,185,148,0.2);
+                    transition: all 0.2s ease-in-out;
+                    letter-spacing: 0.3px;
+                    flex: 1 1 220px;
+                    max-width: 280px;
+                    min-width: 220px;
+                    box-sizing: border-box;
+                }
+                .torbox-ref-card .tb-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(0,185,148,0.4);
+                }
+                .torbox-ref-card .tb-btn small {
+                    display: block;
+                    font-size: 0.78em;
+                    font-weight: 500;
+                    opacity: 0.95;
+                    margin-top: 4px;
+                    color: rgba(255,255,255,0.9);
+                    letter-spacing: 0;
+                }
+            </style>
+
+            <div class="torbox-ref-card">
+                <div class="tb-header">
+                    <img src="https://torbox.app/favicon.ico" alt="TorBox" class="tb-logo">
+                    <h3><span class="tb-accent" data-i18n="tb_ref_title">Potenzia</span> <span class="tb-accent" style="text-shadow: 0 0 20px rgba(0,185,148,0.3);">IlCorsaroViola</span></h3>
+                </div>
+                <p class="tb-sub" data-i18n-html="tb_ref_desc">
+                    Migliora il tuo streaming con il servizio debrid ultra-veloce di <span class="tb-accent" style="font-weight:600;">TorBox</span>.<br>
+                    Ottieni fino a <strong>84 giorni gratis</strong> usando uno dei Referral code della community:
+                </p>
+                <div class="tb-btns">
+                    <a href="https://torbox.app/subscription?referral=b63d0556-82e8-4297-b19c-74249c95a19d" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @absinth987, @BigRedMachine0 e @PrisonMike8</small>
+                    </a>
+                    <a href="https://torbox.app/subscription?referral=9edfca40-041f-4f29-81bd-da2d89b09aeb" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @francescoaracu e @MassimoC24</small>
+                    </a>
+                    <a href="https://torbox.app/subscription?referral=19a1af53-424e-4efa-a24b-4583c944ae41" target="_blank" rel="noopener" class="tb-btn">
+                        Acquista TorBox →
+                        <small>Referral di @realbestia</small>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ko-fi Monthly Goal Card -->
+            <style>
+                .kofi-card {
+                    background: rgba(20, 18, 30, 0.5);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(124, 58, 237, 0.4);
+                    border-radius: 12px;
+                    padding: 16px 20px;
+                    margin-top: 15px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                }
+                .kofi-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                }
+                .kofi-title {
+                    font-weight: 700;
+                    font-size: 1rem;
+                    color: #e0b3ff;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .kofi-amounts {
+                    font-weight: 700;
+                    font-family: monospace;
+                    color: #4ade80;
+                    font-size: 0.95rem;
+                }
+                .kofi-progress-bar {
+                    width: 100%;
+                    height: 10px;
+                    background: #1a162b;
+                    border-radius: 5px;
+                    overflow: hidden;
+                    margin-bottom: 12px;
+                }
+                .kofi-progress-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #7c3aed, #4ade80);
+                    width: 0%;
+                    transition: width 0.6s ease;
+                }
+                .kofi-footer {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                }
+                .kofi-subtext {
+                    font-size: 0.85rem;
+                    color: #a78bfa;
+                }
+                .btn-kofi-widget {
+                    background: #7c3aed;
+                    color: #ffffff;
+                    font-weight: 700;
+                    font-size: 0.85rem;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    transition: background 0.2s;
+                }
+                .btn-kofi-widget:hover {
+                    background: #6d28d9;
+                }
+            </style>
+
+            <div class="kofi-card" id="kofiCard">
+              <div class="kofi-header">
+                <div class="kofi-title">☕ Obiettivo Server del Mese</div>
+                <div class="kofi-amounts" id="kofiAmountsWidget">0.00€ / 18.00€</div>
+              </div>
+              <div class="kofi-progress-bar">
+                <div class="kofi-progress-fill" id="kofiProgressFillWidget" style="width: 0%;"></div>
+              </div>
+              <div class="kofi-footer">
+                <span class="kofi-subtext">Aiutaci a coprire i costi dell'infrastruttura (IlCorsaroViola, ICVDB, DebridMediaViola, Toastflix, Streailer, Streamvix)!</span>
+                <a href="https://ko-fi.com" target="_blank" rel="noopener" class="btn-kofi-widget" id="kofiBtnWidget">
+                  Dona su Ko-fi ☕
+                </a>
+              </div>
+            </div>
+        </div>
+
+        <!-- Configuration Grid -->
+        <div class="config-grid">
+            <!-- Real-Debrid -->
+            <div class="service-card area-rd">
+                <div class="service-header">
+                    <div class="service-title" data-i18n="rd_title">
+                        👑 Real-Debrid (Opzionale)
+                        <a href="https://real-debrid.com/apitoken" target="_blank" title="Ottieni API Key">
+                            <span class="key-icon">🔑</span>
+                        </a>
+                    </div>
+                    <input type="checkbox" id="use_rd">
+                </div>
+                <input id="rd_key" placeholder="Real-Debrid API Key" type="password" disabled>
+                <div style="text-align: right; margin-top: 4px; font-size: 0.8em;">
+                    <a href="https://real-debrid.com/apitoken" target="_blank"
+                        style="color: #4EC9B0; text-decoration: none;" data-i18n="rd_get_key">Clicca qui per la tua chiave 🔑</a>
+                </div>
+                <!-- RD Blocked Filter -->
+                <div id="rd_blocked_filter_container" style="display: none; margin-top: 10px;">
+                    <label style="display: flex; align-items: center; padding: 10px 12px; background: rgba(220, 38, 38, 0.18); border: 2px solid rgba(239, 68, 68, 0.55); border-radius: 8px; cursor: pointer; color: #fecaca; font-weight: 600;">
+                        <input type="checkbox" id="rd_blocked_filter" style="width: 18px; height: 18px; margin-right: 10px; accent-color: #ef4444;">
+                        <span data-i18n="rd_filter">Filtra 🧲 bloccati da RD</span>
+                    </label>
+                    <!-- Regex Frame (visible when checkbox is active) -->
+                    <div id="rd_blocked_regex_frame" style="display: none; margin-top: 8px; background: rgba(220, 38, 38, 0.10); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 10px;">
+                        <small style="color: #fca5a5; display: block; margin-bottom: 6px;" data-i18n="rd_regex_label">Pattern regex bloccati:</small>
+                        <textarea id="rd_blocked_regex" rows="2" readonly style="width: 100%; background: rgba(0,0,0,0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 6px; font-family: monospace; font-size: 0.85em; resize: vertical;">\[(rartv|rarbg|eztv)\]|\b(YTS|Erai-raws|WEBRip|WEB-DL|AMZN|DSNP|CR)\b</textarea>
+                        <label style="display: flex; align-items: center; margin-top: 8px; cursor: pointer; color: #fca5a5; font-size: 0.85em;">
+                            <input type="checkbox" id="rd_blocked_regex_edit" style="width: 16px; height: 16px; margin-right: 8px; accent-color: #ef4444;">
+                            <span data-i18n="rd_edit_regex">Edita Regex</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Torbox -->
+            <div class="service-card area-tb">
+                <div class="service-header">
+                    <div class="service-title">
+                        📦 Torbox (Opzionale)
+                        <a href="https://torbox.app/settings" target="_blank" title="Ottieni API Key">
+                            <span class="key-icon">🔑</span>
+                        </a>
+                    </div>
+                    <input type="checkbox" id="use_torbox">
+                </div>
+                <input id="torbox_key" placeholder="Torbox API Key" type="password" disabled>
+                <span id="tb_valid" style="margin-left:8px;font-size:1.1em;"></span>
+                <div id="tb_error_msg" style="color:#ef4444;font-size:0.85em;margin-top:4px;display:none;">❌ Chiave TB non valida o scaduta</div>
+                <div style="text-align: right; margin-top: 4px; font-size: 0.8em;">
+                    <a href="https://torbox.app/settings" target="_blank"
+                        style="color: #4EC9B0; text-decoration: none;" data-i18n="tb_get_key">Clicca qui per la tua chiave 🔑</a>
+                </div>
+            </div>
+
+            <!-- Proxy -->
+            <div class="service-card area-proxy">
+                <div class="service-header">
+                    <div class="service-title" data-i18n="proxy_title">🌐 Proxy (Opzionale)</div>
+                </div>
+                <small data-i18n="proxy_desc">Per condividere Real-Debrid tra più utenti</small>
+                <input id="mediaflow_url" placeholder="Proxy URL (es: https://your-proxy.com)" type="text" data-i18n-ph="proxy_url_ph">
+                <input id="mediaflow_password" placeholder="Password (opzionale)" type="password" data-i18n-ph="proxy_pass_ph">
+                <div id="proxy_no_password_warning"
+                    style="display: none; background: rgba(255, 100, 100, 0.15); border: 1px solid #FF6B6B; border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 0.85em; color: #FF6B6B;">
+                    ⚠️ Proxy senza Password - Connessione non protetta!
+                </div>
+            </div>
+
+            <!-- Jackett -->
+            <div class="service-card area-jackett">
+                <div class="service-header">
+                    <div class="service-title" data-i18n="jackett_title">🔍 Jackett (Opzionale)</div>
+                </div>
+                <small data-i18n="jackett_desc">Cerca su indexer configurati (solo risultati italiani 🇮🇹)</small>
+                <input id="jackett_url" placeholder="Jackett URL (es: https://jackett.your-domain.com)" type="text" data-i18n-ph="jackett_url_ph">
+                <input id="jackett_api_key" placeholder="Jackett API Key" type="password" data-i18n-ph="jackett_key_ph">
+                <input id="jackett_password" placeholder="Jackett Password (opzionale)" type="password" data-i18n-ph="jackett_pass_ph">
+                <label
+                    style="display: flex; align-items: center; padding: 10px 12px; margin-top: 10px; background: rgba(220, 38, 38, 0.18); border: 2px solid rgba(239, 68, 68, 0.55); border-radius: 8px; cursor: pointer; color: #fecaca; font-weight: 600;">
+                    <input type="checkbox" id="jackett_only" style="width: 18px; height: 18px; margin-right: 10px; accent-color: #ef4444;">
+                    <span data-i18n="jackett_only">🚨 USA SOLO Jackett (esclude tutti gli altri provider)</span>
+                </label>
+                <small style="color: #fca5a5; margin-top: 4px;" data-i18n="jackett_warn">Se abilitato, mostra solo i risultati provenienti da Jackett (live + DB). Filtri, formattazione, debrid e enrichment restano attivi.</small>
+            </div>
+
+            <!-- COL 3: Siti di Ricerca Torrent -->
+            <div class="service-card area-search">
+                <!-- ⚡ HYBRID MODE DEFAULT: Simple View -->
+                <div id="hybrid_simple_view">
+                    <div style="text-align: center; padding: 10px;">
+                        <div style="font-size: 2.5em; margin-bottom: 5px;">⚡</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #c084fc; margin-bottom: 2px;">Modalità
+                            Hybrid</div>
+                        <div style="font-size: 0.8em; color: #9ca3af; margin-bottom: 15px;" data-i18n="hybrid_desc">Risposta istantanea +
+                            scraping in background</div>
+
+                        <!-- Full ITA Toggle - shown only when content language is Italian -->
+                        <div id="full_ita_container">
+                        <label
+                            style="display: flex; align-items: center; justify-content: center; padding: 12px 20px; background: rgba(0, 128, 0, 0.15); border: 2px solid rgba(0, 200, 83, 0.4); border-radius: 12px; cursor: pointer; max-width: 320px; margin: 0 auto;">
+                            <input type="checkbox" id="full_ita" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <span style="font-size: 1em; font-weight: 600;">🇮🇹 FULL ITA</span>
+                        </label>
+                        <small style="display: block; margin-top: 6px; color: #6b7280;">Solo risultati con "ITA" nel
+                            nome</small>
+                        </div>
+                        <div style="text-align:center; margin-top:12px;">
+                            <select id="content_language" class="content-lang-select" onchange="updateInstallLink()">
+                                <option value="all" data-i18n="lang_all">🌐 All Languages</option>
+                                <option value="italian" data-i18n="lang_italian">🇮🇹 Italian</option>
+                                <option value="english" data-i18n="lang_english">🇬🇧 English</option>
+                                <option value="french" data-i18n="lang_french">🇫🇷 French</option>
+                                <option value="spanish" data-i18n="lang_spanish">🇪🇸 Spanish</option>
+                                <option value="german" data-i18n="lang_german">🇩🇪 German</option>
+                                <option value="portuguese" data-i18n="lang_portuguese">🇵🇹 Portuguese</option>
+                            </select>
+                            <div style="font-size:0.75em; color:#6b7280; margin-top:2px;" data-i18n="lang_hint">Filter results by language</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Old Style Toggle (Small, Always Visible) -->
+                <div id="old_style_container" style="text-align: center; margin-bottom: 15px; margin-top: 10px;">
+                    <label
+                        style="cursor: pointer; font-size: 0.8em; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 5px 12px; border-radius: 20px; background: rgba(127, 29, 29, 0.1); transition: all 0.2s ease; display: inline-block;">
+                        <input type="checkbox" id="use_old_style" style="vertical-align: middle; margin-right: 5px;">
+                        <span style="vertical-align: middle;">⚙️ Old Style</span>
+                    </label>
+                </div>
+
+                <!-- Extra Features (Anime) -->
+                <div id="anime_section">
+                <div class="section-title" style="margin-bottom: 10px;">Flussi HTTP &lt;/&gt;</div>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px; padding: 0 10px;">
+                    <!-- Anime Card -->
+                    <label
+                        style="display: flex; align-items: center; padding: 15px; background: rgba(20, 20, 40, 0.4); border: 2px solid rgba(147, 51, 234, 0.3); border-radius: 12px; cursor: pointer; transition: all 0.3s ease;">
+                        <input type="checkbox" id="anime_enabled"
+                            style="width: 24px; height: 24px; margin-right: 15px;">
+                        <div style="flex-grow: 1;">
+                            <div style="font-size: 1.1em; font-weight: bold; color: #ffffff;">⛩️ Anime</div>
+                            <div style="font-size: 0.85em; color: #9ca3af;">Catalogo ricerca Kitsu + stream anime</div>
+                        </div>
+                    </label>
+
+
+                </div>
+                </div>
+
+                <!-- Hidden checkboxes for hybrid mode defaults -->
+                <input type="checkbox" id="hybrid_mode" checked style="display: none;">
+                <input type="checkbox" id="use_global_cache" style="display: none;"> <!-- OFF in hybrid mode -->
+
+                <!-- ⚙️ OLD STYLE: Full Classic View (hidden by default) -->
+                <div id="old_style_full_ui" style="display: none;">
+                    <div class="section-title">🔎 Siti di Ricerca Torrent</div>
+                    <small>Seleziona su quali siti cercare i torrent:</small>
+
+                    <!-- Configurazioni Consigliate -->
+                    <div
+                        style="margin: 15px 0; padding: 10px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; text-align: center;">
+                        <div
+                            style="color: #ff4444; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; font-size: 0.9em;">
+                            !!! Configurazioni Consigliate !!!
+                        </div>
+                        <div style="margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 5px; cursor: pointer;"
+                            id="info_btn" title="Info Doppia Installazione">
+                            <span style="font-weight: bold; font-size: 0.8em; color: #a78bfa;">INFO</span>
+                            <span style="font-size: 1.2em;">📖</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" id="preset_install_1"
+                                style="flex: 1; min-width: 140px; font-size: 0.9em; padding: 8px; background: linear-gradient(135deg, #4f46e5, #4338ca);">
+                                Installazione 1
+                            </button>
+                            <button type="button" id="preset_install_2"
+                                style="flex: 1; min-width: 140px; font-size: 0.9em; padding: 8px; background: linear-gradient(135deg, #059669, #047857);">
+                                Installazione 2
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Search Sites -->
+                    <details id="sites_details"
+                        style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <summary
+                            style="padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.9em; user-select: none;">
+                            📂 Seleziona Siti Torrent (Clicca per espandere)</summary>
+                        <div class="search-sites" style="padding: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <!-- DISABILITATI: bloccati a livello Cloudflare/anti-bot, non rispondono più dal server. -->
+                            <label title="Disabilitato: bloccato da Cloudflare/anti-bot" style="opacity:0.45;cursor:not-allowed;">
+                                <input type="checkbox" id="use_corsaronero" disabled>
+                                <span style="text-decoration:line-through;">🏴‍☠️ Il Corsaro Nero (Italiano)</span>
+                                <small style="color:#fca5a5;margin-left:6px;">— disabilitato</small>
+                            </label>
+                            <label title="Disabilitato: bloccato da Cloudflare/anti-bot" style="opacity:0.45;cursor:not-allowed;">
+                                <input type="checkbox" id="use_uindex" disabled>
+                                <span style="text-decoration:line-through;">📚 UIndex (Internazionale)</span>
+                                <small style="color:#fca5a5;margin-left:6px;">— disabilitato</small>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_knaben" checked>
+                                <span>🦉 Knaben (Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_torrentgalaxy" checked>
+                                <span>🌌 TorrentGalaxy (Internazionale)</span>
+                            </label>
+                            <!-- ✅ NEW: Public trackers (default ON — in Hybrid Mode girano in background). -->
+                            <label>
+                                <input type="checkbox" id="use_apibay" checked>
+                                <span>🏴‍☠️ apibay / TPB (Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_yts" checked>
+                                <span>🎬 YTS (Film, Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_eztv" checked>
+                                <span>📺 EZTV (Serie TV, Internazionale)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_solid" checked>
+                                <span>🟢 SolidTorrents (Internazionale) ⚠️ Rate Limited</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_bitsearch" checked>
+                                <span>🔎 Bitsearch (Internazionale) ⚠️ Rate Limited / HTML</span>
+                            </label>
+                            <!-- DISABILITATO: DHTIndex -->
+                            <label title="Disabilitato" style="opacity:0.45;cursor:not-allowed;">
+                                <input type="checkbox" id="use_dhtindex" disabled>
+                                <span style="text-decoration:line-through;">🛰️ DHTIndex (DHT Crawler, ITA-friendly)</span>
+                                <small style="color:#fca5a5;margin-left:6px;">— disabilitato</small>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_torrentio" checked>
+                                <span>🅣 Torrentio (Esterno)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_mediafusion" checked>
+                                <span>🅜 MediaFusion (Esterno)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_comet" checked>
+                                <span>🅒 Comet (Esterno)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_stremthru_torz" checked>
+                                <span>🆂 StremThru Torz (Esterno)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_meteor" checked>
+                                <span>☄️ Meteor (Esterno)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_rarbg" checked>
+                                <span>🏴 RARBG (Proxy)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="use_jackett" checked>
+                                <span>🔍 Jackett (richiede URL+API Key)</span>
+                            </label>
+                        </div>
+                    </details>
+
+                    <!-- 🩺 Health-check: testa tutti i provider/addon in 1 click -->
+                    <details id="health_details"
+                        style="margin-bottom: 15px; background: rgba(0,0,0,0.2); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                        <summary
+                            style="padding: 10px; cursor: pointer; font-weight: bold; font-size: 0.9em; user-select: none;">
+                            🩺 Test Connessione Siti / Addon</summary>
+                        <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                                <button type="button" id="btnRunHealth"
+                                    style="padding:8px 16px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; border:0; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.85em;">
+                                    ▶ Esegui Test
+                                </button>
+                                <span id="healthStatus" style="font-size:0.85em; color:#94a3b8;">Pronto.</span>
+                            </div>
+                            <div id="healthResults" style="display:none; margin-top:10px;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82em;">
+                                    <thead>
+                                        <tr style="background:rgba(255,255,255,0.05); text-align:left;">
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Provider</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Status</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1); text-align:right;">HTTP</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1); text-align:right;">Tempo</th>
+                                            <th style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.1);">Note</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="healthRows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- Options: Full ITA, DB Only, Cache, Hybrid -->
+                    <div class="search-sites">
+                        <div id="full_ita_container_old">
+                        <label style="background: rgba(0, 128, 0, 0.15); border-color: rgba(0, 200, 83, 0.4);">
+                            <input type="checkbox" id="full_ita_old">
+                            <span>🇮🇹 FULL ITA (Solo risultati con "ITA" nel nome)</span>
+                        </label>
+                        </div>
+                        <label style="background: rgba(0, 100, 200, 0.15); border-color: rgba(100, 150, 255, 0.4);">
+                            <input type="checkbox" id="db_only">
+                            <span>💾 Ricerca Solo DB (Ultra-veloce, no live search)</span>
+                        </label>
+                        <label style="background: rgba(100, 100, 200, 0.15); border-color: rgba(150, 150, 255, 0.4);">
+                            <input type="checkbox" id="use_global_cache_old">
+                            <span>💾 Usa Cache Globale (Ricerche più veloci, condivise)</span>
+                        </label>
+                        <label style="background: rgba(147, 51, 234, 0.15); border-color: rgba(147, 51, 234, 0.4);">
+                            <input type="checkbox" id="old_hybrid_mode">
+                            <span>🚀 Hybrid Mode (Risposta istantanea + scraping background)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Configuration (3 Columns) -->
+        <div class="service-card full-width">
+            <div class="service-header">
+                <div class="service-title" data-i18n="section_advanced">⚙️ Configurazione Avanzata</div>
+            </div>
+
+            <div class="config-grid">
+
+                <!-- COL 1: Quality Filters -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 10px; font-size: 0.9em;" data-i18n="adv_exclude">🚫 Escludi Qualità
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_remux" style="margin-right: 8px;"> <span data-i18n="q_remux">BluRay
+                                REMUX</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_4k" style="margin-right: 8px;"> <span data-i18n="q_4k">4K / UHD</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_1080p" style="margin-right: 8px;"> <span data-i18n="q_1080p">1080p</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_720p" style="margin-right: 8px;"> <span data-i18n="q_720p">720p</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_sd" style="margin-right: 8px;"> <span data-i18n="q_sd">SD / CAM</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_dv" style="margin-right: 8px;"> <span data-i18n="q_dv">Dolby Vision</span>
+                        </label>
+                        <label
+                            style="display: flex; align-items: center; padding: 8px; background: rgba(10, 10, 26, 0.4); border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="exclude_unknown" style="margin-right: 8px;"> <span data-i18n="q_unknown">Unknown
+                                (No Tags)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- COL 2: Size Limits -->
+                <div style="text-align: center;">
+                    <div class="section-title" style="margin-bottom: 10px; font-size: 0.9em;" data-i18n="adv_sizelimit">⚖️ Limite Dimensioni
+                    </div>
+                    <div
+                        style="background: rgba(10, 10, 26, 0.4); padding: 20px; border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2);">
+                        <label style="display: block; margin-bottom: 10px; font-size: 0.9em; color: #e0e0e0;" data-i18n="max_gb_label">Max GB
+                            per File</label>
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <input type="number" id="max_size" placeholder="0" min="0" step="0.5"
+                                style="width: 80px; text-align: center; padding: 8px; border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.4); background: rgba(20, 20, 40, 0.6); color: white;">
+                            <span style="font-weight: bold; color: #c084fc;">GB</span>
+                        </div>
+                        <small style="display: block; margin-top: 8px; color: #9ca3af; font-size: 0.8em;" data-i18n="unlimited_hint">0 =
+                            Illimitato</small>
+                        <small style="display: block; margin-top: 4px; color: #6b7280; font-size: 0.75em;" data-i18n="nopack_hint">*Non
+                            limita i Pack Serie</small>
+                    </div>
+
+                    <!-- Limit by Resolution Count -->
+                    <div
+                        style="margin-top: 15px; background: rgba(10, 10, 26, 0.4); padding: 15px; border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2);">
+                        <label
+                            style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px; cursor: pointer;">
+                            <input type="checkbox" id="use_max_res_limit" style="margin-right: 8px;">
+                            <span style="font-size: 0.9em; color: #e0e0e0;" data-i18n="limit_results_label">✂️ Limita Num. Risultati</span>
+                        </label>
+
+                        <div style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.8em; color: #9ca3af;" data-i18n="max_per_res">Max per risoluzione:</span>
+                            <select id="max_res_limit"
+                                style="width: 60px; text-align: center; padding: 6px; border-radius: 6px; border: 1px solid rgba(147, 51, 234, 0.4); background: rgba(20, 20, 40, 0.6); color: white;"
+                                disabled>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COL 3: Features & Modes -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 10px; font-size: 0.9em;" data-i18n="adv_modes">🚀 Modalità & Extra
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+
+                        <!-- AIO Streams -->
+                        <label
+                            style="display: flex; align-items: center; padding: 10px; background: rgba(10, 10, 26, 0.4); border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="aiostreams_mode" style="margin-right: 10px;">
+                            <div>
+                                <div style="font-size: 0.95em; font-weight: bold;" data-i18n="aio_mode">🔄 Modalità AIO</div>
+                                <small style="color: #9ca3af; font-size: 0.75em;" data-i18n="aio_compat">Compatibile AIOStreams</small>
+                            </div>
+                        </label>
+
+                        <!-- IntroSkip -->
+                        <label
+                            style="display: flex; align-items: center; padding: 10px; background: rgba(10, 10, 26, 0.4); border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer;">
+                            <input type="checkbox" id="introskip_enabled" style="margin-right: 10px;">
+                            <div>
+                                <div style="font-size: 0.95em; font-weight: bold;" data-i18n="introskip">⏩ IntroSkip</div>
+                                <small style="color: #9ca3af; font-size: 0.75em;" data-i18n="introskip_desc">Salta Intro (Solo player VIMU o
+                                    Stremio app IOS)</small>
+                            </div>
+                        </label>
+
+                        <!-- Only Cached (Moved Here) -->
+                        <label
+                            style="display: flex; align-items: center; padding: 10px; background: rgba(10, 10, 26, 0.4); border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2); cursor: pointer; margin-top: 10px;">
+                            <input type="checkbox" id="only_debrid_cache" style="margin-right: 10px;">
+                            <div>
+                                <div style="font-size: 0.95em; font-weight: bold;" data-i18n="only_cached">⚡ Solo Cached</div>
+                                <small style="color: #9ca3af; font-size: 0.75em;" data-i18n="only_cached_desc">Nascondi risultati non
+                                    cached (rischio di pochi o 0 risultati)</small>
+                            </div>
+                        </label>
+
+
+
+                        <!-- Formatter -->
+                        <div
+                            style="padding: 10px; background: rgba(10, 10, 26, 0.4); border-radius: 8px; border: 1px solid rgba(147, 51, 234, 0.2);">
+                            <div style="font-size: 0.9em; font-weight: bold; margin-bottom: 5px;" data-i18n="formatter">🎨 Formatter</div>
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <select id="formatter_preset"
+                                    style="flex-grow: 1; padding: 4px; background: rgba(30, 30, 50, 0.8); border: 1px solid rgba(147, 51, 234, 0.4); border-radius: 4px; color: white; font-size: 11px;">
+                                    <option value="default">Default</option>
+                                    <option value="torrentio">Torrentio</option>
+                                    <option value="minimal">Minimal</option>
+                                    <option value="verbose">Verbose</option>
+                                    <option value="italiano">Italiano</option>
+                                    <option value="fra">Fra</option>
+                                    <option value="dav">Dav</option>
+                                    <option value="and">And</option>
+                                    <option value="lad">Lad</option>
+                                    <option value="pri">Pri</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                                <a href="#" id="formatter_preview_link"
+                                    style="font-size: 12px; color: #a78bfa; text-decoration: underline; cursor: pointer; white-space: nowrap; margin-left: 5px;"
+                                    title="Anteprima Template" data-i18n="preview_link" data-i18n-title="preview_title">📋 Anteprima</a>
+                            </div>
+                            <small id="formatter_status"
+                                style="display: block; color: #9ca3af; font-size: 0.75em; margin-top: 2px;"></small>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Formatter Editor (Full Width) -->
+            <div id="custom_formatter_container"
+                style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="margin-bottom: 8px;">
+                    <label style="font-size: 11px; color: #9ca3af;" data-i18n="name_template">Name Template:</label>
+                    <textarea id="formatter_custom_name" rows="2"
+                        style="width: 100%; background: rgba(20, 20, 40, 0.8); border: 1px solid rgba(147, 51, 234, 0.3); border-radius: 4px; color: white; padding: 6px; font-size: 11px; font-family: monospace; resize: vertical;"
+                        placeholder="Es: {stream.resolution} {stream.quality}"></textarea>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <label style="font-size: 11px; color: #9ca3af;" data-i18n="desc_template">Description Template:</label>
+                    <textarea id="formatter_custom_desc" rows="3"
+                        style="width: 100%; background: rgba(20, 20, 40, 0.8); border: 1px solid rgba(147, 51, 234, 0.3); border-radius: 4px; color: white; padding: 6px; font-size: 11px; font-family: monospace; resize: vertical;"
+                        placeholder="Es: {stream.filename}\n{stream.size::bytes}"></textarea>
+                </div>
+                <details style="font-size: 10px; color: #9ca3af;">
+                    <summary style="cursor: pointer; color: #a78bfa;" data-i18n="available_vars">📖 Variabili disponibili</summary>
+                    <div
+                        style="margin-top: 6px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace;">
+                        <strong>Stream:</strong> {stream.quality}, {stream.resolution}, {stream.filename},
+                        {stream.size::bytes}, {stream.seeders}, {stream.codec}, {stream.encode},
+                        {stream.languageEmojis::join(' ')}, {stream.audioTags::join(' ')},
+                        {stream.visualTags::join(' ')}, {stream.releaseGroup}<br>
+                        <strong>Service:</strong> {service.name}, {service.shortName},
+                        {service.cached::istrue["⚡"||"❌"]}<br>
+                        <strong>Addon:</strong> {addon.name}<br>
+                        <strong>Syntax:</strong> {field::exists["show"||"hide"]}, {field::&gt;0["yes"||"no"]},
+                        {field::~pattern["match"||"no"]}, {text::small}
+                    </div>
+                </details>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button type="button" id="formatter_save_btn"
+                        style="padding: 8px 16px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 6px; color: white; font-size: 12px; cursor: pointer; font-weight: bold;" data-i18n="save_template">💾
+                        SALVA Template</button>
+                    <span id="formatter_save_status"
+                        style="color: #10b981; font-size: 11px; align-self: center;"></span>
+                </div>
+            </div>
+
+            <!-- Inline Formatter Preview (same page) -->
+            <div id="formatter_preview_container"
+                style="display: none; margin-top: 15px; padding: 12px; border-radius: 10px; background: rgba(10, 10, 26, 0.5); border: 1px solid rgba(147, 51, 234, 0.3);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div style="font-size: 12px; font-weight: bold; color: #c084fc;">📋 Anteprima Template</div>
+                    <button type="button" id="formatter_preview_close"
+                        style="background: transparent; border: none; color: #a78bfa; font-size: 16px; cursor: pointer;">✕</button>
+                </div>
+                <iframe id="formatter_preview_iframe"
+                    style="width: 100%; height: 520px; border: 1px solid rgba(147, 51, 234, 0.3); border-radius: 8px; background: #0a0515;"
+                    title="Anteprima Formatter"></iframe>
+            </div>
+
+            <!-- Action Buttons -->
+            <div
+                style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(147, 51, 234, 0.3); text-align: center;">
+                <!-- Manual Import (Smaller, Above) -->
+                <button id="manual_import_button" onclick="window.open('/scrape', '_blank')"
+                    style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3); padding: 10px 20px; font-size: 0.9em; min-width: auto; width: 50%; margin-bottom: 20px;">
+                    <span data-i18n="custom_torrent">Aggiungi Torrent Custom</span>
+                </button>
+            </div>
+
+            <div class="button-group">
+                <button id="install_button" disabled data-i18n="open_stremio">▶️ Apri in Stremio</button>
+
+                <a href="https://ko-fi.com/G2G41MG3ZN" target="_blank" class="custom-kofi-union">
+                    <img src="https://storage.ko-fi.com/cdn/cup-border.png" alt="Ko-fi">
+                    <span data-i18n="kofi">Un Grog per noi 🍻</span>
+                </a>
+
+                <button id="copy_button" disabled data-i18n="install_btn">📋 Copia Link</button>
+            </div>
+
+            <style>
+                .custom-kofi-union {
+                    flex: 1;
+                    /* Uguale ai bottoni originali */
+                    min-width: 200px;
+                    /* Uguale ai bottoni originali */
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #00b521;
+                    /* Colore Ko-fi */
+                    color: #ffffff !important;
+                    text-decoration: none !important;
+                    border-radius: 8px;
+                    /* Uguale ai bottoni originali */
+                    font-size: 1.2em;
+                    /* Uguale ai bottoni originali */
+                    font-weight: 600;
+                    /* Uguale ai bottoni originali */
+                    padding: 18px 35px;
+                    /* Uguale ai bottoni originali */
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 16px rgba(0, 181, 33, 0.3);
+                    box-sizing: border-box;
+                }
+
+                .custom-kofi-union:hover {
+                    transform: translateY(-2px);
+                    /* Effetto hover originale */
+                    filter: brightness(1.1);
+                    box-shadow: 0 6px 24px rgba(0, 181, 33, 0.4);
+                }
+
+                .custom-kofi-union img {
+                    width: 24px;
+                    margin-right: 10px;
+                    vertical-align: middle;
+                }
+
+                /* Responsive: su mobile va a capo come gli altri */
+                @media (max-width: 640px) {
+                    .custom-kofi-union {
+                        width: 100%;
+                    }
+                }
+            </style>
+
+            <div id="link-container">
+                <p class="section-title"><small data-i18n="install_link_label">Link di installazione generato:</small></p>
+                <textarea id="install_link_display" rows="3" readonly></textarea>
+            </div>
+        </div>
+        <script>
+            // ===== UI LANGUAGE =====
+            const TRANSLATIONS = {
+                it: {
+                    // Language dropdown
+                    lang_all: '🌐 Tutte le Lingue',
+                    lang_italian: '🇮🇹 Italiano',
+                    lang_english: '🇬🇧 Inglese',
+                    lang_french: '🇫🇷 Francese',
+                    lang_spanish: '🇪🇸 Spagnolo',
+                    lang_german: '🇩🇪 Tedesco',
+                    lang_portuguese: '🇵🇹 Portoghese',
+                    lang_hint: 'Filtra i risultati per lingua',
+                    // Buttons
+                    install_btn: '📋 Copia Link Installazione',
+                    open_stremio: '▶️ Apri in Stremio',
+                    kofi: 'Un Grog per noi 🍻',
+                    custom_torrent: 'Aggiungi Torrent Custom',
+                    status_ready: 'Configurazione pronta',
+                    status_p2p: '(Solo P2P)',
+                    // Service cards
+                    rd_title: '👑 Real-Debrid (Opzionale)',
+                    rd_get_key: 'Clicca qui per la tua chiave 🔑',
+                    rd_filter: 'Filtra 🧲 bloccati da RD',
+                    rd_regex_label: 'Pattern regex bloccati:',
+                    rd_edit_regex: 'Edita Regex',
+                    tb_title: '📦 Torbox (Opzionale)',
+                    tb_get_key: 'Clicca qui per la tua chiave 🔑',
+                    proxy_title: '🌐 Proxy (Opzionale)',
+                    proxy_desc: 'Per condividere Real-Debrid tra più utenti',
+                    proxy_warn: '⚠️ Proxy senza Password - Connessione non protetta!',
+                    jackett_title: '🔍 Jackett (Opzionale)',
+                    jackett_desc: 'Cerca su indexer configurati (solo risultati italiani 🇮🇹)',
+                    jackett_only: '🚨 USA SOLO Jackett (esclude tutti gli altri provider)',
+                    jackett_warn: 'Se abilitato, mostra solo i risultati provenienti da Jackett (live + DB). Filtri, formattazione, debrid e enrichment restano attivi.',
+                    // Hybrid section
+                    hybrid_title: 'Modalità Hybrid',
+                    hybrid_desc: 'Risposta istantanea + scraping in background',
+                    full_ita: '🇮🇹 FULL ITA',
+                    full_ita_hint: 'Solo risultati con "ITA" nel nome',
+                    old_style: '⚙️ Old Style',
+                    // Config
+                    config_text: 'Configura i servizi che vuoi utilizzare:',
+                    config_ready: '✓ 🚀 Configurazione pronta (Solo P2P)',
+                    // TorBox Referral
+                    tb_ref_title: 'Potenzia la tua esperienza con IlCorsaroViola',
+                    tb_ref_desc: 'Migliora il tuo streaming con il servizio debrid ultra-veloce di <span class="tb-accent" style="font-weight:600;">TorBox</span>.<br>Ottieni fino a <strong>84 giorni gratis</strong> usando uno dei Referral code della community:',
+                    tb_ref_buy: 'Acquista TorBox →',
+                    // Sections
+                    section_search: '🔎 Siti di Ricerca Torrent',
+                    section_search_desc: 'Seleziona su quali siti cercare i torrent:',
+                    section_http: 'Flussi HTTP &lt;/&gt;',
+                    section_adults: '🔞 Adulti e +18',
+                    section_format: '🎨 Formato Stream',
+                    section_external: '🌍 Sorgenti Esterne',
+                    section_providers: 'Provider Esterni',
+                    section_limits: '✂️ Limita',
+                    section_anime: 'Anime / Kitsu',
+                    section_adult_label: 'Includi risultati per adulti (+18)',
+                    section_format_label: 'Mostra qualità video nel titolo',
+                    section_format_desc: 'Aggiunge badge qualità (4K, 1080p, etc.) ai risultati',
+                    section_debrid: '⚡ Debrid',
+                    section_advanced: '⚙️ Configurazione Avanzata',
+                    // Advanced Config
+                    adv_exclude: '🚫 Escludi Qualità',
+                    adv_sizelimit: '⚖️ Limite Dimensioni',
+                    adv_modes: '🚀 Modalità & Extra',
+                    q_remux: 'BluRay REMUX',
+                    q_4k: '4K / UHD',
+                    q_1080p: '1080p',
+                    q_720p: '720p',
+                    q_sd: 'SD / CAM',
+                    q_dv: 'Dolby Vision',
+                    q_unknown: 'Unknown (No Tags)',
+                    max_gb_label: 'Max GB per File',
+                    unlimited_hint: '0 = Illimitato',
+                    nopack_hint: '*Non limita i Pack Serie',
+                    limit_results_label: '✂️ Limita Num. Risultati',
+                    max_per_res: 'Max per risoluzione:',
+                    aio_mode: '🔄 Modalità AIO',
+                    aio_compat: 'Compatibile AIOStreams',
+                    introskip: '⏩ IntroSkip',
+                    introskip_desc: 'Salta Intro (Solo player VIMU o Stremio app IOS)',
+                    only_cached: '⚡ Solo Cached',
+                    only_cached_desc: 'Nascondi risultati non cached (rischio di pochi o 0 risultati)',
+                    formatter: '🎨 Formatter',
+                    preview_link: '📋 Anteprima',
+                    preview_title: 'Anteprima Template',
+                    name_template: 'Name Template:',
+                    desc_template: 'Description Template:',
+                    available_vars: '📖 Variabili disponibili',
+                    save_template: '💾 SALVA Template',
+                    // Limits
+                    limit_results: 'Limita Num. Risultati',
+                    limit_pack: 'Limita i Pack Serie',
+                    limit_pack_desc: 'Numero massimo di pack per serie',
+                    unlimited: 'Illimitato',
+                    // Proxy / Jackett placeholders
+                    proxy_url_ph: 'Proxy URL (es: https://your-proxy.com)',
+                    proxy_pass_ph: 'Password (opzionale)',
+                    jackett_url_ph: 'Jackett URL (es: https://jackett.your-domain.com)',
+                    jackett_key_ph: 'Jackett API Key',
+                    jackett_pass_ph: 'Jackett Password (opzionale)',
+                    // Link di installazione
+                    install_link_label: 'Link di installazione generato:',
+                    // External sources cards
+                    knaben: '🦉 Knaben (Internazionale)',
+                    torrentgalaxy: '🌌 TorrentGalaxy (Internazionale)',
+                    apibay: '🏴‍☠️ apibay / TPB (Internazionale)',
+                    yts: '🎬 YTS (Film, Internazionale)',
+                    eztv: '📺 EZTV (Serie TV, Internazionale)',
+                    solid: '🟢 SolidTorrents (Internazionale) ⚠️ Rate Limited',
+                    bitsearch: '🔎 Bitsearch (Internazionale) ⚠️ Rate Limited / HTML',
+                    dht: '🛰️ DHTIndex (DHT Crawler, ITA-friendly)',
+                    torrentio: '🅣 Torrentio (Esterno)',
+                    mediafusion: '🅜 MediaFusion (Esterno)',
+                    comet: '🅒 Comet (Esterno)',
+                    meteor: '☄️ Meteor (Esterno)',
+                    rarbg: '🏴 RARBG (Proxy)',
+                    jackett_src: '🔍 Jackett (richiede URL+API Key)',
+                    disabled: '— disabilitato',
+                    // Features
+                    features_title: 'Caratteristiche principali:',
+                    features_multi: 'Multi-sorgente: Il Corsaro Nero (DB locale incrementale con Cache RD reale), UIndex, Knaben e Jackett (opzionale)',
+                    features_ita: 'Ottimizzato per l\'Italia: Priorità ai contenuti in italiano 🇮🇹',
+                    features_hybrid: '🚀 Hybrid Mode: Risposta istantanea + scraping in background',
+                    features_debrid: 'Debrid: Real-Debrid e/o Torbox per streaming istantaneo',
+                    features_p2p: 'P2P Fallback: Senza debrid usa streaming P2P diretto',
+                },
+                en: {
+                    // Language dropdown
+                    lang_all: '🌐 All Languages',
+                    lang_italian: '🇮🇹 Italian',
+                    lang_english: '🇬🇧 English',
+                    lang_french: '🇫🇷 French',
+                    lang_spanish: '🇪🇸 Spanish',
+                    lang_german: '🇩🇪 German',
+                    lang_portuguese: '🇵🇹 Portuguese',
+                    lang_hint: 'Filter results by language',
+                    // Buttons
+                    install_btn: '📋 Copy Install Link',
+                    open_stremio: '▶️ Open in Stremio',
+                    kofi: 'A Grog for us 🍻',
+                    custom_torrent: 'Add Custom Torrent',
+                    status_ready: 'Configuration ready',
+                    status_p2p: '(P2P only)',
+                    // Service cards
+                    rd_title: '👑 Real-Debrid (Optional)',
+                    rd_get_key: 'Click here for your key 🔑',
+                    rd_filter: 'Filter 🧲 blocked by RD',
+                    rd_regex_label: 'Blocked regex patterns:',
+                    rd_edit_regex: 'Edit Regex',
+                    tb_title: '📦 Torbox (Optional)',
+                    tb_get_key: 'Click here for your key 🔑',
+                    proxy_title: '🌐 Proxy (Optional)',
+                    proxy_desc: 'Share Real-Debrid among multiple users',
+                    proxy_warn: '⚠️ Proxy without Password - Unprotected connection!',
+                    jackett_title: '🔍 Jackett (Optional)',
+                    jackett_desc: 'Search configured indexers (Italian results only 🇮🇹)',
+                    jackett_only: '🚨 USE ONLY Jackett (excludes all other providers)',
+                    jackett_warn: 'When enabled, only shows results from Jackett (live + DB). Filters, formatting, debrid and enrichment remain active.',
+                    // Hybrid section
+                    hybrid_title: 'Hybrid Mode',
+                    hybrid_desc: 'Instant response + background scraping',
+                    full_ita: '🇮🇹 FULL ITA',
+                    full_ita_hint: 'Only results with "ITA" in the name',
+                    old_style: '⚙️ Old Style',
+                    // Config
+                    config_text: 'Configure the services you want to use:',
+                    config_ready: '✓ 🚀 Configuration ready (P2P only)',
+                    // TorBox Referral
+                    tb_ref_title: 'Boost your experience with IlCorsaroViola',
+                    tb_ref_desc: 'Enhance your streaming with the ultra-fast <span class="tb-accent" style="font-weight:600;">TorBox</span> debrid service.<br>Get up to <strong>84 days free</strong> using one of the community Referral codes:',
+                    tb_ref_buy: 'Buy TorBox →',
+                    // Sections
+                    section_search: '🔎 Torrent Search Sites',
+                    section_search_desc: 'Select which sites to search torrents on:',
+                    section_http: 'HTTP Streams &lt;/&gt;',
+                    section_adults: '🔞 Adults and +18',
+                    section_format: '🎨 Stream Format',
+                    section_external: '🌍 External Sources',
+                    section_providers: 'External Providers',
+                    section_limits: '✂️ Limits',
+                    section_anime: 'Anime / Kitsu',
+                    section_adult_label: 'Include adult results (+18)',
+                    section_format_label: 'Show video quality in title',
+                    section_format_desc: 'Adds quality badges (4K, 1080p, etc.) to results',
+                    section_debrid: '⚡ Debrid',
+                    section_advanced: '⚙️ Advanced Configuration',
+                    // Advanced Config
+                    adv_exclude: '🚫 Exclude Qualities',
+                    adv_sizelimit: '⚖️ Size Limits',
+                    adv_modes: '🚀 Modes & Extras',
+                    q_remux: 'BluRay REMUX',
+                    q_4k: '4K / UHD',
+                    q_1080p: '1080p',
+                    q_720p: '720p',
+                    q_sd: 'SD / CAM',
+                    q_dv: 'Dolby Vision',
+                    q_unknown: 'Unknown (No Tags)',
+                    max_gb_label: 'Max GB per File',
+                    unlimited_hint: '0 = Unlimited',
+                    nopack_hint: '*Does not limit Series Packs',
+                    limit_results_label: '✂️ Limit No. Results',
+                    max_per_res: 'Max per resolution:',
+                    aio_mode: '🔄 AIO Mode',
+                    aio_compat: 'AIOStreams compatible',
+                    introskip: '⏩ IntroSkip',
+                    introskip_desc: 'Skip Intro (VIMU player or Stremio iOS app only)',
+                    only_cached: '⚡ Only Cached',
+                    only_cached_desc: 'Hide non-cached results (risk of few or 0 results)',
+                    formatter: '🎨 Formatter',
+                    preview_link: '📋 Preview',
+                    preview_title: 'Template Preview',
+                    name_template: 'Name Template:',
+                    desc_template: 'Description Template:',
+                    available_vars: '📖 Available variables',
+                    save_template: '💾 SAVE Template',
+                    // Limits
+                    limit_results: 'Limit No. Results',
+                    limit_pack: 'Limit Series Packs',
+                    limit_pack_desc: 'Max number of packs per series',
+                    unlimited: 'Unlimited',
+                    // Proxy / Jackett placeholders
+                    proxy_url_ph: 'Proxy URL (e.g. https://your-proxy.com)',
+                    proxy_pass_ph: 'Password (optional)',
+                    jackett_url_ph: 'Jackett URL (e.g. https://jackett.your-domain.com)',
+                    jackett_key_ph: 'Jackett API Key',
+                    jackett_pass_ph: 'Jackett Password (optional)',
+                    // Link di installazione
+                    install_link_label: 'Generated install link:',
+                    // External sources cards
+                    knaben: '🦉 Knaben (International)',
+                    torrentgalaxy: '🌌 TorrentGalaxy (International)',
+                    apibay: '🏴‍☠️ apibay / TPB (International)',
+                    yts: '🎬 YTS (Movies, International)',
+                    eztv: '📺 EZTV (TV Series, International)',
+                    solid: '🟢 SolidTorrents (International) ⚠️ Rate Limited',
+                    bitsearch: '🔎 Bitsearch (International) ⚠️ Rate Limited / HTML',
+                    dht: '🛰️ DHTIndex (DHT Crawler, ITA-friendly)',
+                    torrentio: '🅣 Torrentio (External)',
+                    mediafusion: '🅜 MediaFusion (External)',
+                    comet: '🅒 Comet (External)',
+                    meteor: '☄️ Meteor (External)',
+                    rarbg: '🏴 RARBG (Proxy)',
+                    jackett_src: '🔍 Jackett (requires URL+API Key)',
+                    disabled: '— disabled',
+                    // Features
+                    features_title: 'Main features:',
+                    features_multi: 'Multi-source: Il Corsaro Nero (incremental local DB with real RD Cache), UIndex, Knaben and Jackett (optional)',
+                    features_ita: 'Optimized for Italy: Priority to Italian content 🇮🇹',
+                    features_hybrid: '🚀 Hybrid Mode: Instant response + background scraping',
+                    features_debrid: 'Debrid: Real-Debrid and/or Torbox for instant streaming',
+                    features_p2p: 'P2P Fallback: Without debrid uses direct P2P streaming',
+                }
+            };
+            let currentUILang = 'it';
+            function t(k) { return (TRANSLATIONS[currentUILang]||TRANSLATIONS.it)[k]||k; }
+             function switchUILanguage(l) {
+                 currentUILang = l;
+                 var btnIt = document.getElementById('lang_it');
+                 var btnEn = document.getElementById('lang_en');
+                 if (btnIt) {
+                     btnIt.classList.toggle('active', l === 'it');
+                     btnIt.setAttribute('aria-pressed', l === 'it' ? 'true' : 'false');
+                 }
+                 if (btnEn) {
+                     btnEn.classList.toggle('active', l === 'en');
+                     btnEn.setAttribute('aria-pressed', l === 'en' ? 'true' : 'false');
+                 }
+                // textContent
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    var key = el.getAttribute('data-i18n');
+                    el.textContent = t(key);
+                });
+                // placeholder
+                document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+                    var key = el.getAttribute('data-i18n-ph');
+                    el.placeholder = t(key);
+                });
+                // innerHTML
+                document.querySelectorAll('[data-i18n-html]').forEach(el => {
+                    var key = el.getAttribute('data-i18n-html');
+                    el.innerHTML = t(key);
+                });
+                // title attribute
+                document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                    var key = el.getAttribute('data-i18n-title');
+                    el.title = t(key);
+                });
+                // Auto-select content language based on UI language
+                var clSel = document.getElementById('content_language');
+                if (clSel) {
+                    if (l === 'it' && clSel.value !== 'italian') {
+                        clSel.value = 'italian';
+                    } else if (l === 'en' && clSel.value !== 'all') {
+                        clSel.value = 'all';
+                    }
+                }
+                var sel = document.getElementById('content_language');
+                var isIta = sel && (sel.value === 'all' || sel.value === 'italian');
+                var show = isIta && currentUILang === 'it';
+                var oe = document.getElementById('old_style_container');
+                var ae = document.getElementById('anime_section');
+                if (oe) oe.style.display = show ? 'block' : 'none';
+                if (ae) ae.style.display = show ? 'block' : 'none';
+                // Full ITA checkbox: only visible when content language is Italian
+                var showFullIta = sel && sel.value === 'italian';
+                var fc = document.getElementById('full_ita_container');
+                var fco = document.getElementById('full_ita_container_old');
+                if (fc) fc.style.display = showFullIta ? '' : 'none';
+                if (fco) fco.style.display = showFullIta ? '' : 'none';
+                if (!showFullIta) {
+                    if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                    if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                }
+                updateInstallLink();
+            }
+
+            // Input fields
+            var _clSelect = document.getElementById('content_language');
+            if (_clSelect) {
+                _clSelect.addEventListener('change', function() {
+                    var isIta = this.value === 'all' || this.value === 'italian';
+                    var show = isIta && currentUILang === 'it';
+                    var oe = document.getElementById('old_style_container');
+                    var ae = document.getElementById('anime_section');
+                    if (oe) oe.style.display = show ? 'block' : 'none';
+                    if (ae) ae.style.display = show ? 'block' : 'none';
+                    // Full ITA checkbox: only when content is Italian
+                    var showFullIta = this.value === 'italian';
+                    var fc = document.getElementById('full_ita_container');
+                    var fco = document.getElementById('full_ita_container_old');
+                    if (fc) fc.style.display = showFullIta ? '' : 'none';
+                    if (fco) fco.style.display = showFullIta ? '' : 'none';
+                    if (!showFullIta) {
+                        if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                        if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                    }
+                });
+            }
+            const useRdCheckbox = document.getElementById("use_rd");
+            const rdKeyInput = document.getElementById("rd_key");
+            const useTorboxCheckbox = document.getElementById("use_torbox");
+            const torboxKeyInput = document.getElementById("torbox_key");
+
+            // 🛡️ TB Key validation — check key against TorBox API
+            let _tbValid = false;
+            async function validateTbKey(key) {
+                const el = document.getElementById('tb_valid');
+                const errEl = document.getElementById('tb_error_msg');
+                const cleanKey = key.trim();
+                if (!cleanKey || cleanKey.length < 10) { el.textContent = ''; errEl.style.display = 'none'; _tbValid = false; updateInstallLink(); return; }
+                el.textContent = '⏳';
+                try {
+                    const r = await fetch('/validate-tb-key/' + encodeURIComponent(cleanKey));
+                    const data = await r.json();
+                    el.textContent = data.valid ? '✅' : '❌';
+                    el.title = data.valid ? 'Chiave valida' : 'Chiave non valida o scaduta';
+                    _tbValid = data.valid;
+                    errEl.style.display = data.valid ? 'none' : 'block';
+                } catch (e) {
+                    el.textContent = '⚠️';
+                    el.title = 'Errore di rete';
+                    _tbValid = false;
+                    errEl.style.display = 'none';
+                }
+                updateInstallLink();
+            }
+            torboxKeyInput.addEventListener('input', function() {
+                validateTbKey(this.value);
+            });
+
+            const mediaflowUrlInput = document.getElementById("mediaflow_url");
+            const mediaflowPasswordInput = document.getElementById("mediaflow_password");
+            const jackettUrlInput = document.getElementById("jackett_url");
+            const jackettApiKeyInput = document.getElementById("jackett_api_key");
+            const jackettPasswordInput = document.getElementById("jackett_password");
+
+            // Checkboxes for search sites
+            const useCorsaroNeroCheckbox = document.getElementById("use_corsaronero");
+            const useUIndexCheckbox = document.getElementById("use_uindex");
+            const useKnabenCheckbox = document.getElementById("use_knaben");
+            const useTorrentGalaxyCheckbox = document.getElementById("use_torrentgalaxy");
+            // ✅ NEW: Public trackers
+            const useApibayCheckbox = document.getElementById("use_apibay");
+            const useYTSCheckbox = document.getElementById("use_yts");
+            const useEZTVCheckbox = document.getElementById("use_eztv");
+            const useSolidCheckbox = document.getElementById("use_solid");
+            const useBitsearchCheckbox = document.getElementById("use_bitsearch");
+            const useDhtIndexCheckbox = document.getElementById("use_dhtindex");
+            const useTorrentioCheckbox = document.getElementById("use_torrentio");
+            const useMediaFusionCheckbox = document.getElementById("use_mediafusion");
+            const useCometCheckbox = document.getElementById("use_comet");
+            const useStremthruTorzCheckbox = document.getElementById("use_stremthru_torz");
+            const useMeteorCheckbox = document.getElementById("use_meteor");
+            const useRarbgCheckbox = document.getElementById("use_rarbg");
+            const useJackettCheckbox = document.getElementById("use_jackett");
+            const fullItaCheckbox = document.getElementById("full_ita");
+            const dbOnlyCheckbox = document.getElementById("db_only");
+            // useGlobalCacheCheckbox is declared later with other Old Style variables
+            const useMaxResLimitCheckbox = document.getElementById("use_max_res_limit");
+            const maxResLimitSelect = document.getElementById("max_res_limit");
+
+            // Feature toggles
+            const aioStreamsModeCheckbox = document.getElementById("aiostreams_mode");
+            const introSkipEnabledCheckbox = document.getElementById("introskip_enabled");
+            const animeEnabledCheckbox = document.getElementById("anime_enabled");
+
+
+            // Buttons
+            const installButton = document.getElementById("install_button");
+            const copyButton = document.getElementById("copy_button");
+            const statusEl = document.getElementById("status");
+            const linkContainer = document.getElementById("link-container");
+            const installLinkDisplay = document.getElementById("install_link_display");
+
+            // Enable/disable RD input based on checkbox
+            useRdCheckbox.addEventListener('change', () => {
+                rdKeyInput.disabled = !useRdCheckbox.checked;
+                if (!useRdCheckbox.checked) rdKeyInput.value = '';
+                // Show/hide RD blocked filter container
+                const rdFilterContainer = document.getElementById('rd_blocked_filter_container');
+                if (rdFilterContainer) {
+                    rdFilterContainer.style.display = (useRdCheckbox.checked && rdKeyInput.value.trim()) ? 'block' : 'none';
+                    if (!useRdCheckbox.checked) {
+                        document.getElementById('rd_blocked_filter').checked = false;
+                        document.getElementById('rd_blocked_regex_frame').style.display = 'none';
+                    }
+                }
+                updateInstallLink();
+            });
+
+            // Show/hide RD blocked filter when key is entered
+            rdKeyInput.addEventListener('input', () => {
+                const rdFilterContainer = document.getElementById('rd_blocked_filter_container');
+                if (rdFilterContainer) {
+                    rdFilterContainer.style.display = (useRdCheckbox.checked && rdKeyInput.value.trim()) ? 'block' : 'none';
+                }
+                updateInstallLink();
+            });
+
+            // RD Blocked Filter checkbox: show/hide regex frame
+            document.getElementById('rd_blocked_filter').addEventListener('change', function() {
+                document.getElementById('rd_blocked_regex_frame').style.display = this.checked ? 'block' : 'none';
+                if (!this.checked) {
+                    document.getElementById('rd_blocked_regex_edit').checked = false;
+                    document.getElementById('rd_blocked_regex').readOnly = true;
+                }
+                updateInstallLink();
+            });
+
+            // RD Blocked Regex Edit checkbox: toggle editability
+            document.getElementById('rd_blocked_regex_edit').addEventListener('change', function() {
+                const regexField = document.getElementById('rd_blocked_regex');
+                regexField.readOnly = !this.checked;
+                if (this.checked) regexField.focus();
+                updateInstallLink();
+            });
+
+            // Update link when regex is edited
+            document.getElementById('rd_blocked_regex').addEventListener('input', () => {
+                updateInstallLink();
+            });
+
+            // Enable/disable Torbox input based on checkbox
+            useTorboxCheckbox.addEventListener('change', () => {
+                torboxKeyInput.disabled = !useTorboxCheckbox.checked;
+                if (!useTorboxCheckbox.checked) torboxKeyInput.value = '';
+                updateInstallLink();
+            });
+
+            // Enable/disable Max Resolution Limit select based on checkbox
+            useMaxResLimitCheckbox.addEventListener('change', () => {
+                maxResLimitSelect.disabled = !useMaxResLimitCheckbox.checked;
+                updateInstallLink();
+            });
+
+            // Disable/gray-out provider checkboxes when db_only is active
+            function updateProviderState() {
+                const isDbOnly = dbOnlyCheckbox.checked;
+                const providerCheckboxes = [
+                    useCorsaroNeroCheckbox,
+                    useUIndexCheckbox,
+                    useKnabenCheckbox,
+                    useTorrentGalaxyCheckbox,
+                    useApibayCheckbox,
+                    useYTSCheckbox,
+                    useEZTVCheckbox,
+                    useSolidCheckbox,
+                    useBitsearchCheckbox,
+                    useDhtIndexCheckbox,
+                    useTorrentioCheckbox,
+                    useMediaFusionCheckbox,
+                    useCometCheckbox,
+                    useStremthruTorzCheckbox,
+                    useMeteorCheckbox,
+                    useRarbgCheckbox,
+                    useJackettCheckbox
+                ];
+
+                providerCheckboxes.forEach(checkbox => {
+                    if (checkbox) {
+                        checkbox.disabled = isDbOnly;
+                        checkbox.parentElement.style.opacity = isDbOnly ? '0.5' : '1';
+                        checkbox.parentElement.style.pointerEvents = isDbOnly ? 'none' : 'auto';
+                    }
+                });
+            }
+
+            dbOnlyCheckbox.addEventListener('change', () => {
+                updateProviderState();
+                updateInstallLink();
+            });
+
+            // Old Style Mode Toggle
+            const useOldStyleCheckbox = document.getElementById('use_old_style');
+            const hybridSimpleView = document.getElementById('hybrid_simple_view');
+            const oldStyleFullUI = document.getElementById('old_style_full_ui');
+            const hybridModeCheckbox = document.getElementById('hybrid_mode');
+            const useGlobalCacheCheckbox = document.getElementById('use_global_cache');
+            const oldHybridModeCheckbox = document.getElementById('old_hybrid_mode');
+            const fullItaCheckboxOld = document.getElementById('full_ita_old');
+            const useGlobalCacheOldCheckbox = document.getElementById('use_global_cache_old');
+
+            function updateOldStyleMode() {
+                const isOldStyle = useOldStyleCheckbox ? useOldStyleCheckbox.checked : false;
+
+                // Toggle between simple view and full UI
+                if (hybridSimpleView) {
+                    hybridSimpleView.style.display = isOldStyle ? 'none' : 'block';
+                }
+                if (oldStyleFullUI) {
+                    oldStyleFullUI.style.display = isOldStyle ? 'block' : 'none';
+                }
+
+                // When not in old style (Hybrid Mode):
+                // - hybrid_mode = true
+                // - use_global_cache = false (cache interferes with background updates)
+                // - db_only = false
+                if (!isOldStyle) {
+                    hybridModeCheckbox.checked = true;
+                    useGlobalCacheCheckbox.checked = false;
+                    dbOnlyCheckbox.checked = false;
+                    if (oldHybridModeCheckbox) oldHybridModeCheckbox.checked = false;
+                } else {
+                    // In Old Style: sync with old UI checkboxes
+                    hybridModeCheckbox.checked = oldHybridModeCheckbox ? oldHybridModeCheckbox.checked : false;
+                    useGlobalCacheCheckbox.checked = useGlobalCacheOldCheckbox ? useGlobalCacheOldCheckbox.checked : false;
+                    // Sync full_ita between views
+                    if (fullItaCheckbox && fullItaCheckboxOld) {
+                        fullItaCheckbox.checked = fullItaCheckboxOld.checked;
+                    }
+                }
+
+                updateProviderState();
+                updateInstallLink();
+            }
+
+            if (useOldStyleCheckbox) {
+                useOldStyleCheckbox.addEventListener('change', updateOldStyleMode);
+            }
+
+            // Sync old_hybrid_mode with hidden hybrid_mode
+            if (oldHybridModeCheckbox) {
+                oldHybridModeCheckbox.addEventListener('change', () => {
+                    hybridModeCheckbox.checked = oldHybridModeCheckbox.checked;
+                    updateInstallLink();
+                });
+            }
+
+            // Sync use_global_cache_old with hidden use_global_cache
+            if (useGlobalCacheOldCheckbox) {
+                useGlobalCacheOldCheckbox.addEventListener('change', () => {
+                    useGlobalCacheCheckbox.checked = useGlobalCacheOldCheckbox.checked;
+                    updateInstallLink();
+                });
+            }
+
+            // Sync full_ita_old with full_ita
+            if (fullItaCheckboxOld) {
+                fullItaCheckboxOld.addEventListener('change', () => {
+                    fullItaCheckbox.checked = fullItaCheckboxOld.checked;
+                    updateInstallLink();
+                });
+            }
+
+            // Initialize old style state on page load
+            updateOldStyleMode();
+
+            // Initialize provider state on page load
+            updateProviderState();
+
+
+            function updateInstallLink() {
+                // TMDB is now hardcoded, no validation needed
+                const tmdbKey = '5462f78469f3d80bf5201645294c16e4';
+
+                // Build config object (TMDB always included)
+                const config = { tmdb_key: tmdbKey };
+
+                // Real-Debrid
+                if (useRdCheckbox.checked) {
+                    const rdKey = rdKeyInput.value.trim();
+                    if (rdKey) {
+                        config.use_rd = true;
+                        config.rd_key = rdKey;
+                        // RD Blocked Filter
+                        const rdBlockedFilter = document.getElementById('rd_blocked_filter');
+                        if (rdBlockedFilter && rdBlockedFilter.checked) {
+                            config.rd_blocked_filter = true;
+                            const rdBlockedRegex = document.getElementById('rd_blocked_regex');
+                            if (rdBlockedRegex) {
+                                config.rd_blocked_regex = rdBlockedRegex.value;
+                            }
+                        }
+                    }
+                }
+
+                // Torbox
+                if (useTorboxCheckbox.checked) {
+                    const torboxKey = torboxKeyInput.value.trim();
+                    if (torboxKey) {
+                        config.use_torbox = true;
+                        config.torbox_key = torboxKey;
+                    }
+                }
+
+                // MediaFlow Proxy / EasyProxy
+                const mediaflowUrl = mediaflowUrlInput.value.trim();
+                const mediaflowPassword = mediaflowPasswordInput.value.trim();
+                const proxyWarning = document.getElementById('proxy_no_password_warning');
+                if (mediaflowUrl) {
+                    config.mediaflow_url = mediaflowUrl;
+                    if (mediaflowPassword) {
+                        config.mediaflow_password = mediaflowPassword;
+                        proxyWarning.style.display = 'none';
+                    } else {
+                        // No password - show warning but still allow
+                        config.mediaflow_password = '';
+                        proxyWarning.style.display = 'block';
+                    }
+                } else {
+                    proxyWarning.style.display = 'none';
+                }
+
+                // Jackettio
+                const jackettUrl = jackettUrlInput.value.trim();
+                const jackettApiKey = jackettApiKeyInput.value.trim();
+                if (jackettUrl && jackettApiKey) {
+                    config.jackett_url = jackettUrl;
+                    config.jackett_api_key = jackettApiKey;
+
+                    const jackettPassword = jackettPasswordInput.value.trim();
+                    if (jackettPassword) {
+                        config.jackett_password = jackettPassword;
+                    }
+                }
+                // Jackett Only mode (active only if creds are provided)
+                const jackettOnlyEl = document.getElementById('jackett_only');
+                if (jackettOnlyEl && jackettOnlyEl.checked && jackettUrl && jackettApiKey) {
+                    config.jackett_only = true;
+                }
+
+                // Search sites selection
+                config.use_corsaronero = useCorsaroNeroCheckbox.checked;
+                config.use_uindex = useUIndexCheckbox.checked;
+                config.use_knaben = useKnabenCheckbox.checked;
+                config.use_torrentgalaxy = useTorrentGalaxyCheckbox.checked;
+                // ✅ NEW: Public trackers — default ON, save only when EXPLICITLY unchecked to keep URL clean
+                if (useApibayCheckbox && !useApibayCheckbox.checked) config.use_apibay = false;
+                if (useYTSCheckbox && !useYTSCheckbox.checked) config.use_yts = false;
+                if (useEZTVCheckbox && !useEZTVCheckbox.checked) config.use_eztv = false;
+                if (useSolidCheckbox && !useSolidCheckbox.checked) config.use_solid = false;
+                if (useBitsearchCheckbox && !useBitsearchCheckbox.checked) config.use_bitsearch = false;
+                if (useDhtIndexCheckbox && !useDhtIndexCheckbox.checked) config.use_dhtindex = false;
+                config.use_torrentio = useTorrentioCheckbox.checked;
+                config.use_mediafusion = useMediaFusionCheckbox.checked;
+                config.use_comet = useCometCheckbox.checked;
+                config.use_stremthru_torz = useStremthruTorzCheckbox.checked;
+                config.use_meteor = useMeteorCheckbox.checked;
+                config.use_rarbg = useRarbgCheckbox.checked;
+                config.use_jackett = useJackettCheckbox.checked;
+                config.full_ita = fullItaCheckbox.checked;
+                config.content_language = document.getElementById('content_language').value;
+                config.db_only = dbOnlyCheckbox.checked;
+                config.use_global_cache = useGlobalCacheCheckbox.checked;
+                config.only_debrid_cache = document.getElementById('only_debrid_cache').checked;
+                config.hybrid_mode = document.getElementById('hybrid_mode').checked;
+
+                // Max Resolution Limit (only if checkbox is checked)
+                if (useMaxResLimitCheckbox.checked) {
+                    const maxResLimit = maxResLimitSelect.value;
+                    if (maxResLimit) {
+                        config.max_res_limit = parseInt(maxResLimit);
+                    }
+                }
+
+                // Advanced Filters
+                if (document.getElementById('exclude_remux').checked) config.exclude_remux = true;
+                if (document.getElementById('exclude_4k').checked) config.exclude_4k = true;
+                if (document.getElementById('exclude_1080p').checked) config.exclude_1080p = true;
+                if (document.getElementById('exclude_720p').checked) config.exclude_720p = true;
+                if (document.getElementById('exclude_sd').checked) config.exclude_sd = true;
+                if (document.getElementById('exclude_unknown').checked) config.exclude_unknown = true;
+                if (document.getElementById('exclude_dv').checked) config.exclude_dv = true;
+
+                const maxSizeVal = document.getElementById('max_size').value;
+                if (maxSizeVal && parseFloat(maxSizeVal) > 0) {
+                    config.max_size = parseFloat(maxSizeVal);
+                }
+
+                // Feature toggles
+                if (aioStreamsModeCheckbox.checked) {
+                    config.aiostreams_mode = true;
+                }
+                if (introSkipEnabledCheckbox.checked) {
+                    config.introskip_enabled = true;
+                }
+                if (animeEnabledCheckbox.checked) {
+                    config.anime_enabled = true;
+                }
+
+                // Custom Formatter
+                const formatterPreset = document.getElementById('formatter_preset').value;
+                if (formatterPreset && formatterPreset !== 'default') {
+                    config.formatter_preset = formatterPreset;
+                    if (formatterPreset === 'custom') {
+                        const customName = document.getElementById('formatter_custom_name').value;
+                        const customDesc = document.getElementById('formatter_custom_desc').value;
+                        console.log('🎨 [Formatter Save] name:', customName ? customName.substring(0, 30) + '...' : '(empty)');
+                        console.log('🎨 [Formatter Save] desc:', customDesc ? customDesc.substring(0, 30) + '...' : '(empty)');
+                        if (customName) config.formatter_custom_name = customName;
+                        if (customDesc) config.formatter_custom_desc = customDesc;
+                    }
+                }
+
+                // Check if at least one search site is selected
+                // NOTE: corsaronero e uindex sono DISABILITATI (bloccati da Cloudflare),
+                // non vengono più inclusi nella lista mostrata all'utente.
+                let searchSites = [];
+                if (config.use_knaben) searchSites.push("Knaben");
+                if (config.use_torrentgalaxy) searchSites.push("TorrentGalaxy");
+                if (config.use_apibay) searchSites.push("apibay");
+                if (config.use_yts) searchSites.push("YTS");
+                if (config.use_eztv) searchSites.push("EZTV");
+                if (config.use_solid) searchSites.push("SolidTorrents");
+                if (config.use_bitsearch) searchSites.push("Bitsearch");
+                if (config.use_dhtindex !== false) searchSites.push("DHTIndex");
+                if (config.use_torrentio) searchSites.push("Torrentio");
+                if (config.use_mediafusion) searchSites.push("MediaFusion");
+                if (config.use_comet) searchSites.push("Comet");
+                if (config.use_stremthru_torz) searchSites.push("StremThru Torz");
+                if (config.use_meteor) searchSites.push("Meteor");
+                if (config.use_rarbg) searchSites.push("RARBG");
+                if (config.jackett_url && config.jackett_api_key && config.use_jackett !== false) searchSites.push("Jackett");
+
+                if (searchSites.length === 0 && !config.db_only) {
+                    // No search sites selected and not in DB Only mode - show error
+                    statusEl.textContent = "❌ Seleziona almeno un sito per la ricerca (o abilita 'Ricerca Solo DB')";
+                    statusEl.style.color = '#FF6B6B';
+                    linkContainer.classList.remove('show');
+                    installButton.disabled = true;
+                    copyButton.disabled = true;
+                    return;
+                }
+
+                // ✅ TB Key validation check: block install if key is invalid
+                if (config.use_torbox && config.torbox_key && !_tbValid) {
+                    statusEl.textContent = "❌ Chiave TB non valida o scaduta";
+                    statusEl.style.color = '#FF6B6B';
+                    linkContainer.classList.remove('show');
+                    installButton.disabled = true;
+                    copyButton.disabled = true;
+                    return;
+                }
+
+                // Generate install URL
+                // Fix for Unicode/Emoji in btoa: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
+                const jsonConfig = JSON.stringify(config);
+                const encodedConfig = btoa(encodeURIComponent(jsonConfig).replace(/%([0-9A-F]{2})/g,
+                    function toSolidBytes(match, p1) {
+                        return String.fromCharCode('0x' + p1);
+                    }));
+                // Base64url to keep path safe (no '/' or '+')
+                const encodedConfigUrl = encodedConfig
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/g, '');
+                const installUrl = `https://${window.location.host}/${encodedConfigUrl}/manifest.json`;
+
+                installLinkDisplay.value = installUrl;
+                linkContainer.classList.add('show');
+                installButton.disabled = false;
+                copyButton.disabled = false;
+
+                // Status message with emoji indicators
+                // Debrid icons (with + separator)
+                let debridEmojis = [];
+                if (config.use_rd) debridEmojis.push('👑');
+                if (config.use_torbox) debridEmojis.push('📦');
+
+                // Feature icons (no separator)
+                let featureEmojis = '';
+                if (config.db_only) featureEmojis += '⚡';
+                var cl = config.content_language || (config.full_ita ? 'italian' : 'all');
+                if (cl === 'italian') featureEmojis += '🇮🇹';
+                else if (cl === 'english') featureEmojis += '🇬🇧';
+                else if (cl === 'french') featureEmojis += '🇫🇷';
+                else if (cl === 'spanish') featureEmojis += '🇪🇸';
+                else if (cl === 'german') featureEmojis += '🇩🇪';
+                else if (cl === 'portuguese') featureEmojis += '🇵🇹';
+                if (config.introskip_enabled) featureEmojis += '⏩';
+                if (config.anime_enabled) featureEmojis += '⛩️';
+                if (config.only_debrid_cache) featureEmojis += '⚡';
+
+                // Build status emoji string
+                let statusEmojis = '';
+                if (debridEmojis.length > 0) {
+                    statusEmojis = debridEmojis.join('+') + featureEmojis;
+                } else {
+                    statusEmojis = '🔗' + featureEmojis; // P2P + features
+                }
+
+                let services = [];
+                if (config.use_rd) services.push("Real-Debrid");
+                if (config.use_torbox) services.push("Torbox");
+
+                if (config.mediaflow_url) services.push("MediaFlow");
+                if (config.jackett_url) services.push("Jackettio");
+
+                const dbOnlyText = config.db_only ? ' [DB Only]' : '';
+                const hybridText = config.hybrid_mode ? ' [Hybrid]' : '';
+                const serviceText = services.length > 0 ? ` (${services.join(', ')})` : t('status_p2p');
+                statusEl.textContent = `✓ ${statusEmojis} ${t('status_ready')}${dbOnlyText}${hybridText}${serviceText}`;
+                statusEl.style.color = '#4EC9B0';
+            }
+
+            // ✅ Load existing configuration if present (from /configure endpoint)
+            // Wrap in setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                if (window.EXISTING_CONFIG) {
+                    console.log('📝 Preloading existing configuration...', window.EXISTING_CONFIG);
+                    const cfg = window.EXISTING_CONFIG;
+
+                    // TMDb API Key (required) - Not visible in UI, hardcoded
+
+                    // Debrid services - Real-Debrid
+                    if (cfg.use_rd) {
+                        const useRdCheckbox = document.getElementById('use_rd');
+                        const rdKeyInput = document.getElementById('rd_key');
+                        if (useRdCheckbox && rdKeyInput) {
+                            useRdCheckbox.checked = true;
+                            rdKeyInput.disabled = false;
+                            if (cfg.rd_key) {
+                                rdKeyInput.value = cfg.rd_key;
+                                console.log('✅ Loaded rd_key');
+                            }
+                            // RD Blocked Filter
+                            const rdFilterContainer = document.getElementById('rd_blocked_filter_container');
+                            if (rdFilterContainer && cfg.rd_key) {
+                                rdFilterContainer.style.display = 'block';
+                            }
+                            if (cfg.rd_blocked_filter) {
+                                const rdBlockedFilterCb = document.getElementById('rd_blocked_filter');
+                                if (rdBlockedFilterCb) {
+                                    rdBlockedFilterCb.checked = true;
+                                    document.getElementById('rd_blocked_regex_frame').style.display = 'block';
+                                }
+                                if (cfg.rd_blocked_regex) {
+                                    const regexField = document.getElementById('rd_blocked_regex');
+                                    if (regexField) regexField.value = cfg.rd_blocked_regex;
+                                }
+                            }
+                        }
+                    }
+
+                    // Torbox
+                    if (cfg.use_torbox) {
+                        const useTorboxCheckbox = document.getElementById('use_torbox');
+                        const torboxKeyInput = document.getElementById('torbox_key');
+                        if (useTorboxCheckbox && torboxKeyInput) {
+                            useTorboxCheckbox.checked = true;
+                            torboxKeyInput.disabled = false;
+                            if (cfg.torbox_key) {
+                                torboxKeyInput.value = cfg.torbox_key;
+                                if (cfg.torbox_key.trim().length >= 10) validateTbKey(cfg.torbox_key);
+                                console.log('✅ Loaded torbox_key');
+                            }
+                        }
+                    }
+
+                    // MediaFlow Proxy
+                    if (cfg.mediaflow_url) {
+                        const mediaflowUrlInput = document.getElementById('mediaflow_url');
+                        if (mediaflowUrlInput) {
+                            mediaflowUrlInput.value = cfg.mediaflow_url;
+                            console.log('✅ Loaded mediaflow_url');
+                        }
+                    }
+                    if (cfg.mediaflow_password) {
+                        const mediaflowPasswordInput = document.getElementById('mediaflow_password');
+                        if (mediaflowPasswordInput) {
+                            mediaflowPasswordInput.value = cfg.mediaflow_password;
+                            console.log('✅ Loaded mediaflow_password');
+                        }
+                    }
+
+                    // Jackettio
+                    if (cfg.jackett_url) {
+                        const jackettUrlInput = document.getElementById('jackett_url');
+                        if (jackettUrlInput) {
+                            jackettUrlInput.value = cfg.jackett_url;
+                            console.log('✅ Loaded jackett_url');
+                        }
+                    }
+                    if (cfg.jackett_api_key) {
+                        const jackettApiKeyInput = document.getElementById('jackett_api_key');
+                        if (jackettApiKeyInput) {
+                            jackettApiKeyInput.value = cfg.jackett_api_key;
+                            console.log('✅ Loaded jackett_api_key');
+                        }
+                    }
+                    if (cfg.jackett_password) {
+                        const jackettPasswordInput = document.getElementById('jackett_password');
+                        if (jackettPasswordInput) {
+                            jackettPasswordInput.value = cfg.jackett_password;
+                            console.log('✅ Loaded jackett_password');
+                        }
+                    }
+                    if (cfg.jackett_only !== undefined) {
+                        const el = document.getElementById('jackett_only');
+                        if (el) el.checked = !!cfg.jackett_only;
+                    }
+
+                    // Search sites checkboxes
+                    if (cfg.use_corsaronero !== undefined) {
+                        const useCorsaroNeroCheckbox = document.getElementById('use_corsaronero');
+                        if (useCorsaroNeroCheckbox) {
+                            useCorsaroNeroCheckbox.checked = cfg.use_corsaronero;
+                            console.log('✅ Loaded use_corsaronero:', cfg.use_corsaronero);
+                        }
+                    }
+                    if (cfg.use_uindex !== undefined) {
+                        const useUIndexCheckbox = document.getElementById('use_uindex');
+                        if (useUIndexCheckbox) {
+                            useUIndexCheckbox.checked = cfg.use_uindex;
+                            console.log('✅ Loaded use_uindex:', cfg.use_uindex);
+                        }
+                    }
+                    if (cfg.use_knaben !== undefined) {
+                        const useKnabenCheckbox = document.getElementById('use_knaben');
+                        if (useKnabenCheckbox) {
+                            useKnabenCheckbox.checked = cfg.use_knaben;
+                            console.log('✅ Loaded use_knaben:', cfg.use_knaben);
+                        }
+                    }
+                    if (cfg.use_torrentgalaxy !== undefined) {
+                        const useTorrentGalaxyCheckbox = document.getElementById('use_torrentgalaxy');
+                        if (useTorrentGalaxyCheckbox) {
+                            useTorrentGalaxyCheckbox.checked = cfg.use_torrentgalaxy;
+                            console.log('✅ Loaded use_torrentgalaxy:', cfg.use_torrentgalaxy);
+                        }
+                    }
+                    // ✅ NEW: Public trackers loaders
+                    if (cfg.use_apibay !== undefined) {
+                        const el = document.getElementById('use_apibay');
+                        if (el) el.checked = !!cfg.use_apibay;
+                    }
+                    if (cfg.use_yts !== undefined) {
+                        const el = document.getElementById('use_yts');
+                        if (el) el.checked = !!cfg.use_yts;
+                    }
+                    if (cfg.use_eztv !== undefined) {
+                        const el = document.getElementById('use_eztv');
+                        if (el) el.checked = !!cfg.use_eztv;
+                    }
+                    if (cfg.use_solid !== undefined) {
+                        const el = document.getElementById('use_solid');
+                        if (el) el.checked = !!cfg.use_solid;
+                    }
+                    if (cfg.use_bitsearch !== undefined) {
+                        const el = document.getElementById('use_bitsearch');
+                        if (el) el.checked = !!cfg.use_bitsearch;
+                    }
+                    if (cfg.use_dhtindex !== undefined) {
+                        const el = document.getElementById('use_dhtindex');
+                        if (el) el.checked = !!cfg.use_dhtindex;
+                    }
+                    if (cfg.use_torrentio !== undefined) {
+                        const el = document.getElementById('use_torrentio');
+                        if (el) el.checked = cfg.use_torrentio;
+                    }
+                    if (cfg.use_mediafusion !== undefined) {
+                        const el = document.getElementById('use_mediafusion');
+                        if (el) el.checked = cfg.use_mediafusion;
+                    }
+                    if (cfg.use_comet !== undefined) {
+                        const el = document.getElementById('use_comet');
+                        if (el) el.checked = cfg.use_comet;
+                    }
+                    if (cfg.use_stremthru_torz !== undefined) {
+                        const el = document.getElementById('use_stremthru_torz');
+                        if (el) el.checked = cfg.use_stremthru_torz;
+                    }
+                    if (cfg.use_meteor !== undefined) {
+                        const el = document.getElementById('use_meteor');
+                        if (el) el.checked = cfg.use_meteor;
+                    }
+                    if (cfg.use_rarbg !== undefined) {
+                        const el = document.getElementById('use_rarbg');
+                        if (el) el.checked = cfg.use_rarbg;
+                    }
+                    if (cfg.use_jackett !== undefined) {
+                        const el = document.getElementById('use_jackett');
+                        if (el) el.checked = cfg.use_jackett;
+                    }
+                    if (cfg.full_ita !== undefined) {
+                        const el = document.getElementById('full_ita');
+                        const elOld = document.getElementById('full_ita_old');
+                        if (el) el.checked = cfg.full_ita;
+                        if (elOld) elOld.checked = cfg.full_ita;
+                        // Sync content_language select with full_ita
+                        const cl = document.getElementById('content_language');
+                        if (cl && cfg.full_ita) cl.value = 'italian';
+                    }
+                    if (cfg.content_language) {
+                        const cl = document.getElementById('content_language');
+                        if (cl) cl.value = cfg.content_language;
+                    }
+                    // Update Full ITA + Old Style + Anime visibility after loading content_language
+                    var _fcl = document.getElementById('content_language');
+                    if (_fcl) {
+                        var _isIta = _fcl.value === 'all' || _fcl.value === 'italian';
+                        var _show = _isIta && currentUILang === 'it';
+                        var _oe = document.getElementById('old_style_container');
+                        var _ae = document.getElementById('anime_section');
+                        if (_oe) _oe.style.display = _show ? 'block' : 'none';
+                        if (_ae) _ae.style.display = _show ? 'block' : 'none';
+                        var _showFi = _fcl.value === 'italian';
+                        var _fc = document.getElementById('full_ita_container');
+                        if (_fc) _fc.style.display = _showFi ? '' : 'none';
+                        var _fco = document.getElementById('full_ita_container_old');
+                        if (_fco) _fco.style.display = _showFi ? '' : 'none';
+                        if (!_showFi) {
+                            if (document.getElementById('full_ita')) document.getElementById('full_ita').checked = false;
+                            if (document.getElementById('full_ita_old')) document.getElementById('full_ita_old').checked = false;
+                        }
+                    }
+                    if (cfg.db_only !== undefined) {
+                        const el = document.getElementById('db_only');
+                        if (el) el.checked = cfg.db_only;
+                    }
+                    if (cfg.use_global_cache !== undefined) {
+                        const el = document.getElementById('use_global_cache');
+                        const elOld = document.getElementById('use_global_cache_old');
+                        if (el) el.checked = cfg.use_global_cache;
+                        if (elOld) elOld.checked = cfg.use_global_cache;
+                    }
+                    if (cfg.only_debrid_cache !== undefined) {
+                        const el = document.getElementById('only_debrid_cache');
+                        if (el) el.checked = cfg.only_debrid_cache;
+                    }
+                    if (cfg.hybrid_mode !== undefined) {
+                        const el = document.getElementById('hybrid_mode');
+                        const elOld = document.getElementById('old_hybrid_mode');
+                        if (el) el.checked = cfg.hybrid_mode;
+                        if (elOld) elOld.checked = cfg.hybrid_mode;
+                    }
+
+                    // Detect Old Style requirement
+                    // Enable Old Style if: db_only is TRUE OR hybrid_mode is FALSE (since default simple view is Hybrid=True)
+                    const shouldEnableOldStyle = (cfg.db_only === true) || (cfg.hybrid_mode === false);
+
+                    if (shouldEnableOldStyle) {
+                        const oldStyleBtn = document.getElementById('use_old_style');
+                        if (oldStyleBtn) {
+                            oldStyleBtn.checked = true;
+                            // Trigger UI update to switch view
+                            updateOldStyleMode();
+                        }
+                    }
+
+                    // Max Resolution Limit
+                    if (cfg.max_res_limit) {
+                        const useMaxResLimitCheckbox = document.getElementById('use_max_res_limit');
+                        const maxResLimitSelect = document.getElementById('max_res_limit');
+                        if (useMaxResLimitCheckbox && maxResLimitSelect) {
+                            useMaxResLimitCheckbox.checked = true;
+                            maxResLimitSelect.disabled = false;
+                            maxResLimitSelect.value = cfg.max_res_limit;
+                            console.log('✅ Loaded max_res_limit:', cfg.max_res_limit);
+                        }
+                    }
+
+                    // Feature toggles
+                    if (cfg.aiostreams_mode) {
+                        const el = document.getElementById('aiostreams_mode');
+                        if (el) {
+                            el.checked = true;
+                            console.log('✅ Loaded aiostreams_mode');
+                            // ✅ Disable formatter UI when AIOStreams is loaded as active
+                            setTimeout(() => { if (typeof updateFormatterState === 'function') updateFormatterState(); }, 100);
+                        }
+                    }
+                    if (cfg.introskip_enabled) {
+                        const el = document.getElementById('introskip_enabled');
+                        if (el) {
+                            el.checked = true;
+                            console.log('✅ Loaded introskip_enabled');
+                        }
+                    }
+                    if (cfg.anime_enabled) {
+                        const el = document.getElementById('anime_enabled');
+                        if (el) {
+                            el.checked = true;
+                            console.log('✅ Loaded anime_enabled');
+                        }
+                    }
+
+                    // Advanced Filters Loading
+                    if (cfg.exclude_remux) document.getElementById('exclude_remux').checked = true;
+                    if (cfg.exclude_4k) document.getElementById('exclude_4k').checked = true;
+                    if (cfg.exclude_1080p) document.getElementById('exclude_1080p').checked = true;
+                    if (cfg.exclude_720p) document.getElementById('exclude_720p').checked = true;
+                    if (cfg.exclude_sd) document.getElementById('exclude_sd').checked = true;
+                    if (cfg.exclude_unknown) document.getElementById('exclude_unknown').checked = true;
+                    if (cfg.exclude_dv) document.getElementById('exclude_dv').checked = true;
+                    if (cfg.max_size) document.getElementById('max_size').value = cfg.max_size;
+
+                    // Custom Formatter settings
+                    if (cfg.formatter_preset) {
+                        const formatterPresetEl = document.getElementById('formatter_preset');
+                        const formatterStatusEl = document.getElementById('formatter_status');
+                        if (formatterPresetEl) {
+                            formatterPresetEl.value = cfg.formatter_preset;
+                            console.log('✅ Loaded formatter_preset:', cfg.formatter_preset);
+
+                            // Update status display
+                            const presetNames = {
+                                default: 'Default', torrentio: 'Torrentio', minimal: 'Minimal',
+                                verbose: 'Verbose', italiano: 'Italiano', fra: 'Fra',
+                                dav: 'Dav', and: 'And', lad: 'Lad', pri: 'Pri', custom: 'Custom'
+                            };
+                            if (formatterStatusEl) {
+                                formatterStatusEl.textContent = 'Preset: ' + (presetNames[cfg.formatter_preset] || cfg.formatter_preset);
+                            }
+                            // Show custom container if preset is custom
+                            const customContainer = document.getElementById('custom_formatter_container');
+                            if (customContainer && cfg.formatter_preset === 'custom') {
+                                customContainer.style.display = 'block';
+                            }
+                        }
+                    }
+                    if (cfg.formatter_custom_name) {
+                        const el = document.getElementById('formatter_custom_name');
+                        if (el) {
+                            el.value = cfg.formatter_custom_name;
+                            console.log('✅ Loaded formatter_custom_name');
+                        }
+                    }
+                    if (cfg.formatter_custom_desc) {
+                        const el = document.getElementById('formatter_custom_desc');
+                        if (el) {
+                            el.value = cfg.formatter_custom_desc;
+                            console.log('✅ Loaded formatter_custom_desc');
+                        }
+                    }
+
+                    console.log('✅ Configuration preloaded successfully');
+
+
+                    // Trigger updateInstallLink to refresh the UI
+                    updateInstallLink();
+                } else {
+                    console.log('ℹ️ No EXISTING_CONFIG found in window');
+                }
+            }, 100);
+
+            // Event listeners for all inputs
+            rdKeyInput.addEventListener('input', updateInstallLink);
+            torboxKeyInput.addEventListener('input', updateInstallLink);
+
+            mediaflowUrlInput.addEventListener('input', updateInstallLink);
+            mediaflowPasswordInput.addEventListener('input', updateInstallLink);
+            jackettUrlInput.addEventListener('input', updateInstallLink);
+            jackettApiKeyInput.addEventListener('input', updateInstallLink);
+            jackettPasswordInput.addEventListener('input', updateInstallLink);
+
+            // Event listeners for search site checkboxes
+            useCorsaroNeroCheckbox.addEventListener('change', updateInstallLink);
+            useUIndexCheckbox.addEventListener('change', updateInstallLink);
+            useKnabenCheckbox.addEventListener('change', updateInstallLink);
+            useTorrentGalaxyCheckbox.addEventListener('change', updateInstallLink);
+            // ✅ NEW: Public trackers listeners
+            if (useApibayCheckbox) useApibayCheckbox.addEventListener('change', updateInstallLink);
+            if (useYTSCheckbox) useYTSCheckbox.addEventListener('change', updateInstallLink);
+            if (useEZTVCheckbox) useEZTVCheckbox.addEventListener('change', updateInstallLink);
+            if (useSolidCheckbox) useSolidCheckbox.addEventListener('change', updateInstallLink);
+            if (useBitsearchCheckbox) useBitsearchCheckbox.addEventListener('change', updateInstallLink);
+            if (useDhtIndexCheckbox) useDhtIndexCheckbox.addEventListener('change', updateInstallLink);
+            useTorrentioCheckbox.addEventListener('change', updateInstallLink);
+            useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
+            useCometCheckbox.addEventListener('change', updateInstallLink);
+            useRarbgCheckbox.addEventListener('change', updateInstallLink);
+            fullItaCheckbox.addEventListener('change', function() {
+                var _cl = document.getElementById('content_language');
+                if (_cl) _cl.value = this.checked ? 'italian' : 'all';
+                updateInstallLink();
+            });
+            dbOnlyCheckbox.addEventListener('change', updateInstallLink);
+            useGlobalCacheCheckbox.addEventListener('change', updateInstallLink);
+            document.getElementById('only_debrid_cache').addEventListener('change', updateInstallLink);
+            document.getElementById('hybrid_mode').addEventListener('change', updateInstallLink);
+
+            // Advanced Filters Listeners
+            document.getElementById('exclude_remux').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_4k').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_1080p').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_720p').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_sd').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_unknown').addEventListener('change', updateInstallLink);
+            document.getElementById('exclude_dv').addEventListener('change', updateInstallLink);
+            document.getElementById('max_size').addEventListener('input', updateInstallLink);
+
+            // Advanced Filters Loading
+            // Logic moved to setTimeout block above
+            useTorrentGalaxyCheckbox.addEventListener('change', updateInstallLink);
+            useTorrentioCheckbox.addEventListener('change', updateInstallLink);
+            useMediaFusionCheckbox.addEventListener('change', updateInstallLink);
+            useCometCheckbox.addEventListener('change', updateInstallLink);
+            useRarbgCheckbox.addEventListener('change', updateInstallLink);
+            fullItaCheckbox.addEventListener('change', function() {
+                var _cl = document.getElementById('content_language');
+                if (_cl) _cl.value = this.checked ? 'italian' : 'all';
+                updateInstallLink();
+            });
+            useGlobalCacheCheckbox.addEventListener('change', updateInstallLink);
+            useMaxResLimitCheckbox.addEventListener('change', updateInstallLink);
+            maxResLimitSelect.addEventListener('change', updateInstallLink);
+
+            // Event listeners for feature toggles
+            aioStreamsModeCheckbox.addEventListener('change', updateInstallLink);
+            introSkipEnabledCheckbox.addEventListener('change', updateInstallLink);
+            animeEnabledCheckbox.addEventListener('change', updateInstallLink);
+
+            // Formatter dropdown handler (inline - no popup needed)
+            const formatterPresetSelect = document.getElementById('formatter_preset');
+            const customFormatterContainer = document.getElementById('custom_formatter_container');
+            const formatterCustomName = document.getElementById('formatter_custom_name');
+            const formatterCustomDesc = document.getElementById('formatter_custom_desc');
+            const formatterPreviewLink = document.getElementById('formatter_preview_link');
+            const formatterPreviewContainer = document.getElementById('formatter_preview_container');
+            const formatterPreviewIframe = document.getElementById('formatter_preview_iframe');
+            const formatterPreviewClose = document.getElementById('formatter_preview_close');
+            const formatterStatus = document.getElementById('formatter_status');
+
+            // ✅ Helper: Toggle formatter based on AIOStreams mode
+            // ✅ Helper: Toggle formatter based on AIOStreams mode & Update Status
+            function updateFormatterState() {
+                const aioActive = aioStreamsModeCheckbox.checked;
+                formatterPresetSelect.disabled = aioActive;
+                formatterPresetSelect.style.opacity = aioActive ? '0.5' : '1';
+                formatterPresetSelect.style.cursor = aioActive ? 'not-allowed' : 'pointer';
+                formatterPreviewLink.style.opacity = aioActive ? '0.5' : '1';
+                formatterPreviewLink.style.pointerEvents = aioActive ? 'none' : 'auto';
+
+                if (aioActive) {
+                    formatterStatus.textContent = '⚠️ Disabilitato in modalità AIOStreams';
+                    formatterStatus.style.color = '#f59e0b';
+                    customFormatterContainer.style.display = 'none';
+                    if (formatterPreviewContainer) formatterPreviewContainer.style.display = 'none';
+                } else {
+                    // Show current preset name
+                    const presetNames = {
+                        default: 'Default', torrentio: 'Torrentio', minimal: 'Minimal',
+                        verbose: 'Verbose', italiano: 'Italiano', fra: 'Fra',
+                        dav: 'Dav', and: 'And', lad: 'Lad', pri: 'Pri', custom: 'Custom'
+                    };
+                    const val = formatterPresetSelect.value;
+                    formatterStatus.textContent = 'Preset: ' + (presetNames[val] || val);
+                    formatterStatus.style.color = '#9ca3af';
+
+                    // Show/hide custom fields based on selection
+                    if (val === 'custom') {
+                        customFormatterContainer.style.display = 'block';
+                    } else {
+                        customFormatterContainer.style.display = 'none';
+                    }
+                    if (formatterPreviewContainer && formatterPreviewContainer.style.display !== 'none') {
+                        updateFormatterPreview();
+                    }
+                }
+                updateInstallLink();
+            }
+
+            // AIOStreams mode toggle
+            aioStreamsModeCheckbox.addEventListener('change', updateFormatterState);
+
+            // Preset change now triggers full state update (text & visibility)
+            formatterPresetSelect.addEventListener('change', updateFormatterState);
+
+            // Update link when custom templates change
+            formatterCustomName.addEventListener('input', () => {
+                updateInstallLink();
+                if (formatterPreviewContainer && formatterPreviewContainer.style.display !== 'none') {
+                    updateFormatterPreview();
+                }
+            });
+            formatterCustomDesc.addEventListener('input', () => {
+                updateInstallLink();
+                if (formatterPreviewContainer && formatterPreviewContainer.style.display !== 'none') {
+                    updateFormatterPreview();
+                }
+            });
+
+            function updateFormatterPreview() {
+                if (!formatterPreviewIframe) return;
+                const currentPreset = formatterPresetSelect.value;
+                const customName = encodeURIComponent(formatterCustomName.value || '');
+                const customDesc = encodeURIComponent(formatterCustomDesc.value || '');
+                formatterPreviewIframe.src = `/formatter.html?preset=${currentPreset}&name=${customName}&desc=${customDesc}`;
+            }
+
+            // Preview link opens inline preview (same page)
+            formatterPreviewLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!formatterPreviewContainer) return;
+                formatterPreviewContainer.style.display = 'block';
+                updateFormatterPreview();
+            });
+
+            if (formatterPreviewClose) {
+                formatterPreviewClose.addEventListener('click', () => {
+                    if (formatterPreviewContainer) formatterPreviewContainer.style.display = 'none';
+                });
+            }
+
+            // Save button explicitly updates install link with current formatter values
+            const formatterSaveBtn = document.getElementById('formatter_save_btn');
+            const formatterSaveStatus = document.getElementById('formatter_save_status');
+
+            formatterSaveBtn.addEventListener('click', () => {
+                // Force read the values from textareas
+                const nameVal = formatterCustomName.value;
+                const descVal = formatterCustomDesc.value;
+
+                console.log('💾 [SAVE] Name template:', nameVal);
+                console.log('💾 [SAVE] Desc template:', descVal);
+
+                // Trigger updateInstallLink to regenerate the URL
+                updateInstallLink();
+
+                // Show confirmation
+                formatterSaveStatus.textContent = '✅ Template salvato!';
+                setTimeout(() => {
+                    formatterSaveStatus.textContent = '';
+                }, 3000);
+            });
+
+            // Recommended Configurations Presets
+            const sitesDetails = document.getElementById('sites_details');
+
+            document.getElementById('preset_install_1').addEventListener('click', (e) => {
+                // Installazione 1: All providers ON, DB Only OFF, Full ITA OFF, Hybrid (default)
+                useCorsaroNeroCheckbox.checked = true;
+                useUIndexCheckbox.checked = false;
+                useKnabenCheckbox.checked = true;
+                useTorrentGalaxyCheckbox.checked = true;
+                useTorrentioCheckbox.checked = true;
+                useMediaFusionCheckbox.checked = true;
+                useCometCheckbox.checked = true;
+                useStremthruTorzCheckbox.checked = true;
+                useMeteorCheckbox.checked = true;
+                useRarbgCheckbox.checked = true;
+
+                // Disable Old Style (use default hybrid mode)
+                if (useOldStyleCheckbox) {
+                    useOldStyleCheckbox.checked = false;
+                    updateOldStyleMode();
+                }
+
+                fullItaCheckbox.checked = false;
+
+                updateProviderState(); // Enable checkboxes
+                updateInstallLink();
+
+                // Visual feedback
+                const btn = document.getElementById('preset_install_1');
+                const originalText = btn.textContent;
+                btn.textContent = "✅ Applicato!";
+                setTimeout(() => btn.textContent = originalText, 1500);
+
+                // Open dropdown
+                if (sitesDetails) sitesDetails.open = true;
+                e.stopPropagation(); // Prevent immediate closing
+            });
+
+            document.getElementById('preset_install_2').addEventListener('click', (e) => {
+                // Installazione 2: DB Only ON, Full ITA ON, Global Cache ON (Old Style)
+                // Enable Old Style to show db_only option
+                if (useOldStyleCheckbox) {
+                    useOldStyleCheckbox.checked = true;
+                    updateOldStyleMode();
+                }
+
+                dbOnlyCheckbox.checked = true;
+                fullItaCheckbox.checked = true;
+                useGlobalCacheCheckbox.checked = true;
+
+                updateProviderState(); // Disable provider checkboxes (grey out)
+                updateInstallLink();
+
+                // Visual feedback
+                const btn = document.getElementById('preset_install_2');
+                const originalText = btn.textContent;
+                btn.textContent = "✅ Applicato!";
+                setTimeout(() => btn.textContent = originalText, 1500);
+
+                // Open dropdown
+                if (sitesDetails) sitesDetails.open = true;
+                e.stopPropagation(); // Prevent immediate closing
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (event) => {
+                if (sitesDetails && sitesDetails.open) {
+                    const isClickInside = sitesDetails.contains(event.target);
+                    const isPresetBtn1 = document.getElementById('preset_install_1').contains(event.target);
+                    const isPresetBtn2 = document.getElementById('preset_install_2').contains(event.target);
+
+                    if (!isClickInside && !isPresetBtn1 && !isPresetBtn2) {
+                        sitesDetails.open = false;
+                    }
+                }
+            });
+
+            // ===== 🩺 HEALTH CHECK BUTTON =====
+            // Chiama /scrape/health-check (vedi manual_import_route.cjs) che testa tutti i provider
+            // e ritorna { results: [{ name, url, ok, status, ms, note }] }.
+            const btnRunHealth = document.getElementById('btnRunHealth');
+            if (btnRunHealth) {
+                btnRunHealth.addEventListener('click', async () => {
+                    const statusEl = document.getElementById('healthStatus');
+                    const resultsEl = document.getElementById('healthResults');
+                    const rowsEl = document.getElementById('healthRows');
+                    btnRunHealth.disabled = true;
+                    btnRunHealth.textContent = '⏳ Test in corso...';
+                    statusEl.textContent = 'Sto pingando tutti i provider (può richiedere ~15s)...';
+                    statusEl.style.color = '#94a3b8';
+                    rowsEl.innerHTML = '';
+                    resultsEl.style.display = 'block';
+                    const t0 = Date.now();
+                    try {
+                        const resp = await fetch('/scrape/health-check');
+                        const data = await resp.json();
+                        if (!resp.ok || !data.results) throw new Error(data.error || 'Risposta non valida');
+                        const okCount = data.results.filter(r => r.ok).length;
+                        const total = data.results.length;
+                        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+                        statusEl.textContent = `✓ ${okCount}/${total} provider OK · ${elapsed}s`;
+                        statusEl.style.color = okCount === total ? '#4ade80' : (okCount > total / 2 ? '#fbbf24' : '#f87171');
+                        rowsEl.innerHTML = data.results.map(r => {
+                            const okColor = r.ok ? '#4ade80' : '#f87171';
+                            const okLabel = r.ok ? '✅ OK' : '❌ KO';
+                            const httpDisplay = r.status > 0 ? r.status : '—';
+                            const msDisplay = r.ms != null ? `${r.ms}ms` : '—';
+                            const note = (r.note || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                            return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <td style="padding:6px 8px;"><b>${r.name}</b><br><span style="font-size:0.85em; color:#94a3b8;">${r.url}</span></td>
+                                <td style="padding:6px 8px; color:${okColor}; font-weight:bold;">${okLabel}</td>
+                                <td style="padding:6px 8px; text-align:right;">${httpDisplay}</td>
+                                <td style="padding:6px 8px; text-align:right;">${msDisplay}</td>
+                                <td style="padding:6px 8px; color:#cbd5e1;">${note}</td>
+                            </tr>`;
+                        }).join('');
+                    } catch (err) {
+                        statusEl.textContent = '❌ Errore: ' + err.message;
+                        statusEl.style.color = '#f87171';
+                    } finally {
+                        btnRunHealth.disabled = false;
+                        btnRunHealth.textContent = '▶ Esegui Test';
+                    }
+                });
+            }
+
+            // Initial call to enable buttons
+            updateInstallLink();
+
+            installButton.addEventListener('click', () => {
+                if (installLinkDisplay.value) {
+                    var url = installLinkDisplay.value;
+                    var stremioUrl = url.replace(/^https?:\/\//, 'stremio://');
+                    window.location.href = stremioUrl;
+                }
+            });
+
+            copyButton.addEventListener('click', () => {
+                if (installLinkDisplay.value) {
+                    navigator.clipboard.writeText(installLinkDisplay.value).then(() => {
+                        const originalText = statusEl.textContent;
+                        statusEl.textContent = "✓ Link copiato negli appunti!";
+                        statusEl.style.color = '#4EC9B0';
+                        const btnText = copyButton.textContent;
+                        copyButton.textContent = "Copiato!";
+                        setTimeout(() => {
+                            copyButton.textContent = btnText;
+                            statusEl.textContent = originalText;
+                        }, 2000);
+                    });
+                }
+            });
+
+            // Apply initial UI language after all consts declared
+            switchUILanguage('it');
+        </script>
+        <script>
+            // Onde viola scure + luce arancione coordinata con le selezioni.
+            (function () {
+                var root = document.documentElement;
+                var frameRequested = false;
+                var nextX = 72;
+                var nextY = 18;
+                var waveEffect = null;
+                var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                var leadingEmojiPattern = /^(\s*)((?:\p{Regional_Indicator}{2})|(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)|(?:[#*0-9]\uFE0F?\u20E3))\s*/u;
+
+                function wrapLeadingEmoji(element) {
+                    if (!element || element.querySelector('.choice-emoji')) return;
+
+                    var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+                    var textNode;
+
+                    while ((textNode = walker.nextNode())) {
+                        var match = textNode.nodeValue.match(leadingEmojiPattern);
+                        if (!match) continue;
+
+                        var fragment = document.createDocumentFragment();
+                        if (match[1]) fragment.appendChild(document.createTextNode(match[1]));
+
+                        var badge = document.createElement('span');
+                        badge.className = 'choice-emoji';
+                        badge.setAttribute('aria-hidden', 'true');
+                        badge.textContent = match[2];
+                        fragment.appendChild(badge);
+                        fragment.appendChild(document.createTextNode(textNode.nodeValue.slice(match[0].length)));
+                        textNode.parentNode.replaceChild(fragment, textNode);
+                        break;
+                    }
+                }
+
+                function decorateChoiceEmojis() {
+                    var targets = Array.prototype.slice.call(
+                        document.querySelectorAll('.container .service-title')
+                    );
+
+                    Array.prototype.forEach.call(
+                        document.querySelectorAll('.container label'),
+                        function (label) {
+                            if (label.querySelector('input[type="checkbox"]')) targets.push(label);
+                        }
+                    );
+
+                    targets.forEach(wrapLeadingEmoji);
+                }
+
+                function initWaves() {
+                    if (!window.VANTA || !window.VANTA.WAVES) return;
+
+                    waveEffect = window.VANTA.WAVES({
+                        el: '#container',
+                        mouseControls: !reduceMotion,
+                        touchControls: !reduceMotion,
+                        gyroControls: false,
+                        minHeight: 200,
+                        minWidth: 200,
+                        scale: 1,
+                        scaleMobile: 0.78,
+                        color: 0x4a2387,
+                        shininess: 42,
+                        waveHeight: 25,
+                        waveSpeed: reduceMotion ? 0.20 : 0.64,
+                        zoom: 0.82
+                    });
+                }
+
+                function syncVisualState() {
+                    var visibleChecks = Array.prototype.filter.call(
+                        document.querySelectorAll('.container input[type="checkbox"]'),
+                        function (checkbox) {
+                            return checkbox.offsetParent !== null && !checkbox.disabled;
+                        }
+                    );
+                    var selected = visibleChecks.filter(function (checkbox) {
+                        return checkbox.checked;
+                    }).length;
+                    var intensity = 0.22 + Math.min(selected, 10) * 0.030;
+
+                    root.style.setProperty('--active-glow', intensity.toFixed(3));
+                    root.setAttribute('data-active-count', String(selected));
+
+                    if (waveEffect && typeof waveEffect.setOptions === 'function') {
+                        waveEffect.setOptions({
+                            shininess: 42 + Math.min(selected, 10)
+                        });
+                    }
+                }
+
+                function paintPointer() {
+                    root.style.setProperty('--bg-x', nextX.toFixed(2) + '%');
+                    root.style.setProperty('--bg-y', nextY.toFixed(2) + '%');
+                    frameRequested = false;
+                }
+
+                window.addEventListener('pointermove', function (event) {
+                    if (event.pointerType === 'touch') return;
+                    nextX = Math.max(0, Math.min(100, event.clientX / window.innerWidth * 100));
+                    nextY = Math.max(0, Math.min(100, event.clientY / window.innerHeight * 100));
+                    if (!frameRequested) {
+                        frameRequested = true;
+                        window.requestAnimationFrame(paintPointer);
+                    }
+                }, { passive: true });
+
+                document.addEventListener('change', function (event) {
+                    if (event.target.matches('input[type="checkbox"]')) {
+                        syncVisualState();
+                    }
+                });
+
+                document.addEventListener('click', function () {
+                    window.setTimeout(function () {
+                        decorateChoiceEmojis();
+                        syncVisualState();
+                    }, 0);
+                }, { passive: true });
+
+                window.syncICVVisualState = syncVisualState;
+                window.decorateChoiceEmojis = decorateChoiceEmojis;
+                decorateChoiceEmojis();
+                initWaves();
+                syncVisualState();
+
+                window.addEventListener('beforeunload', function () {
+                    if (waveEffect && typeof waveEffect.destroy === 'function') {
+                        waveEffect.destroy();
+                    }
+                });
+            })();
+        </script>
+        <!-- Info Modal -->
+        <div id="info_modal"
+            style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
+            <div
+                style="background-color: #1a1a2e; margin: 10% auto; padding: 25px; border: 1px solid #7c3aed; width: 80%; max-width: 600px; border-radius: 12px; color: #e0e0e0; box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                    <h3 style="margin: 0; color: #a78bfa;">📖 Guida alla Doppia Installazione</h3>
+                    <span id="info_close_btn"
+                        style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1;">&times;</span>
+                </div>
+
+                <p style="font-size: 0.95em; line-height: 1.5;">
+                    Per ottenere il massimo, ti consigliamo di installare l'addon <strong>due volte</strong> con
+                    queste configurazioni:
+                </p>
+
+                <div
+                    style="margin-bottom: 15px; padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <strong style="color: #4f46e5; display: block; margin-bottom: 5px;">🔹 Installazione 1: "Crawler
+                        & Aggiornamento"</strong>
+                    <em style="display: block; font-size: 0.9em; margin-bottom: 5px; color: #ccc;">Obiettivo: Non
+                        perdere nessun risultato.</em>
+                    Esegue una ricerca <strong>Live</strong> su tutti i siti. È essenziale per trovare <strong>nuove
+                        uscite</strong> (ancora non nel DB) e per popolare il database stesso.<br>
+                    <span style="font-size: 0.85em; color: #fbbf24;">⚠️ Essendo più lenta, usala come "Seconda
+                        Scelta" o tienila fuori da AIOStreams.</span>
+                </div>
+
+                <div
+                    style="margin-bottom: 15px; padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <strong style="color: #059669; display: block; margin-bottom: 5px;">🔹 Installazione 2: "Solo DB
+                        & Accuratezza"</strong>
+                    <em style="display: block; font-size: 0.9em; margin-bottom: 5px; color: #ccc;">Obiettivo:
+                        Risposta veloce ma PRECISA.</em>
+                    Utilizza i dati raccolti dall'Installazione 1. Impiega qualche millisecondo in più per
+                    <strong>verificare accuratamente Pack e Cache</strong>, garantendoti risultati validi e pronti
+                    allo streaming.<br>
+                    <span style="font-size: 0.85em; color: #34d399;">✅ Questa dovrebbe essere la tua "Prima Scelta"
+                        e quella da usare in AIOStreams.</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Modal Logic
+            const modal = document.getElementById("info_modal");
+            const btn = document.getElementById("info_btn");
+            const span = document.getElementById("info_close_btn");
+
+            if (btn && modal && span) {
+                btn.onclick = function () {
+                    modal.style.display = "flex"; // Use flex to center with existing CSS margin
+                }
+                span.onclick = function () {
+                    modal.style.display = "none";
+                }
+                window.onclick = function (event) {
+                    if (event.target == modal) {
+                        modal.style.display = "none";
+                    }
+                }
+            }
+
+            function loadKofiStatsWidget() {
+                fetch("/api/kofi-stats")
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!data) return;
+                        var current = data.current !== undefined ? data.current : 0;
+                        var goal = data.goal || 18;
+                        var pct = data.percentage !== undefined ? data.percentage : Math.min(100, Math.round((current / goal) * 100));
+                        var kofiUrl = data.kofi_url || "https://ko-fi.com/prisonmike8899";
+                        if (kofiUrl === "https://ko-fi.com" || kofiUrl === "https://ko-fi.com/") {
+                            kofiUrl = "https://ko-fi.com/prisonmike8899";
+                        }
+
+                        var amountsEl = document.getElementById("kofiAmountsWidget");
+                        var fillEl = document.getElementById("kofiProgressFillWidget");
+                        var btnEl = document.getElementById("kofiBtnWidget");
+
+                        if (amountsEl) amountsEl.textContent = current.toFixed(2) + "€ / " + goal.toFixed(2) + "€ (" + pct + "%)";
+                        if (fillEl) fillEl.style.width = pct + "%";
+                        if (btnEl && kofiUrl) btnEl.href = kofiUrl;
+                    })
+                    .catch(function (e) {
+                        console.log("Kofi stats fetch error", e);
+                    });
+            }
+            loadKofiStatsWidget();
+        </script>
+</body>
+
+</html>
