@@ -15,7 +15,8 @@ const dbHelper = require('../db-helper.cjs');
 const { completeIds } = require('../lib/id-converter.cjs');
 const {
     classifyTorrentAssociation,
-    getDisqualifyingContentReason
+    getDisqualifyingContentReason,
+    stripReleaseNoise
 } = require('../lib/torrent-association-validator.cjs');
 const rdCacheChecker = require('../rd-cache-checker.cjs');
 const tbCacheChecker = require('../tb-cache-checker.cjs');
@@ -6094,6 +6095,17 @@ function isExactEpisodeMatch(torrentTitle, showTitleOrTitles, seasonNum, episode
 
             if (showWords.length === 0) return false;
 
+            // Short series names such as "You" cannot use simple containment:
+            // it would accept unrelated shows like "Love You to Death". Compare
+            // the release prefix (everything before SxxExx/season markers)
+            // exactly, while allowing a release year after the real title.
+            if (showWords.length <= 2) {
+                const seriesPrefix = lightCleanedTitle
+                    .split(/(?:[Ss]\d+[Ee]\d+|[Ss]\d+[-–]\d+|\d+x\d+|[Ss]tagion[ei]|[Ss]eason|[Ee]p?\d+|\bComplete\b)/i)[0]
+                    .replace(/\b(?:19|20)\d{2}\b/g, ' ');
+                return stripReleaseNoise(seriesPrefix) === normalizedShowTitle;
+            }
+
             const matchingWords = showWords.filter(word =>
                 normalizedTorrentTitle.includes(word)
             );
@@ -6572,7 +6584,9 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
 
         // Check if there's meaningful content before year (not just brackets/punctuation)
         const cleanBeforeYear = beforeYear.replace(/[\[\](){}]/g, '').replace(/[^\w\s]/g, ' ').trim();
-        const hasContentBeforeYear = cleanBeforeYear.length > 3;
+        // A real title may be only one or two characters (for example "It").
+        // Only an empty normalized prefix means that the year is at the start.
+        const hasContentBeforeYear = cleanBeforeYear.length > 0;
 
         if (hasContentBeforeYear) {
             // YEAR IS AFTER TITLE (98% of cases: "Title (2025)" or "Title 2025")
@@ -6672,6 +6686,16 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
     }
 
     if (!hasEnoughMovieWords) {
+        return false;
+    }
+
+    // A one/two-word title without year evidence must match the cleaned release
+    // title exactly. This prevents aliases such as "Noi" ("Us") from accepting
+    // unrelated pack files such as "Stia con noi" while keeping "Noi.mkv".
+    const normalizedReleaseTitle = stripReleaseNoise(torrentTitle);
+    if (movieWords.length <= 2 && originalReleaseYears.length === 0 &&
+        normalizedReleaseTitle !== normalizedMovieTitle) {
+        if (DEBUG_MODE) console.log(`❌ [Movie Match] Ambiguous short title without year: "${torrentTitle}"`);
         return false;
     }
 
@@ -8370,7 +8394,13 @@ async function handleStream(type, id, config, workerOrigin) {
                         const torrentTitle = dbResult.torrent_title || dbResult.title;
                         // TRUST ID MATCH: If torrent has correct IMDB ID, skip title check
                         // This fixes issues where torrent title is in different language (e.g. "Il Trono di Spade" vs "Game of Thrones")
-                        const trustTitle = dbResult.imdb_id && dbResult.imdb_id === mediaDetails.imdbId;
+                        const requestedSeriesTitles = mediaDetails.titles || [mediaDetails.title];
+                        const hasAmbiguousShortTitle = requestedSeriesTitles.some(candidateTitle =>
+                            stripReleaseNoise(candidateTitle).split(' ').filter(Boolean).length <= 2
+                        );
+                        const trustTitle = dbResult.imdb_id &&
+                            dbResult.imdb_id === mediaDetails.imdbId &&
+                            !hasAmbiguousShortTitle;
 
                         const match = isExactEpisodeMatch(
                             torrentTitle,
