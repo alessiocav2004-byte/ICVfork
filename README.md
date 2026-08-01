@@ -157,3 +157,36 @@ Made with ❤️ for the Italian Community
 **v5.0.0** • Gennaio 2026
 
 </div>
+
+# Audit delle associazioni torrent / IMDb / TMDB
+
+Lo script `scripts/audit-torrent-associations.cjs` simula la parte DB di una
+richiesta Stremio, recupera i metadati da Cinemeta e classifica ogni torrent
+associato come `valid`, `invalid` o `review`:
+
+```bash
+node scripts/audit-torrent-associations.cjs --imdb tt33764258
+node scripts/audit-torrent-associations.cjs --tmdb 1368337
+node scripts/audit-torrent-associations.cjs --all --limit 100
+```
+
+Per impostazione predefinita la connessione PostgreSQL e' forzata in sola
+lettura. Copiare `.env.audit.example` in `.env.audit` e inserire li' `DB_HOST`,
+`DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`; in alternativa si puo' usare
+`DATABASE_URL`. Il file `.env.audit` e' ignorato da Git. `TMDB_KEY` o
+`TMDB_API_KEY` e' opzionale e aggiunge titolo italiano e titolo originale.
+
+Per scollegare dal film/serie soltanto le associazioni errate ad alta
+confidenza e invalidare la relativa cache persistente:
+
+```bash
+node scripts/audit-torrent-associations.cjs --imdb tt33764258 --apply --yes
+node scripts/audit-torrent-associations.cjs --all --apply --yes
+```
+
+Le righe `review` non vengono mai modificate automaticamente. Lo script non
+cancella i torrent: azzera esclusivamente gli ID oggetto dell'audit, con una
+condizione che verifica nuovamente i valori correnti dentro una transazione.
+La modalita' `--apply` richiede un ruolo con permessi `UPDATE` su `torrents` e
+`DELETE` su `torrent_search_cache`; un ruolo di sola lettura puo' sempre usare
+il dry-run.
