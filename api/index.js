@@ -6101,7 +6101,7 @@ function isExactEpisodeMatch(torrentTitle, showTitleOrTitles, seasonNum, episode
             // exactly, while allowing a release year after the real title.
             if (showWords.length <= 2) {
                 const seriesPrefix = lightCleanedTitle
-                    .split(/(?:[Ss]\d+[Ee]\d+|[Ss]\d+[-–]\d+|\d+x\d+|[Ss]tagion[ei]|[Ss]eason|[Ee]p?\d+|\bComplete\b)/i)[0]
+                    .split(/(?:[Ss]\d+[Ee]\d+|[Ss]\d+[-–]\d+|[Ss]\d+\b|\d+x\d+|[Ss]tagion[ei]|[Ss]eason|[Ee]p?\d+|\bComplete\b)/i)[0]
                     .replace(/\b(?:19|20)\d{2}\b/g, ' ');
                 return stripReleaseNoise(seriesPrefix) === normalizedShowTitle;
             }
