@@ -171,11 +171,11 @@ node scripts/audit-torrent-associations.cjs --tmdb 1368337
 node scripts/audit-torrent-associations.cjs --all --limit 100 --batch-size 10
 ```
 
-Per impostazione predefinita la connessione PostgreSQL e' forzata in sola
-lettura. Copiare `.env.audit.example` in `.env.audit` e inserire li' `DB_HOST`,
-`DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`; in alternativa si puo' usare
-`DATABASE_URL`. Il file `.env.audit` e' ignorato da Git. `TMDB_KEY` o
-`TMDB_API_KEY` e' opzionale e aggiunge titolo italiano e titolo originale.
+Lo script usa la stessa configurazione PostgreSQL dell'addon: `DATABASE_URL`
+oppure `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`, caricati dal
+normale ambiente di esecuzione o da `.env`. Non serve un `.env.audit` separato.
+`TMDB_KEY` o `TMDB_API_KEY` e' opzionale e aggiunge titolo italiano e titolo
+originale. Senza `--apply` lo script esegue esclusivamente query di lettura.
 
 L'audit non si limita alla tabella `torrents`: per un film controlla anche le
 righe di `pack_files` associate direttamente all'IMDb richiesto; per una serie
@@ -206,3 +206,12 @@ condizione che verifica nuovamente i valori correnti dentro una transazione.
 La modalita' `--apply` richiede un ruolo con permessi `UPDATE` su `torrents`,
 `files` e `pack_files`, e `DELETE` su `torrent_search_cache`; un ruolo di sola
 lettura puo' sempre usare il dry-run.
+
+Lo stesso controllo viene eseguito automaticamente durante le richieste stream
+di Stremio, dopo la risoluzione dei metadati e prima della ricerca nel DB. Usa
+il pool PostgreSQL gia' inizializzato dall'addon, un timeout breve e semantica
+fail-open: un errore o timeout dell'audit viene registrato, ma non impedisce mai
+la restituzione degli stream. Le richieste contemporanee per lo stesso ID sono
+accorpate e un audit riuscito viene riutilizzato per 60 secondi. Se vengono
+corrette associazioni o rilevata una cache non valida, la cache corrente viene
+scartata e la richiesta prosegue con una ricerca fresca.

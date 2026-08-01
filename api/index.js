@@ -13,7 +13,10 @@ const fuzzball = require('fuzzball');
 // ✅ Import CommonJS modules (db-helper, id-converter, rd-cache-checker)
 const dbHelper = require('../db-helper.cjs');
 const { completeIds } = require('../lib/id-converter.cjs');
-const { getDisqualifyingContentReason } = require('../lib/torrent-association-validator.cjs');
+const {
+    classifyTorrentAssociation,
+    getDisqualifyingContentReason
+} = require('../lib/torrent-association-validator.cjs');
 const rdCacheChecker = require('../rd-cache-checker.cjs');
 const tbCacheChecker = require('../tb-cache-checker.cjs');
 
@@ -5821,6 +5824,85 @@ const USE_DB_CACHE = true; // ✅ Use PostgreSQL instead of in-memory Map
 const globalTorrentCache = new Map();
 const GLOBAL_CACHE_TTL = GLOBAL_CACHE_TTL_MOVIE * 60 * 60 * 1000; // Default to movie TTL for in-memory
 const MAX_GLOBAL_CACHE_ENTRIES = 200;
+const ASSOCIATION_AUDIT_TIMEOUT_MS = 2000;
+const ASSOCIATION_AUDIT_REUSE_MS = 60000;
+const associationAuditInFlight = new Map();
+const recentAssociationAudits = new Map();
+
+function buildAssociationAuditMetadata(mediaDetails, type, italianTitle = null, originalTitle = null) {
+    const titles = Array.isArray(mediaDetails?.titles) ? mediaDetails.titles : [];
+    return {
+        title: mediaDetails?.title || mediaDetails?.name || null,
+        titles,
+        aliases: [...new Set([...titles, italianTitle, originalTitle].filter(Boolean))],
+        italianTitle,
+        originalTitle: originalTitle || mediaDetails?.originalTitle || mediaDetails?.originalName || null,
+        year: mediaDetails?.year || null,
+        type: type === 'series' ? 'series' : 'movie',
+        imdbId: mediaDetails?.imdbId || null,
+        tmdbId: mediaDetails?.tmdbId || null
+    };
+}
+
+function hasInvalidCachedAssociations(results, metadata) {
+    if (!Array.isArray(results) || results.length === 0) return false;
+    return results.some(entry => {
+        const row = {
+            title: entry.title || entry.websiteTitle || entry.filename || '',
+            file_title: entry.file_title || entry.filename || null
+        };
+        const audit = classifyTorrentAssociation(row, metadata);
+        return audit.status === 'invalid' && audit.confidence === 'high';
+    });
+}
+
+async function runRequestAssociationAudit(mediaDetails, type, italianTitle = null, originalTitle = null) {
+    const metadata = buildAssociationAuditMetadata(mediaDetails, type, italianTitle, originalTitle);
+    const key = metadata.imdbId || (metadata.tmdbId ? `tmdb:${metadata.tmdbId}:${metadata.type}` : null);
+    if (!key || !metadata.title) return { skipped: true, reason: 'incomplete request metadata' };
+
+    const recent = recentAssociationAudits.get(key);
+    if (recent && Date.now() - recent.timestamp < ASSOCIATION_AUDIT_REUSE_MS) return recent.result;
+
+    let auditPromise = associationAuditInFlight.get(key);
+    if (!auditPromise) {
+        auditPromise = dbHelper.auditAndRepairTorrentAssociations(metadata)
+            .then(result => {
+                recentAssociationAudits.set(key, {
+                    timestamp: Date.now(),
+                    result: { ...result, changed: false }
+                });
+                if (recentAssociationAudits.size > 1000) {
+                    recentAssociationAudits.delete(recentAssociationAudits.keys().next().value);
+                }
+                return result;
+            })
+            .finally(() => associationAuditInFlight.delete(key));
+        associationAuditInFlight.set(key, auditPromise);
+    }
+
+    let timeout;
+    try {
+        const timeoutPromise = new Promise((_, reject) => {
+            timeout = setTimeout(() => reject(new Error(`timeout after ${ASSOCIATION_AUDIT_TIMEOUT_MS}ms`)), ASSOCIATION_AUDIT_TIMEOUT_MS);
+        });
+        const result = await Promise.race([auditPromise, timeoutPromise]);
+        if (result.changed) {
+            console.log(
+                `🧹 [Association Audit] ${key}: torrents=${result.detachedTorrents}, ` +
+                `children=${result.detachedChildRows}, cache=${result.invalidatedCaches}`
+            );
+        } else if (DEBUG_MODE) {
+            console.log(`✅ [Association Audit] ${key}: ${result.checked || 0} rows checked`);
+        }
+        return result;
+    } catch (error) {
+        console.warn(`⚠️ [Association Audit] ${key} skipped: ${error.message}`);
+        return { failed: true, error: error.message };
+    } finally {
+        if (timeout) clearTimeout(timeout);
+    }
+}
 
 function cleanupCache() {
     const now = Date.now();
@@ -6888,6 +6970,34 @@ async function handleStream(type, id, config, workerOrigin) {
             console.error('❌ [DB] Failed to initialize database:', error.message);
         }
 
+        // Validate cached associations before they can reach the response. This
+        // is deliberately fail-open: DB errors/timeouts never block streams.
+        if (dbEnabled && fromGlobalCache && mediaDetails) {
+            const requestMediaId = String(decodedId).split(':')[0];
+            const auditMediaDetails = {
+                ...mediaDetails,
+                imdbId: mediaDetails.imdbId || (/^tt\d{7,9}$/i.test(requestMediaId) ? requestMediaId.toLowerCase() : null),
+                tmdbId: mediaDetails.tmdbId || (/^\d+$/.test(requestMediaId) ? Number(requestMediaId) : null)
+            };
+            const auditMetadata = buildAssociationAuditMetadata(auditMediaDetails, type, italianTitle, originalTitle);
+            const cacheIsInvalid = hasInvalidCachedAssociations(filteredResults, auditMetadata);
+            const auditResult = await runRequestAssociationAudit(
+                auditMediaDetails,
+                type,
+                italianTitle,
+                originalTitle
+            );
+
+            if (cacheIsInvalid || auditResult.changed) {
+                console.log(`🧹 [Association Audit] Discarding stale cache for ${globalCacheKey}`);
+                globalTorrentCache.delete(globalCacheKey);
+                fromGlobalCache = false;
+                cachedData = null;
+                filteredResults = [];
+                searchQueries = [];
+            }
+        }
+
         // ✅ GLOBAL CACHE MISS: Do the full search
         if (!fromGlobalCache) {
 
@@ -7097,6 +7207,10 @@ async function handleStream(type, id, config, workerOrigin) {
             // (dbEnabled is already set)
             if (dbEnabled && DEBUG_MODE) {
                 console.log('💾 [DB] Database connection active');
+            }
+
+            if (dbEnabled) {
+                await runRequestAssociationAudit(mediaDetails, type, italianTitle, originalTitle);
             }
 
             // ✅ STEP 2: SEARCH DATABASE FIRST (if enabled)

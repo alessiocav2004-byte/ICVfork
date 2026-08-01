@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('node:path');
-require('dotenv').config({
-  path: [path.resolve(process.cwd(), '.env.audit'), path.resolve(process.cwd(), '.env')],
-  quiet: true
-});
-const { Pool } = require('pg');
+require('dotenv').config({ quiet: true });
+const dbHelper = require('../db-helper.cjs');
 const {
   classifyTorrentAssociation,
   getDisqualifyingContentReason
@@ -29,8 +25,8 @@ Options:
   --concurrency N  Metadata requests in flight in --all mode (default: 4).
 
 Database environment:
-  Put the values in .env.audit in the project root, or export them in the shell.
-  DATABASE_URL, or DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD
+  Uses the same environment as the addon: DATABASE_URL, or
+  DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD. A standard .env is loaded.
 
 Metadata:
   IMDb IDs use Stremio Cinemeta. TMDB_KEY or TMDB_API_KEY adds localized and
@@ -124,34 +120,6 @@ class ProgressTracker {
     this.render('complete', true);
     if (process.stderr.isTTY) process.stderr.write('\n');
   }
-}
-
-function databaseConfig(readOnly) {
-  if (!process.env.DATABASE_URL) {
-    const required = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
-    const missing = required.filter(name => !process.env[name]);
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing database configuration: ${missing.join(', ')}. ` +
-        'Copy .env.audit.example to .env.audit and fill in the values.'
-      );
-    }
-  }
-
-  const base = process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
-    : {
-        host: process.env.DB_HOST,
-        port: Number(process.env.DB_PORT || 5432),
-        database: process.env.DB_NAME,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD
-      };
-  return {
-    ...base,
-    connectionTimeoutMillis: 8000,
-    options: `-c statement_timeout=30000${readOnly ? ' -c default_transaction_read_only=on' : ''}`
-  };
 }
 
 async function fetchJson(url) {
@@ -540,7 +508,7 @@ async function auditLoadedBatch(pool, loadedReports, options, label = 'Audit') {
 
   let pool;
   try {
-    pool = new Pool({ ...databaseConfig(!options.apply), max: options.concurrency });
+    pool = dbHelper.initDatabase({ quiet: options.json });
     await pool.query('SELECT 1');
     if (options.all) {
       if (options.progress) process.stderr.write('Loading IMDb index from torrents...\n');
@@ -638,6 +606,6 @@ async function auditLoadedBatch(pool, loadedReports, options, label = 'Audit') {
     console.error(`Audit failed: ${details || String(error)}`);
     process.exitCode = 2;
   } finally {
-    if (pool) await pool.end().catch(() => {});
+    if (pool) await dbHelper.closeDatabase({ quiet: options?.json }).catch(() => {});
   }
 })();
