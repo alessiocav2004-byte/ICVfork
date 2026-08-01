@@ -168,7 +168,7 @@ percentuale sul totale delle righe lette e controllate:
 ```bash
 node scripts/audit-torrent-associations.cjs --imdb tt33764258
 node scripts/audit-torrent-associations.cjs --tmdb 1368337
-node scripts/audit-torrent-associations.cjs --all --limit 100
+node scripts/audit-torrent-associations.cjs --all --limit 100 --batch-size 10
 ```
 
 Per impostazione predefinita la connessione PostgreSQL e' forzata in sola
@@ -185,12 +185,19 @@ tabelle. I figli di una serie con un nome non conclusivo restano in stato
 L'avanzamento viene scritto su stderr, cosi' `--json` mantiene stdout valido;
 si puo' disabilitare con `--no-progress`.
 
+In modalita' `--all` viene mantenuto in memoria soltanto un lotto di IMDb alla
+volta. `--batch-size` controlla il numero di ID per lotto (default 10, massimo
+250), mentre `--concurrency` controlla quante richieste metadata vengono
+eseguite insieme. Il report viene stampato appena termina ciascun lotto. Con
+`--apply`, ogni lotto usa una propria transazione: un errore successivo non
+annulla i lotti gia' completati e confermati.
+
 Per scollegare dal film/serie soltanto le associazioni errate ad alta
 confidenza e invalidare la relativa cache persistente:
 
 ```bash
 node scripts/audit-torrent-associations.cjs --imdb tt33764258 --apply --yes
-node scripts/audit-torrent-associations.cjs --all --apply --yes
+node scripts/audit-torrent-associations.cjs --all --batch-size 10 --concurrency 4 --apply --yes
 ```
 
 Le righe `review` non vengono mai modificate automaticamente. Lo script non

@@ -16,7 +16,7 @@ function usage(exitCode = 0) {
   console.log(`Usage:
   node scripts/audit-torrent-associations.cjs --imdb tt33764258
   node scripts/audit-torrent-associations.cjs --tmdb 1368337
-  node scripts/audit-torrent-associations.cjs --all [--limit 100] [--concurrency 4]
+  node scripts/audit-torrent-associations.cjs --all [--limit 100] [--batch-size 10] [--concurrency 4]
 
 Options:
   --apply        Detach high-confidence invalid rows from the requested IDs.
@@ -25,6 +25,7 @@ Options:
   --no-progress  Do not print record progress to stderr.
   --type TYPE    movie or series (normally detected from Stremio metadata).
   --limit N      Maximum IDs to inspect in --all mode.
+  --batch-size N IDs loaded and audited at a time in --all mode (default: 10).
   --concurrency N  Metadata requests in flight in --all mode (default: 4).
 
 Database environment:
@@ -38,7 +39,16 @@ Metadata:
 }
 
 function parseArgs(argv) {
-  const options = { apply: false, yes: false, json: false, progress: true, concurrency: 4, limit: null, type: null };
+  const options = {
+    apply: false,
+    yes: false,
+    json: false,
+    progress: true,
+    concurrency: 4,
+    batchSize: 10,
+    limit: null,
+    type: null
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') usage(0);
@@ -51,6 +61,7 @@ function parseArgs(argv) {
     else if (arg === '--tmdb') options.tmdbId = Number(argv[++i]);
     else if (arg === '--type') options.type = argv[++i];
     else if (arg === '--limit') options.limit = Number(argv[++i]);
+    else if (arg === '--batch-size') options.batchSize = Number(argv[++i]);
     else if (arg === '--concurrency') options.concurrency = Number(argv[++i]);
     else throw new Error(`Unknown option: ${arg}`);
   }
@@ -63,13 +74,15 @@ function parseArgs(argv) {
   if (options.type && !['movie', 'series'].includes(options.type)) throw new Error('--type must be movie or series.');
   if (options.apply && !options.yes) throw new Error('--apply requires --yes.');
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 12) throw new Error('--concurrency must be between 1 and 12.');
+  if (!Number.isInteger(options.batchSize) || options.batchSize < 1 || options.batchSize > 250) throw new Error('--batch-size must be between 1 and 250.');
   if (options.limit !== null && (!Number.isInteger(options.limit) || options.limit < 1)) throw new Error('--limit must be a positive integer.');
   return options;
 }
 
 class ProgressTracker {
-  constructor(enabled) {
+  constructor(enabled, prefix = 'Audit') {
     this.enabled = enabled;
+    this.prefix = prefix;
     this.total = 0;
     this.checked = 0;
     this.lastPercent = -1;
@@ -91,7 +104,7 @@ class ProgressTracker {
     const previousPercent = this.lastPercent;
     if (!force && percent === previousPercent) return;
     this.lastPercent = percent;
-    const line = `Audit: ${percent.toString().padStart(3)}% (${this.checked}/${this.total})${label ? ` - ${label}` : ''}`;
+    const line = `${this.prefix}: ${percent.toString().padStart(3)}% (${this.checked}/${this.total})${label ? ` - ${label}` : ''}`;
     if (process.stderr.isTTY) {
       const padded = line.padEnd(this.lastLineLength, ' ');
       process.stderr.write(`\r${padded}`);
@@ -104,7 +117,7 @@ class ProgressTracker {
   finish() {
     if (!this.enabled) return;
     if (this.total === 0) {
-      process.stderr.write('Audit: 100% (0/0) - no records to check\n');
+      process.stderr.write(`${this.prefix}: 100% (0/0) - no records to check\n`);
       return;
     }
     this.checked = this.total;
@@ -455,7 +468,7 @@ async function mapLimit(items, concurrency, worker) {
   return results;
 }
 
-function printReport(reports, applyResult) {
+function printReports(reports) {
   for (const report of reports) {
     if (report.error) {
       console.error(`ERROR ${JSON.stringify(report.selector)}: ${report.error}`);
@@ -481,6 +494,9 @@ function printReport(reports, applyResult) {
       console.log(`          ${row.audit.reason}`);
     }
   }
+}
+
+function printSummary(applyResult) {
   if (applyResult) {
     console.log(
       `\nApplied: detached_torrents=${applyResult.detached}, ` +
@@ -489,6 +505,32 @@ function printReport(reports, applyResult) {
     );
   }
   else console.log('\nDry-run only: no database rows were changed.');
+}
+
+function emptyApplyResult() {
+  return { detached: 0, detachedChildRows: 0, invalidatedCaches: 0 };
+}
+
+function addApplyResult(total, current) {
+  if (!current) return total;
+  total.detached += current.detached;
+  total.detachedChildRows += current.detachedChildRows;
+  total.invalidatedCaches += current.invalidatedCaches;
+  return total;
+}
+
+async function auditLoadedBatch(pool, loadedReports, options, label = 'Audit') {
+  const progress = new ProgressTracker(options.progress, label);
+  for (const loaded of loadedReports) {
+    if (!loaded.error) {
+      progress.addTotal(loaded.rows.length + loaded.cacheEntries.length + loaded.childResult.rows.length);
+    }
+  }
+  const reports = loadedReports.map(loaded => loaded.error ? loaded : inspectLoaded(loaded, progress));
+  progress.finish();
+  const successful = reports.filter(report => !report.error);
+  const applyResult = options.apply ? await applyFixes(pool, successful) : null;
+  return { reports, applyResult };
 }
 
 (async () => {
@@ -500,8 +542,8 @@ function printReport(reports, applyResult) {
   try {
     pool = new Pool({ ...databaseConfig(!options.apply), max: options.concurrency });
     await pool.query('SELECT 1');
-    let selectors;
     if (options.all) {
+      if (options.progress) process.stderr.write('Loading IMDb index from torrents...\n');
       const limitSql = options.limit ? ` LIMIT ${options.limit}` : '';
       const result = await pool.query(
         `SELECT imdb_id, count(*)::int AS rows
@@ -510,31 +552,84 @@ function printReport(reports, applyResult) {
           GROUP BY imdb_id
           ORDER BY max(updated_at) DESC NULLS LAST${limitSql}`
       );
-      selectors = result.rows.map(row => ({ imdbId: row.imdb_id }));
-    } else {
-      selectors = [{ imdbId: options.imdbId, tmdbId: Number.isInteger(options.tmdbId) ? options.tmdbId : undefined }];
-    }
+      const selectors = result.rows.map(row => ({ imdbId: row.imdb_id }));
+      const totalBatches = Math.ceil(selectors.length / options.batchSize);
+      const totalApplyResult = options.apply ? emptyApplyResult() : null;
+      let hasErrors = false;
+      let firstJsonReport = true;
 
-    const loadedReports = await mapLimit(
-      selectors,
-      options.concurrency,
-      selector => loadOne(pool, selector, options.type)
-    );
-    const progress = new ProgressTracker(options.progress);
-    for (const loaded of loadedReports) {
-      if (!loaded.error) {
-        progress.addTotal(loaded.rows.length + loaded.cacheEntries.length + loaded.childResult.rows.length);
+      if (options.json) {
+        process.stdout.write(`{"mode":${JSON.stringify(options.apply ? 'apply' : 'dry-run')},"reports":[`);
       }
+
+      for (let offset = 0; offset < selectors.length; offset += options.batchSize) {
+        const batch = selectors.slice(offset, offset + options.batchSize);
+        const batchNumber = Math.floor(offset / options.batchSize) + 1;
+        const end = offset + batch.length;
+        if (options.progress) {
+          process.stderr.write(
+            `Loading batch ${batchNumber}/${totalBatches} (IDs ${offset + 1}-${end} of ${selectors.length})...\n`
+          );
+        }
+        const loadedReports = await mapLimit(
+          batch,
+          options.concurrency,
+          selector => loadOne(pool, selector, options.type)
+        );
+        const batchResult = await auditLoadedBatch(
+          pool,
+          loadedReports,
+          options,
+          `Batch ${batchNumber}/${totalBatches}`
+        );
+        addApplyResult(totalApplyResult, batchResult.applyResult);
+        hasErrors ||= batchResult.reports.some(report => report.error);
+
+        if (options.json) {
+          for (const report of batchResult.reports) {
+            if (!firstJsonReport) process.stdout.write(',');
+            process.stdout.write(JSON.stringify(report));
+            firstJsonReport = false;
+          }
+        } else {
+          printReports(batchResult.reports);
+        }
+
+        if (options.progress) {
+          const percent = selectors.length === 0 ? 100 : Math.floor((end / selectors.length) * 100);
+          process.stderr.write(`IDs complete: ${percent}% (${end}/${selectors.length})\n`);
+        }
+      }
+
+      if (options.json) {
+        process.stdout.write(`],"applyResult":${JSON.stringify(totalApplyResult)}}\n`);
+      } else {
+        printSummary(totalApplyResult);
+      }
+      if (hasErrors) process.exitCode = 1;
+    } else {
+      const selectors = [{
+        imdbId: options.imdbId,
+        tmdbId: Number.isInteger(options.tmdbId) ? options.tmdbId : undefined
+      }];
+      const loadedReports = await mapLimit(
+        selectors,
+        options.concurrency,
+        selector => loadOne(pool, selector, options.type)
+      );
+      const result = await auditLoadedBatch(pool, loadedReports, options);
+      if (options.json) {
+        console.log(JSON.stringify({
+          mode: options.apply ? 'apply' : 'dry-run',
+          reports: result.reports,
+          applyResult: result.applyResult
+        }, null, 2));
+      } else {
+        printReports(result.reports);
+        printSummary(result.applyResult);
+      }
+      if (result.reports.some(report => report.error)) process.exitCode = 1;
     }
-    const reports = loadedReports.map(loaded => loaded.error ? loaded : inspectLoaded(loaded, progress));
-    progress.finish();
-    const successful = reports.filter(report => !report.error);
-    const applyResult = options.apply ? await applyFixes(pool, successful) : null;
-
-    if (options.json) console.log(JSON.stringify({ mode: options.apply ? 'apply' : 'dry-run', reports, applyResult }, null, 2));
-    else printReport(reports, applyResult);
-
-    if (reports.some(report => report.error)) process.exitCode = 1;
   } catch (error) {
     const details = [error.message, error.code, error.cause?.message]
       .filter(Boolean)
