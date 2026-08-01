@@ -162,7 +162,8 @@ Made with ❤️ for the Italian Community
 
 Lo script `scripts/audit-torrent-associations.cjs` simula la parte DB di una
 richiesta Stremio, recupera i metadati da Cinemeta e classifica ogni torrent
-associato come `valid`, `invalid` o `review`:
+associato come `valid`, `invalid` o `review`. Mostra inoltre l'avanzamento in
+percentuale sul totale delle righe lette e controllate:
 
 ```bash
 node scripts/audit-torrent-associations.cjs --imdb tt33764258
@@ -176,6 +177,14 @@ lettura. Copiare `.env.audit.example` in `.env.audit` e inserire li' `DB_HOST`,
 `DATABASE_URL`. Il file `.env.audit` e' ignorato da Git. `TMDB_KEY` o
 `TMDB_API_KEY` e' opzionale e aggiunge titolo italiano e titolo originale.
 
+L'audit non si limita alla tabella `torrents`: per un film controlla anche le
+righe di `pack_files` associate direttamente all'IMDb richiesto; per una serie
+controlla le righe di `files`. Queste letture usano gli indici IMDb delle due
+tabelle. I figli di una serie con un nome non conclusivo restano in stato
+`review`, per evitare correzioni automatiche basate sul solo titolo episodio.
+L'avanzamento viene scritto su stderr, cosi' `--json` mantiene stdout valido;
+si puo' disabilitare con `--no-progress`.
+
 Per scollegare dal film/serie soltanto le associazioni errate ad alta
 confidenza e invalidare la relativa cache persistente:
 
@@ -187,6 +196,6 @@ node scripts/audit-torrent-associations.cjs --all --apply --yes
 Le righe `review` non vengono mai modificate automaticamente. Lo script non
 cancella i torrent: azzera esclusivamente gli ID oggetto dell'audit, con una
 condizione che verifica nuovamente i valori correnti dentro una transazione.
-La modalita' `--apply` richiede un ruolo con permessi `UPDATE` su `torrents` e
-`DELETE` su `torrent_search_cache`; un ruolo di sola lettura puo' sempre usare
-il dry-run.
+La modalita' `--apply` richiede un ruolo con permessi `UPDATE` su `torrents`,
+`files` e `pack_files`, e `DELETE` su `torrent_search_cache`; un ruolo di sola
+lettura puo' sempre usare il dry-run.

@@ -7,7 +7,10 @@ require('dotenv').config({
   quiet: true
 });
 const { Pool } = require('pg');
-const { classifyTorrentAssociation } = require('../lib/torrent-association-validator.cjs');
+const {
+  classifyTorrentAssociation,
+  getDisqualifyingContentReason
+} = require('../lib/torrent-association-validator.cjs');
 
 function usage(exitCode = 0) {
   console.log(`Usage:
@@ -19,6 +22,7 @@ Options:
   --apply        Detach high-confidence invalid rows from the requested IDs.
   --yes          Required together with --apply.
   --json         Print machine-readable JSON.
+  --no-progress  Do not print record progress to stderr.
   --type TYPE    movie or series (normally detected from Stremio metadata).
   --limit N      Maximum IDs to inspect in --all mode.
   --concurrency N  Metadata requests in flight in --all mode (default: 4).
@@ -34,13 +38,14 @@ Metadata:
 }
 
 function parseArgs(argv) {
-  const options = { apply: false, yes: false, json: false, concurrency: 4, limit: null, type: null };
+  const options = { apply: false, yes: false, json: false, progress: true, concurrency: 4, limit: null, type: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') usage(0);
     else if (arg === '--apply') options.apply = true;
     else if (arg === '--yes') options.yes = true;
     else if (arg === '--json') options.json = true;
+    else if (arg === '--no-progress') options.progress = false;
     else if (arg === '--all') options.all = true;
     else if (arg === '--imdb') options.imdbId = argv[++i];
     else if (arg === '--tmdb') options.tmdbId = Number(argv[++i]);
@@ -60,6 +65,52 @@ function parseArgs(argv) {
   if (!Number.isInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 12) throw new Error('--concurrency must be between 1 and 12.');
   if (options.limit !== null && (!Number.isInteger(options.limit) || options.limit < 1)) throw new Error('--limit must be a positive integer.');
   return options;
+}
+
+class ProgressTracker {
+  constructor(enabled) {
+    this.enabled = enabled;
+    this.total = 0;
+    this.checked = 0;
+    this.lastPercent = -1;
+    this.lastLineLength = 0;
+  }
+
+  addTotal(records) {
+    this.total += records;
+  }
+
+  advance(label) {
+    this.checked += 1;
+    this.render(label);
+  }
+
+  render(label, force = false) {
+    if (!this.enabled || this.total === 0) return;
+    const percent = Math.min(100, Math.floor((this.checked / this.total) * 100));
+    const previousPercent = this.lastPercent;
+    if (!force && percent === previousPercent) return;
+    this.lastPercent = percent;
+    const line = `Audit: ${percent.toString().padStart(3)}% (${this.checked}/${this.total})${label ? ` - ${label}` : ''}`;
+    if (process.stderr.isTTY) {
+      const padded = line.padEnd(this.lastLineLength, ' ');
+      process.stderr.write(`\r${padded}`);
+      this.lastLineLength = line.length;
+    } else if (force || percent === 100 || percent === 0 || previousPercent < 0 || percent % 5 === 0) {
+      process.stderr.write(`${line}\n`);
+    }
+  }
+
+  finish() {
+    if (!this.enabled) return;
+    if (this.total === 0) {
+      process.stderr.write('Audit: 100% (0/0) - no records to check\n');
+      return;
+    }
+    this.checked = this.total;
+    this.render('complete', true);
+    if (process.stderr.isTTY) process.stderr.write('\n');
+  }
 }
 
 function databaseConfig(readOnly) {
@@ -199,7 +250,8 @@ async function loadRows(client, metadata, selector) {
     clauses.push(`tmdb_id = $${params.length}`);
   }
   const result = await client.query(
-    `SELECT info_hash, provider, title, file_title, type, imdb_id, tmdb_id, seeders, size
+    `SELECT info_hash, provider, title, file_title, type, imdb_id, tmdb_id,
+            seeders, size, is_torrent_pack
        FROM torrents
       WHERE ${clauses.join(' OR ')}
       ORDER BY provider, title`,
@@ -232,27 +284,113 @@ async function loadCacheEntries(client, metadata, selector) {
       return {
         ...row,
         cache_key: cacheRow.cache_key,
-        cache_created_at: cacheRow.created_at,
-        audit: classifyTorrentAssociation(row, metadata)
+        cache_created_at: cacheRow.created_at
       };
     });
   });
 }
 
-async function inspectOne(client, selector, preferredType) {
+async function loadChildRows(client, metadata) {
+  if (!metadata.imdbId) return { table: null, rows: [] };
+
+  if (metadata.type === 'series') {
+    const result = await client.query(
+      `SELECT f.id, f.info_hash, f.file_index, f.title, f.imdb_id,
+              f.imdb_season, f.imdb_episode,
+              t.title AS parent_title, t.type AS parent_type,
+              t.imdb_id AS parent_imdb_id, t.is_torrent_pack
+         FROM files f
+         LEFT JOIN torrents t ON t.info_hash = f.info_hash
+        WHERE f.imdb_id = $1
+        ORDER BY f.info_hash, f.file_index`,
+      [metadata.imdbId]
+    );
+    return { table: 'files', rows: result.rows };
+  }
+
+  const result = await client.query(
+    `SELECT pf.id, pf.pack_hash, pf.file_index, pf.file_path, pf.file_size,
+            pf.imdb_id, t.title AS parent_title, t.type AS parent_type,
+            t.imdb_id AS parent_imdb_id, t.is_torrent_pack
+       FROM pack_files pf
+       LEFT JOIN torrents t ON t.info_hash = pf.pack_hash
+      WHERE pf.imdb_id = $1
+      ORDER BY pf.pack_hash, pf.file_index`,
+    [metadata.imdbId]
+  );
+  return { table: 'pack_files', rows: result.rows };
+}
+
+function classifyChildAssociation(row, metadata, table) {
+  const candidate = table === 'files'
+    ? { title: row.parent_title || '', file_title: row.title || '' }
+    : { title: row.parent_title || '', file_title: row.file_path || '' };
+  const audit = classifyTorrentAssociation(candidate, metadata);
+
+  // Episode filenames often contain only an episode title or air date. Those
+  // are useful review signals, but not sufficient evidence to detach an IMDb.
+  if (table === 'files' && audit.status === 'invalid' && !getDisqualifyingContentReason(candidate)) {
+    return {
+      status: 'review',
+      reason: `episode child needs review: ${audit.reason}`,
+      confidence: 'medium'
+    };
+  }
+  return audit;
+}
+
+async function loadOne(client, selector, preferredType) {
   const metadata = await resolveMetadata(client, selector, preferredType);
   const rows = await loadRows(client, metadata, selector);
-  const classified = rows.map(row => ({ ...row, audit: classifyTorrentAssociation(row, metadata) }));
   const cacheEntries = await loadCacheEntries(client, metadata, selector);
+  const childResult = await loadChildRows(client, metadata);
+  return { selector, metadata, rows, cacheEntries, childResult };
+}
+
+function inspectLoaded(loaded, progress) {
+  const { selector, metadata, rows, cacheEntries, childResult } = loaded;
+  const id = metadata.imdbId || `tmdb:${metadata.tmdbId}`;
+  const classified = rows.map(row => {
+    const classifiedRow = { ...row, audit: classifyTorrentAssociation(row, metadata) };
+    progress.advance(`${id} torrents`);
+    return classifiedRow;
+  });
+  const classifiedCacheEntries = cacheEntries.map(row => {
+    const classifiedRow = { ...row, audit: classifyTorrentAssociation(row, metadata) };
+    progress.advance(`${id} cache`);
+    return classifiedRow;
+  });
+  const childRows = childResult.rows.map(row => {
+    const classifiedRow = {
+      ...row,
+      audit: classifyChildAssociation(row, metadata, childResult.table)
+    };
+    progress.advance(`${id} ${childResult.table}`);
+    return classifiedRow;
+  });
+
   const summary = { valid: 0, invalid: 0, review: 0 };
   classified.forEach(row => { summary[row.audit.status] += 1; });
   const cacheSummary = { valid: 0, invalid: 0, review: 0 };
-  cacheEntries.forEach(row => { cacheSummary[row.audit.status] += 1; });
-  return { selector, metadata, summary, cacheSummary, rows: classified, cacheEntries };
+  classifiedCacheEntries.forEach(row => { cacheSummary[row.audit.status] += 1; });
+  const childSummary = { valid: 0, invalid: 0, review: 0 };
+  childRows.forEach(row => { childSummary[row.audit.status] += 1; });
+  return {
+    selector,
+    metadata,
+    summary,
+    cacheSummary,
+    childTable: childResult.table,
+    childSummary,
+    rows: classified,
+    cacheEntries: classifiedCacheEntries,
+    childRows
+  };
 }
 
 async function applyFixes(pool, reports) {
   let detached = 0;
+  let detachedChildRows = 0;
   let invalidatedCaches = 0;
   const client = await pool.connect();
   await client.query('BEGIN');
@@ -270,6 +408,19 @@ async function applyFixes(pool, reports) {
         detached += result.rowCount;
       }
 
+      for (const row of report.childRows.filter(item => item.audit.status === 'invalid' && item.audit.confidence === 'high')) {
+        const table = report.childTable;
+        if (!['files', 'pack_files'].includes(table) || !report.metadata.imdbId) continue;
+        const result = await client.query(
+          `UPDATE ${table}
+              SET imdb_id = NULL
+            WHERE id = $1
+              AND imdb_id = $2`,
+          [row.id, report.metadata.imdbId]
+        );
+        detachedChildRows += result.rowCount;
+      }
+
       const imdbId = report.metadata.imdbId;
       const tmdbId = report.metadata.tmdbId;
       const cacheResult = await client.query(
@@ -281,7 +432,7 @@ async function applyFixes(pool, reports) {
       invalidatedCaches += cacheResult.rowCount;
     }
     await client.query('COMMIT');
-    return { detached, invalidatedCaches };
+    return { detached, detachedChildRows, invalidatedCaches };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -322,8 +473,21 @@ function printReport(reports, applyResult) {
       console.log(`  ${row.audit.status.toUpperCase().padEnd(7)} ${row.info_hash || '-'.repeat(40)} [${row.provider}] ${row.title}`);
       console.log(`          ${row.audit.reason} (${row.cache_key})`);
     }
+    console.log(`${report.childTable || 'children'}: valid=${report.childSummary.valid} invalid=${report.childSummary.invalid} review=${report.childSummary.review}`);
+    for (const row of report.childRows.filter(item => item.audit.status !== 'valid')) {
+      const hash = row.pack_hash || row.info_hash || '-'.repeat(40);
+      const title = row.file_path || row.title || '';
+      console.log(`  ${row.audit.status.toUpperCase().padEnd(7)} ${hash} [file ${row.file_index}] ${title}`);
+      console.log(`          ${row.audit.reason}`);
+    }
   }
-  if (applyResult) console.log(`\nApplied: detached=${applyResult.detached}, invalidated_cache_rows=${applyResult.invalidatedCaches}`);
+  if (applyResult) {
+    console.log(
+      `\nApplied: detached_torrents=${applyResult.detached}, ` +
+      `detached_child_rows=${applyResult.detachedChildRows}, ` +
+      `invalidated_cache_rows=${applyResult.invalidatedCaches}`
+    );
+  }
   else console.log('\nDry-run only: no database rows were changed.');
 }
 
@@ -351,7 +515,19 @@ function printReport(reports, applyResult) {
       selectors = [{ imdbId: options.imdbId, tmdbId: Number.isInteger(options.tmdbId) ? options.tmdbId : undefined }];
     }
 
-    const reports = await mapLimit(selectors, options.concurrency, selector => inspectOne(pool, selector, options.type));
+    const loadedReports = await mapLimit(
+      selectors,
+      options.concurrency,
+      selector => loadOne(pool, selector, options.type)
+    );
+    const progress = new ProgressTracker(options.progress);
+    for (const loaded of loadedReports) {
+      if (!loaded.error) {
+        progress.addTotal(loaded.rows.length + loaded.cacheEntries.length + loaded.childResult.rows.length);
+      }
+    }
+    const reports = loadedReports.map(loaded => loaded.error ? loaded : inspectLoaded(loaded, progress));
+    progress.finish();
     const successful = reports.filter(report => !report.error);
     const applyResult = options.apply ? await applyFixes(pool, successful) : null;
 
