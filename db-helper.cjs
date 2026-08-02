@@ -1,4 +1,8 @@
 const { Pool } = require('pg');
+const {
+  classifyTorrentAssociation,
+  getDisqualifyingContentReason
+} = require('./lib/torrent-association-validator.cjs');
 
 // ✅ VERBOSE LOGGING - configurabile via ENV
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
@@ -142,7 +146,7 @@ function initDatabase(config = {}) {
     console.error('❌ Unexpected PostgreSQL error:', err);
   });
 
-  console.log('✅ PostgreSQL Pool initialized');
+  if (!config.quiet) console.log('✅ PostgreSQL Pool initialized');
 
   return pool;
 }
@@ -852,11 +856,162 @@ async function refreshTbCacheTimestamp(infoHash) {
 /**
  * Close database connection
  */
-async function closeDatabase() {
+async function closeDatabase(options = {}) {
   if (pool) {
     await pool.end();
     pool = null;
-    console.log('✅ PostgreSQL Pool closed');
+    if (!options.quiet) console.log('✅ PostgreSQL Pool closed');
+  }
+}
+
+/**
+ * Audit and repair associations for one Stremio media request.
+ * The caller already resolved metadata, so this performs indexed DB work only.
+ * Every mutation is guarded by the ID value read for this request.
+ */
+async function auditAndRepairTorrentAssociations(metadata = {}) {
+  if (!pool) throw new Error('Database not initialized');
+
+  const imdbId = /^tt\d{7,9}$/i.test(String(metadata.imdbId || ''))
+    ? String(metadata.imdbId).toLowerCase()
+    : null;
+  const tmdbId = Number.isInteger(Number(metadata.tmdbId)) && Number(metadata.tmdbId) > 0
+    ? Number(metadata.tmdbId)
+    : null;
+  if (!imdbId && !tmdbId) return { skipped: true, reason: 'no supported media ID' };
+
+  const mediaType = metadata.type === 'series' ? 'series' : 'movie';
+  const auditMetadata = {
+    name: metadata.title || metadata.name,
+    title: metadata.title || metadata.name,
+    originalTitle: metadata.originalTitle || null,
+    aliases: [...new Set([
+      ...(Array.isArray(metadata.titles) ? metadata.titles : []),
+      ...(Array.isArray(metadata.aliases) ? metadata.aliases : []),
+      metadata.italianTitle,
+      metadata.originalTitle
+    ].filter(Boolean))],
+    year: Number(metadata.year) || null,
+    type: mediaType,
+    imdbId,
+    tmdbId
+  };
+
+  const result = {
+    checked: 0,
+    invalid: 0,
+    detachedTorrents: 0,
+    detachedChildRows: 0,
+    invalidatedCaches: 0,
+    changed: false
+  };
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SET LOCAL statement_timeout = '1500ms'");
+    await client.query("SET LOCAL lock_timeout = '500ms'");
+
+    const torrentRows = await client.query(
+      `SELECT info_hash, provider, title, file_title, type, imdb_id, tmdb_id
+         FROM torrents
+        WHERE ($1::text IS NOT NULL AND imdb_id = $1)
+           OR ($2::int IS NOT NULL AND tmdb_id = $2)`,
+      [imdbId, tmdbId]
+    );
+    result.checked += torrentRows.rows.length;
+
+    for (const row of torrentRows.rows) {
+      const audit = classifyTorrentAssociation(row, auditMetadata);
+      if (audit.status !== 'invalid' || audit.confidence !== 'high') continue;
+      result.invalid += 1;
+      const update = await client.query(
+        `UPDATE torrents
+            SET imdb_id = CASE WHEN imdb_id = $2 THEN NULL ELSE imdb_id END,
+                tmdb_id = CASE WHEN tmdb_id = $3 THEN NULL ELSE tmdb_id END
+          WHERE info_hash = $1
+            AND (imdb_id = $2 OR tmdb_id = $3)`,
+        [row.info_hash, imdbId, tmdbId]
+      );
+      result.detachedTorrents += update.rowCount;
+    }
+
+    if (imdbId) {
+      const childTable = mediaType === 'series' ? 'files' : 'pack_files';
+      const childResult = mediaType === 'series'
+        ? await client.query(
+            `SELECT f.id, f.title, t.title AS parent_title
+               FROM files f
+               LEFT JOIN torrents t ON t.info_hash = f.info_hash
+              WHERE f.imdb_id = $1`,
+            [imdbId]
+          )
+        : await client.query(
+            `SELECT pf.id, pf.file_path, t.title AS parent_title
+               FROM pack_files pf
+               LEFT JOIN torrents t ON t.info_hash = pf.pack_hash
+              WHERE pf.imdb_id = $1`,
+            [imdbId]
+          );
+      result.checked += childResult.rows.length;
+
+      for (const row of childResult.rows) {
+        const candidate = mediaType === 'series'
+          ? { title: row.parent_title || '', file_title: row.title || '' }
+          : { title: row.parent_title || '', file_title: row.file_path || '' };
+        const audit = classifyTorrentAssociation(candidate, auditMetadata);
+        const safeSeriesInvalid = mediaType !== 'series' || Boolean(getDisqualifyingContentReason(candidate));
+        if (audit.status !== 'invalid' || audit.confidence !== 'high' || !safeSeriesInvalid) continue;
+        result.invalid += 1;
+        const update = await client.query(
+          `UPDATE ${childTable}
+              SET imdb_id = NULL
+            WHERE id = $1
+              AND imdb_id = $2`,
+          [row.id, imdbId]
+        );
+        result.detachedChildRows += update.rowCount;
+      }
+    }
+
+    const cacheRows = await client.query(
+      `SELECT cache_key, filtered_results
+         FROM torrent_search_cache
+        WHERE ($1::text IS NOT NULL AND (imdb_id = $1 OR cache_key = 'torrent:movie:' || $1 OR cache_key LIKE 'torrent:series:' || $1 || ':%'))
+           OR ($2::int IS NOT NULL AND (cache_key = 'torrent:movie:tmdb:' || $2 OR cache_key LIKE 'torrent:series:tmdb:' || $2 || ':%'))`,
+      [imdbId, tmdbId]
+    );
+    let invalidCacheFound = false;
+    for (const cacheRow of cacheRows.rows) {
+      const entries = Array.isArray(cacheRow.filtered_results) ? cacheRow.filtered_results : [];
+      result.checked += entries.length;
+      if (entries.some(entry => {
+        const row = {
+          title: entry.title || entry.websiteTitle || entry.filename || '',
+          file_title: entry.file_title || entry.filename || null
+        };
+        const audit = classifyTorrentAssociation(row, auditMetadata);
+        return audit.status === 'invalid' && audit.confidence === 'high';
+      })) invalidCacheFound = true;
+    }
+
+    if (invalidCacheFound || result.detachedTorrents > 0 || result.detachedChildRows > 0) {
+      const cacheDelete = await client.query(
+        `DELETE FROM torrent_search_cache
+          WHERE ($1::text IS NOT NULL AND (imdb_id = $1 OR cache_key = 'torrent:movie:' || $1 OR cache_key LIKE 'torrent:series:' || $1 || ':%'))
+             OR ($2::int IS NOT NULL AND (cache_key = 'torrent:movie:tmdb:' || $2 OR cache_key LIKE 'torrent:series:tmdb:' || $2 || ':%'))`,
+        [imdbId, tmdbId]
+      );
+      result.invalidatedCaches = cacheDelete.rowCount;
+    }
+
+    result.changed = result.detachedTorrents > 0 || result.detachedChildRows > 0 || result.invalidatedCaches > 0;
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -2459,6 +2614,7 @@ async function getEpisodeTitle(infoHash, season, episode) {
 
 module.exports = {
   initDatabase,
+  auditAndRepairTorrentAssociations,
   getTorrent,
   updateTorrentTitle,
   updateTorrentProvider,

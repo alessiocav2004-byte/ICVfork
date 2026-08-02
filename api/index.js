@@ -13,6 +13,11 @@ const fuzzball = require('fuzzball');
 // ✅ Import CommonJS modules (db-helper, id-converter, rd-cache-checker)
 const dbHelper = require('../db-helper.cjs');
 const { completeIds } = require('../lib/id-converter.cjs');
+const {
+    classifyTorrentAssociation,
+    getDisqualifyingContentReason,
+    stripReleaseNoise
+} = require('../lib/torrent-association-validator.cjs');
 const rdCacheChecker = require('../rd-cache-checker.cjs');
 const tbCacheChecker = require('../tb-cache-checker.cjs');
 
@@ -5254,16 +5259,31 @@ async function saveCorsaroResultsToDB(corsaroResults, mediaDetails, type, dbHelp
     try {
         console.log(`💾 [DB Save] Saving ${corsaroResults.length} CorsaroNero results...`);
 
-        // 🔥 OPZIONE C: Se titolo breve (≤6 lettere, 1 parola), non filtrare query generiche
-        const titleWords = mediaDetails.title.trim().split(/\s+/);
-        const isShortTitle = titleWords.length === 1 && titleWords[0].length <= 6;
-        console.log(`📏 [DB Save] Title "${mediaDetails.title}" - Short: ${isShortTitle}`);
-
         const torrentsToInsert = [];
         for (const result of corsaroResults) {
             if (!result.infoHash || result.infoHash.length < 32) {
                 console.log(`⚠️ [DB Save] Skipping invalid hash: ${result.title}`);
                 continue;
+            }
+
+            const disqualifyingReason = getDisqualifyingContentReason(result);
+            if (disqualifyingReason) {
+                console.log(`⏭️ [DB Save] SKIP ${disqualifyingReason}: "${result.title}"`);
+                continue;
+            }
+
+            if (type === 'movie') {
+                const acceptedTitles = [...new Set([
+                    ...(Array.isArray(mediaDetails.titles) ? mediaDetails.titles : []),
+                    mediaDetails.title,
+                    italianTitle
+                ].filter(Boolean))];
+                if (!acceptedTitles.some(candidateTitle =>
+                    isExactMovieMatch(result.title, candidateTitle, mediaDetails.year)
+                )) {
+                    console.log(`⏭️ [DB Save] SKIP title/year mismatch: "${result.title}"`);
+                    continue;
+                }
             }
 
             // 🔥 CHECK: Torrent già presente nel DB?
@@ -5319,7 +5339,7 @@ async function saveCorsaroResultsToDB(corsaroResults, mediaDetails, type, dbHelp
                 }
             }
 
-            if (!matchResult.matched && !isShortTitle) {
+            if (!matchResult.matched) {
                 console.log(`⏭️ [DB Save] SKIP: "${result.title}" (${matchResult.percentage.toFixed(0)}% match, need 85%)`);
                 continue;
             }
@@ -5518,6 +5538,27 @@ async function enrichDatabaseInBackground(mediaDetails, type, season = null, epi
             if (!result.infoHash || result.infoHash.length < 32) {
                 console.log(`⚠️ [Background] Skipping torrent with invalid hash (${result.infoHash?.length || 0} chars): ${result.title}`);
                 continue;
+            }
+
+            const disqualifyingReason = getDisqualifyingContentReason(result);
+            if (disqualifyingReason) {
+                console.log(`⏭️ [Background] Skipping ${disqualifyingReason}: "${result.title}"`);
+                continue;
+            }
+
+            if (type === 'movie') {
+                const acceptedTitles = [...new Set([
+                    ...(Array.isArray(mediaDetails.titles) ? mediaDetails.titles : []),
+                    mediaDetails.title,
+                    finalItalianTitle,
+                    finalOriginalTitle
+                ].filter(Boolean))];
+                if (!acceptedTitles.some(candidateTitle =>
+                    isExactMovieMatch(result.title, candidateTitle, mediaDetails.year)
+                )) {
+                    console.log(`⏭️ [Background] Skipping title/year mismatch: "${result.title}"`);
+                    continue;
+                }
             }
 
             // Extract IMDB ID from title if available (pattern: tt1234567)
@@ -5784,6 +5825,85 @@ const USE_DB_CACHE = true; // ✅ Use PostgreSQL instead of in-memory Map
 const globalTorrentCache = new Map();
 const GLOBAL_CACHE_TTL = GLOBAL_CACHE_TTL_MOVIE * 60 * 60 * 1000; // Default to movie TTL for in-memory
 const MAX_GLOBAL_CACHE_ENTRIES = 200;
+const ASSOCIATION_AUDIT_TIMEOUT_MS = 2000;
+const ASSOCIATION_AUDIT_REUSE_MS = 60000;
+const associationAuditInFlight = new Map();
+const recentAssociationAudits = new Map();
+
+function buildAssociationAuditMetadata(mediaDetails, type, italianTitle = null, originalTitle = null) {
+    const titles = Array.isArray(mediaDetails?.titles) ? mediaDetails.titles : [];
+    return {
+        title: mediaDetails?.title || mediaDetails?.name || null,
+        titles,
+        aliases: [...new Set([...titles, italianTitle, originalTitle].filter(Boolean))],
+        italianTitle,
+        originalTitle: originalTitle || mediaDetails?.originalTitle || mediaDetails?.originalName || null,
+        year: mediaDetails?.year || null,
+        type: type === 'series' ? 'series' : 'movie',
+        imdbId: mediaDetails?.imdbId || null,
+        tmdbId: mediaDetails?.tmdbId || null
+    };
+}
+
+function hasInvalidCachedAssociations(results, metadata) {
+    if (!Array.isArray(results) || results.length === 0) return false;
+    return results.some(entry => {
+        const row = {
+            title: entry.title || entry.websiteTitle || entry.filename || '',
+            file_title: entry.file_title || entry.filename || null
+        };
+        const audit = classifyTorrentAssociation(row, metadata);
+        return audit.status === 'invalid' && audit.confidence === 'high';
+    });
+}
+
+async function runRequestAssociationAudit(mediaDetails, type, italianTitle = null, originalTitle = null) {
+    const metadata = buildAssociationAuditMetadata(mediaDetails, type, italianTitle, originalTitle);
+    const key = metadata.imdbId || (metadata.tmdbId ? `tmdb:${metadata.tmdbId}:${metadata.type}` : null);
+    if (!key || !metadata.title) return { skipped: true, reason: 'incomplete request metadata' };
+
+    const recent = recentAssociationAudits.get(key);
+    if (recent && Date.now() - recent.timestamp < ASSOCIATION_AUDIT_REUSE_MS) return recent.result;
+
+    let auditPromise = associationAuditInFlight.get(key);
+    if (!auditPromise) {
+        auditPromise = dbHelper.auditAndRepairTorrentAssociations(metadata)
+            .then(result => {
+                recentAssociationAudits.set(key, {
+                    timestamp: Date.now(),
+                    result: { ...result, changed: false }
+                });
+                if (recentAssociationAudits.size > 1000) {
+                    recentAssociationAudits.delete(recentAssociationAudits.keys().next().value);
+                }
+                return result;
+            })
+            .finally(() => associationAuditInFlight.delete(key));
+        associationAuditInFlight.set(key, auditPromise);
+    }
+
+    let timeout;
+    try {
+        const timeoutPromise = new Promise((_, reject) => {
+            timeout = setTimeout(() => reject(new Error(`timeout after ${ASSOCIATION_AUDIT_TIMEOUT_MS}ms`)), ASSOCIATION_AUDIT_TIMEOUT_MS);
+        });
+        const result = await Promise.race([auditPromise, timeoutPromise]);
+        if (result.changed) {
+            console.log(
+                `🧹 [Association Audit] ${key}: torrents=${result.detachedTorrents}, ` +
+                `children=${result.detachedChildRows}, cache=${result.invalidatedCaches}`
+            );
+        } else if (DEBUG_MODE) {
+            console.log(`✅ [Association Audit] ${key}: ${result.checked || 0} rows checked`);
+        }
+        return result;
+    } catch (error) {
+        console.warn(`⚠️ [Association Audit] ${key} skipped: ${error.message}`);
+        return { failed: true, error: error.message };
+    } finally {
+        if (timeout) clearTimeout(timeout);
+    }
+}
 
 function cleanupCache() {
     const now = Date.now();
@@ -5974,6 +6094,17 @@ function isExactEpisodeMatch(torrentTitle, showTitleOrTitles, seasonNum, episode
                 .filter(word => !['the', 'and', 'or', 'in', 'on', 'at', 'to'].includes(word));
 
             if (showWords.length === 0) return false;
+
+            // Short series names such as "You" cannot use simple containment:
+            // it would accept unrelated shows like "Love You to Death". Compare
+            // the release prefix (everything before SxxExx/season markers)
+            // exactly, while allowing a release year after the real title.
+            if (showWords.length <= 2) {
+                const seriesPrefix = lightCleanedTitle
+                    .split(/(?:[Ss]\d+[Ee]\d+|[Ss]\d+[-–]\d+|[Ss]\d+\b|\d+x\d+|[Ss]tagion[ei]|[Ss]eason|[Ee]p?\d+|\bComplete\b)/i)[0]
+                    .replace(/\b(?:19|20)\d{2}\b/g, ' ');
+                return stripReleaseNoise(seriesPrefix) === normalizedShowTitle;
+            }
 
             const matchingWords = showWords.filter(word =>
                 normalizedTorrentTitle.includes(word)
@@ -6369,6 +6500,29 @@ function isExactEpisodeMatch(torrentTitle, showTitleOrTitles, seasonNum, episode
 function isExactMovieMatch(torrentTitle, movieTitle, year) {
     if (!torrentTitle || !movieTitle) return false;
 
+    // Preserve year evidence before title cleanup. Some titles start with a
+    // number that looks like a year (for example "2001 A Space Odyssey").
+    // Years that are part of the requested movie title are not release years;
+    // every other year remains authoritative even if normalization later
+    // removes it from torrentTitle.
+    const requestedYear = Number(year);
+    const intrinsicTitleYears = new Set(
+        [...movieTitle.matchAll(/\b((?:19|20)\d{2})\b/g)].map(match => Number(match[1]))
+    );
+    const originalReleaseYears = [...torrentTitle.matchAll(/\b((?:19|20)\d{2})\b/g)]
+        .map(match => Number(match[1]))
+        .filter(foundYear => !intrinsicTitleYears.has(foundYear));
+    const originalYearRange = torrentTitle.match(/\b((?:19|20)\d{2})\s*[-–—]\s*((?:19|20)\d{2})\b/);
+    const rangeIncludesRequestedYear = requestedYear && originalYearRange &&
+        requestedYear >= Number(originalYearRange[1]) && requestedYear <= Number(originalYearRange[2]);
+
+    if (requestedYear && originalReleaseYears.length > 0 &&
+        !rangeIncludesRequestedYear &&
+        !originalReleaseYears.some(foundYear => Math.abs(foundYear - requestedYear) <= 1)) {
+        if (DEBUG_MODE) console.log(`❌ [Movie Match] Original year evidence [${originalReleaseYears.join(', ')}] conflicts with ${requestedYear}: "${torrentTitle}"`);
+        return false;
+    }
+
     // SMART POSITION-AWARE NORMALIZATION
 
     // Step 1: Check for YEAR RANGE first (YYYY-YYYY) - for collections/trilogies
@@ -6398,7 +6552,8 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
     }
 
     // Step 2: Find single year BEFORE any cleanup to determine its position
-    const titleYearMatch = torrentTitle.match(/\b((?:19|20)\d{2})\b/);
+    const titleYearMatch = [...torrentTitle.matchAll(/\b((?:19|20)\d{2})\b/g)]
+        .find(match => !intrinsicTitleYears.has(Number(match[1]))) || null;
 
     if (!rangeMatch && !titleYearMatch) {
         // NO YEAR: Extract first 5 meaningful words (skip technical terms)
@@ -6414,7 +6569,8 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
         const techPattern = /^(?:480|720|1080|1440|2160|160|576|4K|8K|HD|UHD|FHD|FullHD|SD|HDR|HDR10|DV|x264|x265|H264|H265|HEVC|BluRay|WEBRip|WEBDL|BDRemux|AAC|AC3|DTS|Atmos|iTA|ENG|ITA|MULTI|SUB|MIRCrew|NAHOM|NeoNoir|FHC)$/i;
 
         for (let word of words) {
-            if (!techPattern.test(word) && !/^\d+\.?\d*$/.test(word)) {
+            const isIntrinsicNumericTitle = intrinsicTitleYears.has(Number(word));
+            if (!techPattern.test(word) && (!/^\d+\.?\d*$/.test(word) || isIntrinsicNumericTitle)) {
                 meaningfulWords.push(word);
                 if (meaningfulWords.length >= 5) break;
             }
@@ -6428,7 +6584,9 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
 
         // Check if there's meaningful content before year (not just brackets/punctuation)
         const cleanBeforeYear = beforeYear.replace(/[\[\](){}]/g, '').replace(/[^\w\s]/g, ' ').trim();
-        const hasContentBeforeYear = cleanBeforeYear.length > 3;
+        // A real title may be only one or two characters (for example "It").
+        // Only an empty normalized prefix means that the year is at the start.
+        const hasContentBeforeYear = cleanBeforeYear.length > 0;
 
         if (hasContentBeforeYear) {
             // YEAR IS AFTER TITLE (98% of cases: "Title (2025)" or "Title 2025")
@@ -6531,7 +6689,21 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
         return false;
     }
 
-    const yearMatch = torrentTitle.match(/(?:19|20)\d{2}/);
+    // A one/two-word title without year evidence must match the cleaned release
+    // title exactly. This prevents aliases such as "Noi" ("Us") from accepting
+    // unrelated pack files such as "Stia con noi" while keeping "Noi.mkv".
+    const normalizedReleaseTitle = stripReleaseNoise(torrentTitle);
+    if (movieWords.length <= 2 && originalReleaseYears.length === 0 &&
+        normalizedReleaseTitle !== normalizedMovieTitle) {
+        if (DEBUG_MODE) console.log(`❌ [Movie Match] Ambiguous short title without year: "${torrentTitle}"`);
+        return false;
+    }
+
+    const exactOriginalYearMatch = requestedYear &&
+        (originalReleaseYears.includes(requestedYear) || rangeIncludesRequestedYear);
+    const compatibleOriginalYearMatch = requestedYear && originalReleaseYears.some(
+        foundYear => Math.abs(foundYear - requestedYear) <= 1
+    ) || rangeIncludesRequestedYear;
 
     // Strict Year Match Flag (default false)
     let mustHaveStrictYear = false;
@@ -6552,8 +6724,8 @@ function isExactMovieMatch(torrentTitle, movieTitle, year) {
     // 1. If strict mode: Year MUST exist AND match exactly (no tolerance)
     // 2. If normal mode: No year is OK OR year matches with tolerance
     const yearMatches = mustHaveStrictYear
-        ? (yearMatch && yearMatch[0] === year.toString())
-        : (!yearMatch || yearMatch[0] === year.toString() || Math.abs(parseInt(yearMatch[0]) - parseInt(year)) <= 1);
+        ? exactOriginalYearMatch
+        : (originalReleaseYears.length === 0 || compatibleOriginalYearMatch);
 
     if (DEBUG_MODE) console.log(`${yearMatches ? '✅' : '❌'} Year match for "${torrentTitle}" (${year}) ${mustHaveStrictYear ? '[STRICT]' : ''}`);
     return yearMatches;
@@ -6822,6 +6994,34 @@ async function handleStream(type, id, config, workerOrigin) {
             console.error('❌ [DB] Failed to initialize database:', error.message);
         }
 
+        // Validate cached associations before they can reach the response. This
+        // is deliberately fail-open: DB errors/timeouts never block streams.
+        if (dbEnabled && fromGlobalCache && mediaDetails) {
+            const requestMediaId = String(decodedId).split(':')[0];
+            const auditMediaDetails = {
+                ...mediaDetails,
+                imdbId: mediaDetails.imdbId || (/^tt\d{7,9}$/i.test(requestMediaId) ? requestMediaId.toLowerCase() : null),
+                tmdbId: mediaDetails.tmdbId || (/^\d+$/.test(requestMediaId) ? Number(requestMediaId) : null)
+            };
+            const auditMetadata = buildAssociationAuditMetadata(auditMediaDetails, type, italianTitle, originalTitle);
+            const cacheIsInvalid = hasInvalidCachedAssociations(filteredResults, auditMetadata);
+            const auditResult = await runRequestAssociationAudit(
+                auditMediaDetails,
+                type,
+                italianTitle,
+                originalTitle
+            );
+
+            if (cacheIsInvalid || auditResult.changed) {
+                console.log(`🧹 [Association Audit] Discarding stale cache for ${globalCacheKey}`);
+                globalTorrentCache.delete(globalCacheKey);
+                fromGlobalCache = false;
+                cachedData = null;
+                filteredResults = [];
+                searchQueries = [];
+            }
+        }
+
         // ✅ GLOBAL CACHE MISS: Do the full search
         if (!fromGlobalCache) {
 
@@ -7031,6 +7231,10 @@ async function handleStream(type, id, config, workerOrigin) {
             // (dbEnabled is already set)
             if (dbEnabled && DEBUG_MODE) {
                 console.log('💾 [DB] Database connection active');
+            }
+
+            if (dbEnabled) {
+                await runRequestAssociationAudit(mediaDetails, type, italianTitle, originalTitle);
             }
 
             // ✅ STEP 2: SEARCH DATABASE FIRST (if enabled)
@@ -8190,7 +8394,13 @@ async function handleStream(type, id, config, workerOrigin) {
                         const torrentTitle = dbResult.torrent_title || dbResult.title;
                         // TRUST ID MATCH: If torrent has correct IMDB ID, skip title check
                         // This fixes issues where torrent title is in different language (e.g. "Il Trono di Spade" vs "Game of Thrones")
-                        const trustTitle = dbResult.imdb_id && dbResult.imdb_id === mediaDetails.imdbId;
+                        const requestedSeriesTitles = mediaDetails.titles || [mediaDetails.title];
+                        const hasAmbiguousShortTitle = requestedSeriesTitles.some(candidateTitle =>
+                            stripReleaseNoise(candidateTitle).split(' ').filter(Boolean).length <= 2
+                        );
+                        const trustTitle = dbResult.imdb_id &&
+                            dbResult.imdb_id === mediaDetails.imdbId &&
+                            !hasAmbiguousShortTitle;
 
                         const match = isExactEpisodeMatch(
                             torrentTitle,
@@ -8974,6 +9184,37 @@ async function handleStream(type, id, config, workerOrigin) {
                         .filter(r => {
                             if (!r.infoHash) return false;
 
+                            const disqualifyingReason = getDisqualifyingContentReason(r);
+                            if (disqualifyingReason) {
+                                if (DEBUG_MODE) console.log(`🚫 [DB Association] Skipping ${disqualifyingReason}: "${(r.title || r.websiteTitle || '').substring(0, 80)}..."`);
+                                return false;
+                            }
+
+                            // Never persist a movie under the requested IDs
+                            // before validating its actual title and year. The
+                            // search query can be intentionally broad, which is
+                            // especially dangerous for one/two-word titles.
+                            const titleForAssociation = (r.fileIndex !== undefined && r.fileIndex !== null && r.file_title)
+                                ? r.file_title
+                                : (r.title || r.websiteTitle || '');
+                            const sourceForAssociation = `${r.source || ''} ${r.provider || ''}`;
+                            const isManualAssociation = /\bCustom(?: Manual)?\b/i.test(sourceForAssociation);
+                            if (type === 'movie' && !isManualAssociation) {
+                                const acceptedTitles = [...new Set([
+                                    ...(Array.isArray(mediaDetails.titles) ? mediaDetails.titles : []),
+                                    mediaDetails.title,
+                                    italianTitle,
+                                    originalTitle
+                                ].filter(Boolean))];
+                                const exactAssociation = acceptedTitles.some(candidateTitle =>
+                                    isExactMovieMatch(titleForAssociation, candidateTitle, mediaDetails.year)
+                                );
+                                if (!exactAssociation) {
+                                    if (DEBUG_MODE) console.log(`🚫 [DB Association] Skipping title/year mismatch: "${titleForAssociation.substring(0, 80)}..."`);
+                                    return false;
+                                }
+                            }
+
                             // ✅ STRICT LANGUAGE FILTER: Only save Italian/Multi to DB
                             // 📦 For pack files with fileIndex, check BOTH file_title AND pack title
                             // If pack name has ITA → all internal files inherit ITA
@@ -9363,26 +9604,20 @@ async function handleStream(type, id, config, workerOrigin) {
                     const hasPackFile = result.fileIndex !== null && result.fileIndex !== undefined && result.file_title;
                     const torrentTitle = hasPackFile ? result.file_title : (result.title || result.websiteTitle);
 
-                    // 🎯 SKIP YEAR FILTERING FOR PACKS (they contain multiple movies with different years)
-                    // 🎯 SMART FILTERING: Check for Pack/FileIndex
-                    // - If fileIndex is present, it means we have a specific file resolved.
-                    // - OLD BUG: We blindly skipped year check, allowing "Glass Onion" (2022) for "Knives Out" (2019)
-                    //   because "Glass Onion" has fileIndex=0.
-                    // - NEW LOGIC: Only skip year check if:
-                    //   A) It's a REAL pack (collection/trilogy) AND verified
-                    //   B) The IMDb ID matches EXACTLY what we requested (trust the DB)
-                    //   C) The title matches strictly
+                    const disqualifyingReason = getDisqualifyingContentReason({
+                        ...result,
+                        title: torrentTitle
+                    });
+                    if (disqualifyingReason) {
+                        if (DEBUG_MODE) console.log(`❌ [Movie Filtering] Rejected ${disqualifyingReason}: "${torrentTitle}"`);
+                        return false;
+                    }
 
+                    // A file index proves which file will play, not that a
+                    // possibly stale DB association is correct. Always apply
+                    // the same title/year validation to resolved pack files.
                     if (result.fileIndex !== null && result.fileIndex !== undefined) {
-                        // Trust strict ID + Verified
-                        if (result.imdb_id === mediaDetails.imdbId) {
-                            if (DEBUG_MODE) console.log(`🎬 [Pack] TRUST DB for pack: ${torrentTitle.substring(0, 60)}... (ID match)`);
-                            return true;
-                        }
-
-                        // If ID doesn't match (or is missing), fall through to standard Name/Year check below.
-                        // This catches "Glass Onion" (wrong ID or text match) trying to pass as "Knives Out".
-                        if (DEBUG_MODE) console.log(`🎬 [Pack] No ID match, enforcing filters for pack file: ${torrentTitle.substring(0, 60)}...`);
+                        if (DEBUG_MODE) console.log(`🎬 [Pack] Enforcing title/year filters for resolved file: ${torrentTitle.substring(0, 60)}...`);
                     }
 
                     // Try matching with English title
@@ -9439,10 +9674,11 @@ async function handleStream(type, id, config, workerOrigin) {
                 // Store rejectedPotentialPacks for background processing (Phase 2C)
                 backgroundRejectedPacks.push(...rejectedPotentialPacks);
 
-                // If exact matching removed too many results, be more lenient
+                // Never restore raw results after strict matching. That would
+                // reintroduce exactly the short-title false positives removed
+                // above (for example Odissea 2026 vs the 1968 film).
                 if (filteredResults.length === 0 && originalCount > 0) {
-                    if (DEBUG_MODE) console.log('⚠️ Exact filtering removed all results, using broader match');
-                    filteredResults = results.slice(0, Math.min(15, results.length));
+                    if (DEBUG_MODE) console.log('❌ Exact filtering removed all results. Strict movie matching enforced: returning 0 results.');
                 }
 
                 // ✅ MOVIE PACK VERIFICATION

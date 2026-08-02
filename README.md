@@ -157,3 +157,61 @@ Made with ❤️ for the Italian Community
 **v5.0.0** • Gennaio 2026
 
 </div>
+
+# Audit delle associazioni torrent / IMDb / TMDB
+
+Lo script `scripts/audit-torrent-associations.cjs` simula la parte DB di una
+richiesta Stremio, recupera i metadati da Cinemeta e classifica ogni torrent
+associato come `valid`, `invalid` o `review`. Mostra inoltre l'avanzamento in
+percentuale sul totale delle righe lette e controllate:
+
+```bash
+node scripts/audit-torrent-associations.cjs --imdb tt33764258
+node scripts/audit-torrent-associations.cjs --tmdb 1368337
+node scripts/audit-torrent-associations.cjs --all --limit 100 --batch-size 10
+```
+
+Lo script usa la stessa configurazione PostgreSQL dell'addon: `DATABASE_URL`
+oppure `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`, caricati dal
+normale ambiente di esecuzione o da `.env`. Non serve un `.env.audit` separato.
+`TMDB_KEY` o `TMDB_API_KEY` e' opzionale e aggiunge titolo italiano e titolo
+originale. Senza `--apply` lo script esegue esclusivamente query di lettura.
+
+L'audit non si limita alla tabella `torrents`: per un film controlla anche le
+righe di `pack_files` associate direttamente all'IMDb richiesto; per una serie
+controlla le righe di `files`. Queste letture usano gli indici IMDb delle due
+tabelle. I figli di una serie con un nome non conclusivo restano in stato
+`review`, per evitare correzioni automatiche basate sul solo titolo episodio.
+L'avanzamento viene scritto su stderr, cosi' `--json` mantiene stdout valido;
+si puo' disabilitare con `--no-progress`.
+
+In modalita' `--all` viene mantenuto in memoria soltanto un lotto di IMDb alla
+volta. `--batch-size` controlla il numero di ID per lotto (default 10, massimo
+250), mentre `--concurrency` controlla quante richieste metadata vengono
+eseguite insieme. Il report viene stampato appena termina ciascun lotto. Con
+`--apply`, ogni lotto usa una propria transazione: un errore successivo non
+annulla i lotti gia' completati e confermati.
+
+Per scollegare dal film/serie soltanto le associazioni errate ad alta
+confidenza e invalidare la relativa cache persistente:
+
+```bash
+node scripts/audit-torrent-associations.cjs --imdb tt33764258 --apply --yes
+node scripts/audit-torrent-associations.cjs --all --batch-size 10 --concurrency 4 --apply --yes
+```
+
+Le righe `review` non vengono mai modificate automaticamente. Lo script non
+cancella i torrent: azzera esclusivamente gli ID oggetto dell'audit, con una
+condizione che verifica nuovamente i valori correnti dentro una transazione.
+La modalita' `--apply` richiede un ruolo con permessi `UPDATE` su `torrents`,
+`files` e `pack_files`, e `DELETE` su `torrent_search_cache`; un ruolo di sola
+lettura puo' sempre usare il dry-run.
+
+Lo stesso controllo viene eseguito automaticamente durante le richieste stream
+di Stremio, dopo la risoluzione dei metadati e prima della ricerca nel DB. Usa
+il pool PostgreSQL gia' inizializzato dall'addon, un timeout breve e semantica
+fail-open: un errore o timeout dell'audit viene registrato, ma non impedisce mai
+la restituzione degli stream. Le richieste contemporanee per lo stesso ID sono
+accorpate e un audit riuscito viene riutilizzato per 60 secondi. Se vengono
+corrette associazioni o rilevata una cache non valida, la cache corrente viene
+scartata e la richiesta prosegue con una ricerca fresca.
