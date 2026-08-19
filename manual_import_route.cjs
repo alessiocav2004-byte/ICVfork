@@ -471,6 +471,228 @@ function parseTorrentFile(base64Data) {
     return { infoHash, files, filename: torrentName };
 }
 
+// ══════ HELPER SPECIFICHE MEDIA & TAGS ══════
+function detectTorrentSpecs(titleOrPath) {
+    if (!titleOrPath) return { audioLanguages: [], subLanguages: [], resolution: 'auto', quality: 'auto', codec: 'auto', visualTags: [], audioTags: [] };
+    const str = String(titleOrPath);
+    
+    // Risoluzione
+    let resolution = 'auto';
+    if (/2160p?|4k|uhd/i.test(str)) resolution = '2160p';
+    else if (/1080p?/i.test(str)) resolution = '1080p';
+    else if (/720p?/i.test(str)) resolution = '720p';
+    else if (/576p?/i.test(str)) resolution = '576p';
+    else if (/480p?|sd\b/i.test(str)) resolution = '480p';
+    else if (/dvdrip/i.test(str)) resolution = 'DVDRip';
+
+    // Qualità
+    let quality = 'auto';
+    if (/\bremux\b/i.test(str)) quality = 'Remux';
+    else if (/blu.?ray|bdrip|brrip/i.test(str)) quality = 'BluRay';
+    else if (/web.?dl/i.test(str)) quality = 'WEB-DL';
+    else if (/web.?rip/i.test(str)) quality = 'WEBRip';
+    else if (/hdtv/i.test(str)) quality = 'HDTV';
+    else if (/dvd.?rip/i.test(str)) quality = 'DVDRip';
+    else if (/\bcam\b|telesync|\bts\b/i.test(str)) quality = 'CAM';
+
+    // Codec
+    let codec = 'auto';
+    if (/hevc|x.?265|h.?265/i.test(str)) codec = 'HEVC';
+    else if (/avc|x.?264|h.?264/i.test(str)) codec = 'AVC';
+    else if (/\bav1\b/i.test(str)) codec = 'AV1';
+    else if (/xvid|divx/i.test(str)) codec = 'XviD';
+
+    // Visual tags
+    const visualTags = [];
+    if (/dolby.?vision|dovi|\bdv\b/i.test(str)) visualTags.push('DV');
+    if (/hdr10\+/i.test(str)) visualTags.push('HDR10+');
+    else if (/hdr10/i.test(str)) visualTags.push('HDR10');
+    else if (/\bhdr\b/i.test(str)) visualTags.push('HDR');
+
+    // Audio tags
+    const audioTags = [];
+    if (/atmos/i.test(str)) audioTags.push('Atmos');
+    if (/dts.?hd/i.test(str)) audioTags.push('DTS-HD');
+    if (/7\.?1/i.test(str)) audioTags.push('7.1');
+    else if (/5\.?1/i.test(str)) audioTags.push('5.1');
+    if (/dd\+|ddp|eac3/i.test(str)) audioTags.push('AC3');
+    else if (/ac3/i.test(str)) audioTags.push('AC3');
+    if (/\baac\b/i.test(str)) audioTags.push('AAC');
+
+    // Subtitle Languages
+    const subLanguages = [];
+    if (/\b(sub[._ -]?(ita|italian)|(ita|italian)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('Italian');
+    if (/\b(sub[._ -]?(eng|english)|(eng|english)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('English');
+    if (/\b(sub[._ -]?(jap|japanese|jpn)|(jap|japanese|jpn)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('Japanese');
+    if (/\b(sub[._ -]?(fre|french|fra)|(fre|french|fra)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('French');
+    if (/\b(sub[._ -]?(ger|german|deu)|(ger|german|deu)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('German');
+    if (/\b(sub[._ -]?(spa|spanish|esp)|(spa|spanish|esp)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('Spanish');
+    if (/\b(sub[._ -]?(por|portuguese|pt|pt-br)|(por|portuguese)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\b/i.test(str)) subLanguages.push('Portuguese');
+    if (/\b(msubs?|multi[._ -]?subs?)\b/i.test(str)) subLanguages.push('Multi');
+
+    // Audio Languages (strip subtitle tags first)
+    let audioStr = str;
+    audioStr = audioStr.replace(/\bsub[._ -]?(ita|italian|eng|english|jap|japanese|jpn|fre|french|fra|ger|german|deu|spa|spanish|esp|por|portuguese|pt|multi)\b/gi, ' ');
+    audioStr = audioStr.replace(/\b(ita|italian|eng|english|jap|japanese|jpn|fre|french|fra|ger|german|deu|spa|spanish|esp|por|portuguese|pt)[._ -]?sub\b/gi, ' ');
+    audioStr = audioStr.replace(/\b(msubs?|multi[._ -]?subs?)\b/gi, ' ');
+
+    const audioLanguages = [];
+    if (/\b(ita|italian)\b/i.test(audioStr)) audioLanguages.push('Italian');
+    if (/\b(eng|english)\b/i.test(audioStr)) audioLanguages.push('English');
+    if (/\b(jap|japanese|jpn)\b/i.test(audioStr)) audioLanguages.push('Japanese');
+    if (/\b(fre|french|fra)\b/i.test(audioStr)) audioLanguages.push('French');
+    if (/\b(ger|german|deu)\b/i.test(audioStr)) audioLanguages.push('German');
+    if (/\b(spa|spanish|esp)\b/i.test(audioStr)) audioLanguages.push('Spanish');
+    if (/\b(por|portuguese|pt|pt-br)\b/i.test(audioStr)) audioLanguages.push('Portuguese');
+    if (/\bmulti\b/i.test(audioStr)) audioLanguages.push('Multi');
+    if (/\bdual\b/i.test(audioStr)) audioLanguages.push('Dual Audio');
+
+    return {
+        audioLanguages,
+        subLanguages,
+        resolution,
+        quality,
+        codec,
+        visualTags,
+        audioTags
+    };
+}
+
+function enrichCustomTorrentTitle(originalTitle, specs = {}) {
+    let title = (originalTitle || '').trim();
+    if (!title) return 'Custom.Release-ICV';
+
+    const {
+        audioLanguages,
+        subLanguages,
+        resolution,
+        quality,
+        codec,
+        visualTags,
+        audioTags
+    } = specs;
+
+    let audioLangs = [];
+    if (Array.isArray(audioLanguages)) audioLangs = audioLanguages;
+    else if (typeof audioLanguages === 'string' && audioLanguages.trim()) {
+        try { audioLangs = JSON.parse(audioLanguages); } catch (_) { audioLangs = audioLanguages.split(',').map(s => s.trim()).filter(Boolean); }
+    }
+
+    let subLangs = [];
+    if (Array.isArray(subLanguages)) subLangs = subLanguages;
+    else if (typeof subLanguages === 'string' && subLanguages.trim()) {
+        try { subLangs = JSON.parse(subLanguages); } catch (_) { subLangs = subLanguages.split(',').map(s => s.trim()).filter(Boolean); }
+    }
+
+    let visual = [];
+    if (Array.isArray(visualTags)) visual = visualTags;
+    else if (typeof visualTags === 'string' && visualTags.trim()) {
+        try { visual = JSON.parse(visualTags); } catch (_) { visual = visualTags.split(',').map(s => s.trim()).filter(Boolean); }
+    }
+
+    let audio = [];
+    if (Array.isArray(audioTags)) audio = audioTags;
+    else if (typeof audioTags === 'string' && audioTags.trim()) {
+        try { audio = JSON.parse(audioTags); } catch (_) { audio = audioTags.split(',').map(s => s.trim()).filter(Boolean); }
+    }
+
+    const langTagMap = {
+        'Italian': 'ITA', 'English': 'ENG', 'French': 'FRA', 'German': 'GER',
+        'Spanish': 'SPA', 'Portuguese': 'POR', 'Russian': 'RUS', 'Japanese': 'JAP',
+        'Korean': 'KOR', 'Chinese': 'CHI', 'Multi': 'MULTI', 'Dual Audio': 'DUAL'
+    };
+
+    const extMatch = title.match(/\.(mkv|mp4|avi|mov|wmv|flv|webm)$/i);
+    let ext = '';
+    if (extMatch) {
+        ext = extMatch[0];
+        title = title.substring(0, title.length - ext.length);
+    }
+
+    // 1. Clean unselected subtitles from title if user explicitly selected subtitle languages
+    if (subLangs.length > 0) {
+        const selectedSubTags = subLangs.map(l => (langTagMap[l] || l).toUpperCase());
+        Object.entries(langTagMap).forEach(([lName, lTag]) => {
+            if (!selectedSubTags.includes(lTag.toUpperCase())) {
+                title = title.replace(new RegExp(`[._ -]?Sub[._ -]?(${lTag}|${lName})(?=[._ -]|$)`, 'gi'), '');
+                title = title.replace(new RegExp(`[._ -]?(${lTag}|${lName})[._ -]?Sub(?=[._ -]|$)`, 'gi'), '');
+            }
+        });
+        if (!subLangs.includes('Multi') && !subLangs.includes('Multi Subs')) {
+            title = title.replace(/[._ -]?(msubs?|multi[._ -]?subs?)(?=[._ -]|$)/gi, '');
+        }
+    }
+
+    // 2. Clean unselected audio languages from title if user explicitly selected audio languages
+    if (audioLangs.length > 0) {
+        const selectedAudioTags = audioLangs.map(l => (langTagMap[l] || l).toUpperCase());
+        Object.entries(langTagMap).forEach(([lName, lTag]) => {
+            if (!selectedAudioTags.includes(lTag.toUpperCase())) {
+                title = title.replace(new RegExp(`[._ -](${lTag}|${lName})(?=[._ -]|$)`, 'gi'), '');
+            }
+        });
+    }
+
+    // Clean multiple dots or trailing/leading dots
+    title = title.replace(/\.{2,}/g, '.').replace(/^\.|\.$/, '');
+
+    const tagsToAdd = [];
+
+    if (resolution && resolution !== 'auto' && !new RegExp(`\\b${resolution}\\b`, 'i').test(title)) {
+        tagsToAdd.push(resolution);
+    }
+    if (quality && quality !== 'auto' && !new RegExp(`\\b${quality.replace('-', '[- ]?')}\\b`, 'i').test(title)) {
+        tagsToAdd.push(quality);
+    }
+    if (codec && codec !== 'auto' && !new RegExp(`\\b${codec}\\b`, 'i').test(title)) {
+        tagsToAdd.push(codec);
+    }
+    visual.forEach(v => {
+        if (v && v !== 'auto' && v !== 'SDR' && !new RegExp(`\\b${v}\\b`, 'i').test(title)) {
+            tagsToAdd.push(v);
+        }
+    });
+    audio.forEach(a => {
+        if (a && a !== 'auto' && !new RegExp(`\\b${a.replace('.', '\\.')}\\b`, 'i').test(title)) {
+            tagsToAdd.push(a);
+        }
+    });
+    audioLangs.forEach(l => {
+        const tag = langTagMap[l] || l.toUpperCase();
+        if (tag && !new RegExp(`\\b${tag}\\b`, 'i').test(title)) {
+            tagsToAdd.push(tag);
+        }
+    });
+    subLangs.forEach(l => {
+        if (l === 'None') return;
+        const subTag = (l === 'Multi' || l === 'Multi Subs') ? 'MSubs' : `Sub.${langTagMap[l] || l.toUpperCase()}`;
+        if (subTag && !new RegExp(`\\b${subTag.replace('.', '\\.')}\\b`, 'i').test(title)) {
+            tagsToAdd.push(subTag);
+        }
+    });
+
+    if (tagsToAdd.length > 0) {
+        title = `${title}.${tagsToAdd.join('.')}`;
+    }
+    return title + ext;
+}
+
+// GET /scrape/resolve-title - Fast title resolver for raw magnet/hash without dn=
+router.get('/resolve-title', async (req, res) => {
+    const hash = (req.query.hash || '').trim().toLowerCase();
+    if (!hash || hash.length < 32) return res.json({ found: false });
+    try {
+        const cached = await fetchTorrentFromCaches(hash);
+        if (cached && cached.filename) {
+            const detectedSpecs = detectTorrentSpecs(cached.filename);
+            return res.json({ found: true, title: cached.filename, detectedSpecs });
+        }
+        return res.json({ found: false });
+    } catch (e) {
+        return res.json({ found: false, error: e.message });
+    }
+});
+
 // GET /meta - Fetch metadata for preview (IMDb/TMDB)
 router.get('/meta', async (req, res) => {
     const { id, type } = req.query;
@@ -975,6 +1197,70 @@ router.get('/', (req, res) => {
             border-radius: 12px;
         }
 
+        /* 🎛️ Media Specs & Tracks Styling */
+        .specs-box {
+            margin-bottom: 24px;
+            padding: 20px 24px;
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+        .specs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+        .specs-header:hover #specsChevron {
+            transform: scale(1.15);
+        }
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .chip-btn {
+            padding: 7px 13px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(2, 6, 23, 0.65);
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+        }
+        .chip-btn:hover {
+            border-color: var(--neon-secondary);
+            color: #f8fafc;
+            transform: translateY(-1px);
+        }
+        .chip-btn.active {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.45) 0%, rgba(6, 182, 212, 0.45) 100%);
+            border-color: var(--neon-secondary);
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 0 14px rgba(6, 182, 212, 0.35);
+        }
+        .detected-badge {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 12px;
+            background: rgba(6, 182, 212, 0.12);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            color: #38bdf8;
+            margin-top: 10px;
+            display: none;
+            line-height: 1.4;
+        }
+
         /* Responsive: schermi piccoli */
         @media (max-width: 640px) {
             .container {
@@ -1093,6 +1379,126 @@ router.get('/', (req, res) => {
             <input type="number" id="seeders" placeholder="Lascia vuoto per auto-check">
         </div>
 
+        <!-- 🎛️ MEDIA SPECS & TRACKS SECTION -->
+        <div class="specs-box" id="mediaSpecsSection">
+            <div class="specs-header" onclick="toggleSpecsAccordion()">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.3rem;">🎛️</span>
+                    <div>
+                        <div style="font-weight: 600; color: #e2e8f0; font-size: 0.95rem; font-family: 'Outfit', sans-serif;">Specifiche Media & Tracce</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">Personalizza lingue audio, sottotitoli e qualità video (Auto-detect)</div>
+                    </div>
+                </div>
+                <span id="specsChevron" style="color: var(--neon-secondary); font-size: 1rem; transition: transform 0.3s;">▼</span>
+            </div>
+
+            <div id="detectedSpecsBadge" class="detected-badge">
+                <span id="detectedSpecsText"></span>
+            </div>
+
+            <div id="specsContent">
+                <!-- AUDIO LANGUAGES CHIPS -->
+                <div style="margin-top: 14px;">
+                    <label style="font-size: 0.8rem; margin-bottom: 6px;">Lingue Audio</label>
+                    <div class="chip-group" id="audioLangChips">
+                        <span class="chip-btn" data-val="Italian" onclick="toggleChip(this, 'audio')">🇮🇹 Italiano</span>
+                        <span class="chip-btn" data-val="English" onclick="toggleChip(this, 'audio')">🇬🇧 English</span>
+                        <span class="chip-btn" data-val="Japanese" onclick="toggleChip(this, 'audio')">🇯🇵 Japanese</span>
+                        <span class="chip-btn" data-val="French" onclick="toggleChip(this, 'audio')">🇫🇷 Français</span>
+                        <span class="chip-btn" data-val="German" onclick="toggleChip(this, 'audio')">🇩🇪 Deutsch</span>
+                        <span class="chip-btn" data-val="Spanish" onclick="toggleChip(this, 'audio')">🇪🇸 Español</span>
+                        <span class="chip-btn" data-val="Portuguese" onclick="toggleChip(this, 'audio')">🇵🇹 Português</span>
+                        <span class="chip-btn" data-val="Multi" onclick="toggleChip(this, 'audio')">🌎 Multi Audio</span>
+                        <span class="chip-btn" data-val="Dual Audio" onclick="toggleChip(this, 'audio')">🎙️ Dual Audio</span>
+                    </div>
+                </div>
+
+                <!-- SUBTITLE LANGUAGES CHIPS -->
+                <div style="margin-top: 14px;">
+                    <label style="font-size: 0.8rem; margin-bottom: 6px;">Sottotitoli</label>
+                    <div class="chip-group" id="subLangChips">
+                        <span class="chip-btn" data-val="Italian" onclick="toggleChip(this, 'sub')">🇮🇹 Sub ITA</span>
+                        <span class="chip-btn" data-val="English" onclick="toggleChip(this, 'sub')">🇬🇧 Sub ENG</span>
+                        <span class="chip-btn" data-val="Japanese" onclick="toggleChip(this, 'sub')">🇯🇵 Sub JAP</span>
+                        <span class="chip-btn" data-val="French" onclick="toggleChip(this, 'sub')">🇫🇷 Sub FRA</span>
+                        <span class="chip-btn" data-val="Spanish" onclick="toggleChip(this, 'sub')">🇪🇸 Sub SPA</span>
+                        <span class="chip-btn" data-val="German" onclick="toggleChip(this, 'sub')">🇩🇪 Sub DEU</span>
+                        <span class="chip-btn" data-val="Portuguese" onclick="toggleChip(this, 'sub')">🇵🇹 Sub POR</span>
+                        <span class="chip-btn" data-val="Multi" onclick="toggleChip(this, 'sub')">🌎 Multi Subs</span>
+                        <span class="chip-btn" data-val="None" onclick="toggleChip(this, 'sub')">🚫 Nessuno</span>
+                    </div>
+                </div>
+
+                <!-- QUALITY / RESOLUTION / CODEC GRID -->
+                <div class="grid-half" style="margin-top: 14px; gap: 14px;">
+                    <div>
+                        <label style="font-size: 0.8rem; margin-bottom: 6px;">Risoluzione</label>
+                        <select id="specResolution" style="padding: 10px 14px; font-size: 0.9rem; border-radius: 12px;">
+                            <option value="auto">Auto (dal nome)</option>
+                            <option value="2160p">4K UHD (2160p)</option>
+                            <option value="1080p">FHD (1080p)</option>
+                            <option value="720p">HD (720p)</option>
+                            <option value="576p">576p</option>
+                            <option value="480p">SD (480p)</option>
+                            <option value="DVDRip">DVDRip</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; margin-bottom: 6px;">Sorgente Video</label>
+                        <select id="specQuality" style="padding: 10px 14px; font-size: 0.9rem; border-radius: 12px;">
+                            <option value="auto">Auto (dal nome)</option>
+                            <option value="WEB-DL">WEB-DL</option>
+                            <option value="WEBRip">WEBRip</option>
+                            <option value="BluRay">BluRay</option>
+                            <option value="Remux">Remux</option>
+                            <option value="HDTV">HDTV</option>
+                            <option value="DVDRip">DVDRip</option>
+                            <option value="CAM">CAM / TeleSync</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-half" style="margin-top: 14px; gap: 14px;">
+                    <div>
+                        <label style="font-size: 0.8rem; margin-bottom: 6px;">Codec Video</label>
+                        <select id="specCodec" style="padding: 10px 14px; font-size: 0.9rem; border-radius: 12px;">
+                            <option value="auto">Auto (dal nome)</option>
+                            <option value="HEVC">HEVC (x265 / H.265)</option>
+                            <option value="AVC">AVC (x264 / H.264)</option>
+                            <option value="AV1">AV1</option>
+                            <option value="XviD">XviD / DivX</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; margin-bottom: 6px;">Gamma Dinamica (HDR/DV)</label>
+                        <select id="specHdr" style="padding: 10px 14px; font-size: 0.9rem; border-radius: 12px;">
+                            <option value="auto">Auto (dal nome)</option>
+                            <option value="SDR">SDR</option>
+                            <option value="HDR">HDR</option>
+                            <option value="HDR10">HDR10</option>
+                            <option value="HDR10+">HDR10+</option>
+                            <option value="DV">Dolby Vision (DV)</option>
+                            <option value="DV-HDR">DV + HDR</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <label style="font-size: 0.8rem; margin-bottom: 6px;">Canali / Formato Audio</label>
+                    <select id="specAudio" style="padding: 10px 14px; font-size: 0.9rem; border-radius: 12px;">
+                        <option value="auto">Auto (dal nome)</option>
+                        <option value="5.1">5.1 Surround</option>
+                        <option value="7.1">7.1 Surround</option>
+                        <option value="2.0">2.0 Stereo</option>
+                        <option value="Atmos">Dolby Atmos</option>
+                        <option value="DTS-HD">DTS-HD MA</option>
+                        <option value="AC3">Dolby Digital (AC3 / DD+)</option>
+                        <option value="AAC">AAC</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <div style="display: flex; align-items: center; gap: 12px;">
             <button id="submitBtn" class="btn-glow pulse-active" disabled style="opacity: 0.5; cursor: not-allowed;">Avvia Importazione</button>
             <label style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase; color: #cbd5e1;">
@@ -1181,6 +1587,186 @@ router.get('/', (req, res) => {
         let currentEpisodes = [];
         let pendingPreview = null; // ✅ Stores preview data when manual mapping (torrent NOT yet imported)
         let mappingSelections = new Map(); // key: "season-episode" -> fileId
+
+        // 🎛️ MEDIA SPECS & TRACKS UI CONTROLLERS
+        function toggleSpecsAccordion() {
+            const content = document.getElementById('specsContent');
+            const chevron = document.getElementById('specsChevron');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                content.style.display = 'none';
+                chevron.style.transform = 'rotate(-90deg)';
+            }
+        }
+
+        function toggleChip(el, type) {
+            const val = el.getAttribute('data-val');
+            if (type === 'sub') {
+                if (val === 'None') {
+                    document.querySelectorAll('#subLangChips .chip-btn').forEach(btn => btn.classList.remove('active'));
+                    el.classList.add('active');
+                    return;
+                } else {
+                    const noneChip = document.querySelector('#subLangChips .chip-btn[data-val="None"]');
+                    if (noneChip) noneChip.classList.remove('active');
+                    el.classList.toggle('active');
+                }
+            } else {
+                el.classList.toggle('active');
+            }
+        }
+
+        function getSelectedSpecs() {
+            const audioLangs = [];
+            document.querySelectorAll('#audioLangChips .chip-btn.active').forEach(btn => {
+                const v = btn.getAttribute('data-val');
+                if (v) audioLangs.push(v);
+            });
+
+            const subLangs = [];
+            document.querySelectorAll('#subLangChips .chip-btn.active').forEach(btn => {
+                const v = btn.getAttribute('data-val');
+                if (v && v !== 'None') subLangs.push(v);
+            });
+
+            const resolution = document.getElementById('specResolution').value;
+            const quality = document.getElementById('specQuality').value;
+            const codec = document.getElementById('specCodec').value;
+            const hdrVal = document.getElementById('specHdr').value;
+            const audioVal = document.getElementById('specAudio').value;
+
+            const visualTags = [];
+            if (hdrVal && hdrVal !== 'auto') visualTags.push(hdrVal);
+
+            const audioTags = [];
+            if (audioVal && audioVal !== 'auto') audioTags.push(audioVal);
+
+            return {
+                audioLanguages: audioLangs,
+                subLanguages: subLangs,
+                resolution,
+                quality,
+                codec,
+                visualTags,
+                audioTags
+            };
+        }
+
+        function autoDetectSpecs(title) {
+            if (!title) return;
+            const str = String(title);
+            const detectedItems = [];
+
+            // Subtitles detection first
+            const subChips = document.querySelectorAll('#subLangChips .chip-btn');
+            subChips.forEach(btn => btn.classList.remove('active'));
+
+            const hasSubIta = /\\b(sub[._ -]?(ita|italian)|(ita|italian)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubEng = /\\b(sub[._ -]?(eng|english)|(eng|english)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubJap = /\\b(sub[._ -]?(jap|japanese|jpn)|(jap|japanese|jpn)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubFra = /\\b(sub[._ -]?(fre|french|fra)|(fre|french|fra)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubGer = /\\b(sub[._ -]?(ger|german|deu)|(ger|german|deu)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubSpa = /\\b(sub[._ -]?(spa|spanish|esp)|(spa|spanish|esp)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubPor = /\\b(sub[._ -]?(por|portuguese|pt|pt-br)|(por|portuguese)[._ -]?sub(?![._ -]?(ita|eng|jap|fre|ger|spa|por)))\\b/i.test(str);
+            const hasSubMulti = /\\b(msubs?|multi[._ -]?subs?)\\b/i.test(str);
+
+            if (hasSubIta) { document.querySelector('#subLangChips .chip-btn[data-val="Italian"]')?.classList.add('active'); detectedItems.push('Sub ITA'); }
+            if (hasSubEng) { document.querySelector('#subLangChips .chip-btn[data-val="English"]')?.classList.add('active'); detectedItems.push('Sub ENG'); }
+            if (hasSubJap) { document.querySelector('#subLangChips .chip-btn[data-val="Japanese"]')?.classList.add('active'); detectedItems.push('Sub JAP'); }
+            if (hasSubFra) { document.querySelector('#subLangChips .chip-btn[data-val="French"]')?.classList.add('active'); detectedItems.push('Sub FRA'); }
+            if (hasSubGer) { document.querySelector('#subLangChips .chip-btn[data-val="German"]')?.classList.add('active'); detectedItems.push('Sub GER'); }
+            if (hasSubSpa) { document.querySelector('#subLangChips .chip-btn[data-val="Spanish"]')?.classList.add('active'); detectedItems.push('Sub SPA'); }
+            if (hasSubPor) { document.querySelector('#subLangChips .chip-btn[data-val="Portuguese"]')?.classList.add('active'); detectedItems.push('Sub POR'); }
+            if (hasSubMulti) { document.querySelector('#subLangChips .chip-btn[data-val="Multi"]')?.classList.add('active'); detectedItems.push('Multi Subs'); }
+
+            // Audio Languages (strip subtitle tags first)
+            let audioStr = str;
+            audioStr = audioStr.replace(/\\bsub[._ -]?(ita|italian|eng|english|jap|japanese|jpn|fre|french|fra|ger|german|deu|spa|spanish|esp|por|portuguese|pt|multi)\\b/gi, ' ');
+            audioStr = audioStr.replace(/\\b(ita|italian|eng|english|jap|japanese|jpn|fre|french|fra|ger|german|deu|spa|spanish|esp|por|portuguese|pt)[._ -]?sub\\b/gi, ' ');
+            audioStr = audioStr.replace(/\\b(msubs?|multi[._ -]?subs?)\\b/gi, ' ');
+
+            const audioChips = document.querySelectorAll('#audioLangChips .chip-btn');
+            audioChips.forEach(btn => btn.classList.remove('active'));
+
+            const hasIta = /\\b(ita|italian)\\b/i.test(audioStr);
+            const hasEng = /\\b(eng|english)\\b/i.test(audioStr);
+            const hasJap = /\\b(jap|japanese|jpn)\\b/i.test(audioStr);
+            const hasFra = /\\b(fre|french|fra)\\b/i.test(audioStr);
+            const hasGer = /\\b(ger|german|deu)\\b/i.test(audioStr);
+            const hasSpa = /\\b(spa|spanish|esp)\\b/i.test(audioStr);
+            const hasPor = /\\b(por|portuguese|pt|pt-br)\\b/i.test(audioStr);
+            const hasMulti = /\\bmulti\\b/i.test(audioStr);
+            const hasDual = /\\bdual\\b/i.test(audioStr);
+
+            if (hasIta) { document.querySelector('#audioLangChips .chip-btn[data-val="Italian"]')?.classList.add('active'); detectedItems.push('🇮🇹 ITA'); }
+            if (hasEng) { document.querySelector('#audioLangChips .chip-btn[data-val="English"]')?.classList.add('active'); detectedItems.push('🇬🇧 ENG'); }
+            if (hasJap) { document.querySelector('#audioLangChips .chip-btn[data-val="Japanese"]')?.classList.add('active'); detectedItems.push('🇯🇵 JAP'); }
+            if (hasFra) { document.querySelector('#audioLangChips .chip-btn[data-val="French"]')?.classList.add('active'); detectedItems.push('🇫🇷 FRA'); }
+            if (hasGer) { document.querySelector('#audioLangChips .chip-btn[data-val="German"]')?.classList.add('active'); detectedItems.push('🇩🇪 GER'); }
+            if (hasSpa) { document.querySelector('#audioLangChips .chip-btn[data-val="Spanish"]')?.classList.add('active'); detectedItems.push('🇪🇸 SPA'); }
+            if (hasPor) { document.querySelector('#audioLangChips .chip-btn[data-val="Portuguese"]')?.classList.add('active'); detectedItems.push('🇵🇹 POR'); }
+            if (hasMulti) { document.querySelector('#audioLangChips .chip-btn[data-val="Multi"]')?.classList.add('active'); detectedItems.push('🌎 MULTI'); }
+            if (hasDual) { document.querySelector('#audioLangChips .chip-btn[data-val="Dual Audio"]')?.classList.add('active'); detectedItems.push('🎙️ DUAL'); }
+
+            // Resolution
+            const resSelect = document.getElementById('specResolution');
+            if (/2160p?|4k|uhd/i.test(str)) { resSelect.value = '2160p'; detectedItems.push('4K'); }
+            else if (/1080p?/i.test(str)) { resSelect.value = '1080p'; detectedItems.push('1080p'); }
+            else if (/720p?/i.test(str)) { resSelect.value = '720p'; detectedItems.push('720p'); }
+            else if (/576p?/i.test(str)) { resSelect.value = '576p'; detectedItems.push('576p'); }
+            else if (/480p?|sd\\b/i.test(str)) { resSelect.value = '480p'; detectedItems.push('480p'); }
+            else if (/dvdrip/i.test(str)) { resSelect.value = 'DVDRip'; detectedItems.push('DVDRip'); }
+            else { resSelect.value = 'auto'; }
+
+            // Quality
+            const qualSelect = document.getElementById('specQuality');
+            if (/\\bremux\\b/i.test(str)) { qualSelect.value = 'Remux'; detectedItems.push('Remux'); }
+            else if (/blu.?ray|bdrip|brrip/i.test(str)) { qualSelect.value = 'BluRay'; detectedItems.push('BluRay'); }
+            else if (/web.?dl/i.test(str)) { qualSelect.value = 'WEB-DL'; detectedItems.push('WEB-DL'); }
+            else if (/web.?rip/i.test(str)) { qualSelect.value = 'WEBRip'; detectedItems.push('WEBRip'); }
+            else if (/hdtv/i.test(str)) { qualSelect.value = 'HDTV'; detectedItems.push('HDTV'); }
+            else if (/dvd.?rip/i.test(str)) { qualSelect.value = 'DVDRip'; detectedItems.push('DVDRip'); }
+            else if (/\\bcam\\b|telesync|\\bts\\b/i.test(str)) { qualSelect.value = 'CAM'; detectedItems.push('CAM'); }
+            else { qualSelect.value = 'auto'; }
+
+            // Codec
+            const codecSelect = document.getElementById('specCodec');
+            if (/hevc|x.?265|h.?265/i.test(str)) { codecSelect.value = 'HEVC'; detectedItems.push('HEVC'); }
+            else if (/avc|x.?264|h.?264/i.test(str)) { codecSelect.value = 'AVC'; detectedItems.push('AVC'); }
+            else if (/\\bav1\\b/i.test(str)) { codecSelect.value = 'AV1'; detectedItems.push('AV1'); }
+            else if (/xvid|divx/i.test(str)) { codecSelect.value = 'XviD'; detectedItems.push('XviD'); }
+            else { codecSelect.value = 'auto'; }
+
+            // HDR
+            const hdrSelect = document.getElementById('specHdr');
+            if (/dolby.?vision|dovi|\\bdv\\b/i.test(str)) { hdrSelect.value = 'DV'; detectedItems.push('DV'); }
+            else if (/hdr10\\+/i.test(str)) { hdrSelect.value = 'HDR10+'; detectedItems.push('HDR10+'); }
+            else if (/hdr10/i.test(str)) { hdrSelect.value = 'HDR10'; detectedItems.push('HDR10'); }
+            else if (/\\bhdr\\b/i.test(str)) { hdrSelect.value = 'HDR'; detectedItems.push('HDR'); }
+            else { hdrSelect.value = 'auto'; }
+
+            // Audio format
+            const audioSelect = document.getElementById('specAudio');
+            if (/atmos/i.test(str)) { audioSelect.value = 'Atmos'; detectedItems.push('Atmos'); }
+            else if (/dts.?hd/i.test(str)) { audioSelect.value = 'DTS-HD'; detectedItems.push('DTS-HD'); }
+            else if (/7\\.1/i.test(str)) { audioSelect.value = '7.1'; detectedItems.push('7.1'); }
+            else if (/5\\.1/i.test(str)) { audioSelect.value = '5.1'; detectedItems.push('5.1'); }
+            else if (/dd\\+|ddp|eac3|ac3/i.test(str)) { audioSelect.value = 'AC3'; detectedItems.push('AC3'); }
+            else if (/\\baac\\b/i.test(str)) { audioSelect.value = 'AAC'; detectedItems.push('AAC'); }
+            else { audioSelect.value = 'auto'; }
+
+            // Show badge if items detected
+            const badge = document.getElementById('detectedSpecsBadge');
+            const badgeText = document.getElementById('detectedSpecsText');
+            if (detectedItems.length > 0) {
+                badgeText.innerHTML = '✨ <b>Rilevato:</b> ' + detectedItems.join(' • ');
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
 
         // 💜 Ask contributor name via popup - returns Promise<string|null> (null = cancelled)
         function askContributorName() {
@@ -1691,6 +2277,17 @@ router.get('/', (req, res) => {
                     if (pendingPreview.rdKey) formData.append('rdKey', pendingPreview.rdKey);
                     if (pendingPreview.tbKey) formData.append('tbKey', pendingPreview.tbKey);
 
+                    // 🎛️ Media specs
+                    if (pendingPreview.specs) {
+                        if (pendingPreview.specs.audioLanguages) formData.append('audioLanguages', JSON.stringify(pendingPreview.specs.audioLanguages));
+                        if (pendingPreview.specs.subLanguages) formData.append('subLanguages', JSON.stringify(pendingPreview.specs.subLanguages));
+                        if (pendingPreview.specs.resolution) formData.append('resolution', pendingPreview.specs.resolution);
+                        if (pendingPreview.specs.quality) formData.append('quality', pendingPreview.specs.quality);
+                        if (pendingPreview.specs.codec) formData.append('codec', pendingPreview.specs.codec);
+                        if (pendingPreview.specs.visualTags) formData.append('visualTags', JSON.stringify(pendingPreview.specs.visualTags));
+                        if (pendingPreview.specs.audioTags) formData.append('audioTags', JSON.stringify(pendingPreview.specs.audioTags));
+                    }
+
                     if (pendingPreview.torrentBase64) {
                         formData.append('torrentFileBase64', pendingPreview.torrentBase64);
                     } else {
@@ -1749,9 +2346,45 @@ router.get('/', (req, res) => {
             }
         });
 
-        // Add listeners to Inputs to trigger Pack check (to enable button)
-        document.getElementById('magnetLink').addEventListener('input', checkPackMode);
-        document.getElementById('torrentFile').addEventListener('change', checkPackMode);
+        let resolveHashTimer = null;
+        function onMagnetOrFileChanged() {
+            checkPackMode();
+            const magnetVal = document.getElementById('magnetLink').value.trim();
+            const fileInput = document.getElementById('torrentFile');
+            if (fileInput.files && fileInput.files[0]) {
+                autoDetectSpecs(fileInput.files[0].name);
+            } else if (magnetVal) {
+                const match = magnetVal.match(/dn=([^&]+)/i);
+                if (match) {
+                    try {
+                        autoDetectSpecs(decodeURIComponent(match[1].split('+').join(' ')));
+                    } catch (_) {
+                        autoDetectSpecs(match[1]);
+                    }
+                } else {
+                    const hashMatch = magnetVal.match(/xt=urn:btih:([a-fA-F0-9]{32,40})/i) || magnetVal.match(/\b([a-fA-F0-9]{40})\b/);
+                    if (hashMatch) {
+                        const hash = hashMatch[1];
+                        clearTimeout(resolveHashTimer);
+                        resolveHashTimer = setTimeout(async () => {
+                            try {
+                                const r = await fetch(\`/scrape/resolve-title?hash=\${hash}\`);
+                                const d = await r.json();
+                                if (d.found && d.title) {
+                                    autoDetectSpecs(d.title);
+                                }
+                            } catch (_) {}
+                        }, 250);
+                    } else {
+                        autoDetectSpecs(magnetVal);
+                    }
+                }
+            }
+        }
+
+        // Add listeners to Inputs to trigger Pack check & Specs auto-detect
+        document.getElementById('magnetLink').addEventListener('input', onMagnetOrFileChanged);
+        document.getElementById('torrentFile').addEventListener('change', onMagnetOrFileChanged);
 
         // METADATA CHECK LOGIC
         async function fetchMetadata() {
@@ -1775,7 +2408,6 @@ router.get('/', (req, res) => {
                     // Auto-Correct Type if needed
                     if (data.detected_type && data.detected_type !== type) {
                         typeSelect.value = data.detected_type;
-                        // flash effect?
                     }
 
                     previewDiv.innerHTML = \`
@@ -1805,8 +2437,6 @@ router.get('/', (req, res) => {
                         submitBtn.disabled = false;
                         submitBtn.style.opacity = '1';
                         submitBtn.style.cursor = 'pointer';
-                    } else {
-                         // validateDebridKeys will disable it and set title
                     }
 
                 } else {
@@ -1854,6 +2484,7 @@ router.get('/', (req, res) => {
             const rdKey = document.getElementById('rdKey').value.trim();
             const tbKey = document.getElementById('tbKey').value.trim();
             const mode = modeSelector.value;
+            const specs = getSelectedSpecs();
 
             const btnLabel = isManualMappingMode ? 'Inizia Collegamento Puntate' : 'Avvia Importazione';
 
@@ -1899,6 +2530,15 @@ router.get('/', (req, res) => {
                         resDiv.innerHTML = \`📁 <b>Trovati \${data.videoFiles.length} file video</b><br><small>\${data.torrentName} — Seleziona la stagione e collega le puntate, poi clicca <b>Salva Mappatura</b> per importare.</small>\`;
                         dbg.innerText = 'File recuperati. Collega le puntate e salva.';
 
+                        // If backend detected specs and frontend specs are auto/empty, auto-select them
+                        if (data.detectedSpecs) {
+                            if (specs.audioLanguages.length === 0 && data.detectedSpecs.audioLanguages) {
+                                data.detectedSpecs.audioLanguages.forEach(l => {
+                                    document.querySelector(\`#audioLangChips .chip-btn[data-val="\${l}"]\`)?.classList.add('active');
+                                });
+                            }
+                        }
+
                         // ✅ Store preview for later import by saveMappingBtn
                         pendingPreview = {
                             infoHash: data.infoHash,
@@ -1912,7 +2552,8 @@ router.get('/', (req, res) => {
                             seedersVal,
                             rdKey,
                             tbKey,
-                            mode
+                            mode,
+                            specs: getSelectedSpecs()
                         };
 
                         await initMappingUI({
@@ -1943,6 +2584,15 @@ router.get('/', (req, res) => {
                     if (rdKey) formData.append('rdKey', rdKey);
                     if (tbKey) formData.append('tbKey', tbKey);
                     if (typeVal === 'pack') formData.append('forcePackMode', 'true');
+
+                    // 🎛️ Media specs
+                    if (specs.audioLanguages) formData.append('audioLanguages', JSON.stringify(specs.audioLanguages));
+                    if (specs.subLanguages) formData.append('subLanguages', JSON.stringify(specs.subLanguages));
+                    if (specs.resolution) formData.append('resolution', specs.resolution);
+                    if (specs.quality) formData.append('quality', specs.quality);
+                    if (specs.codec) formData.append('codec', specs.codec);
+                    if (specs.visualTags) formData.append('visualTags', JSON.stringify(specs.visualTags));
+                    if (specs.audioTags) formData.append('audioTags', JSON.stringify(specs.audioTags));
 
                     if (torrentBase64) {
                         formData.append('torrentFileBase64', torrentBase64);
@@ -2279,13 +2929,16 @@ router.post('/preview-files', upload.any(), async (req, res) => {
 
         console.log(`✅ [MANUAL] Preview: ${videoFiles.length} video files found via ${providerUsed}`);
 
+        const detectedSpecs = detectTorrentSpecs(data.filename || torrentName || (videoFiles[0] ? videoFiles[0].filename : ''));
+
         return res.json({
             status: 'preview',
             infoHash,
             torrentName: data.filename || torrentName || `Torrent-${infoHash.substr(0, 8)}`,
             videoFiles,
             totalSize: data.files.reduce((acc, f) => acc + (f.bytes || 0), 0),
-            provider: providerUsed
+            provider: providerUsed,
+            detectedSpecs
         });
 
     } catch (err) {
@@ -2361,7 +3014,14 @@ router.post('/add', upload.any(), async (req, res) => {
             seeders: bodySeeders,
             forcePackMode,
             manualMapping,
-            contributor // 💜 Contributor name
+            contributor, // 💜 Contributor name
+            audioLanguages,
+            subLanguages,
+            resolution,
+            quality,
+            codec,
+            visualTags,
+            audioTags
         } = req.body;
 
         // ✅ HANDLE PACK MODE:
@@ -2529,8 +3189,16 @@ router.post('/add', upload.any(), async (req, res) => {
         const totalSize = data.files.reduce((acc, f) => acc + (f.bytes || 0), 0);
         let torrentTitle = data.filename || torrentName || `Imported - ${infoHash.substr(0, 8)} `;
 
-        // ✅ Using raw title because dbHelper.sanitizeTorrentTitle is not defined
-        // torrentTitle = dbHelper.sanitizeTorrentTitle(torrentTitle);
+        // ✅ ENRICH CUSTOM TORRENT TITLE WITH USER-SELECTED MEDIA SPECS
+        torrentTitle = enrichCustomTorrentTitle(torrentTitle, {
+            audioLanguages,
+            subLanguages,
+            resolution,
+            quality,
+            codec,
+            visualTags,
+            audioTags
+        });
 
         let finalSeeders = 100;
         if (bodySeeders !== undefined && bodySeeders !== '') {
