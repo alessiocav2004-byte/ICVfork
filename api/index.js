@@ -1244,6 +1244,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
             'PDTV': /pdtv/i,
             'CAM': /\bcam\b|camrip/i,
             'TS': /\bts\b|telesync/i,
+
             'TC': /\btc\b|telecine/i,
             'SCR': /\bscr\b|screener/i
         };
@@ -1369,7 +1370,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
         let languages = result.languages?.length ? result.languages :
             extractMultiple(filename, { Italian: /\bita(lian)?\b/i, English: /\beng(lish)?\b/i, French: /\bfre(nch)?\b/i, German: /\bger(man)?\b|deu(tsch)?\b/i, Spanish: /\bspa(nish)?\b/i, Multi: /\bmulti\b/i });
 
-        // ✅ TRUSTED SOURCE ITA: If source is trusted (corsaro) and
+        // ✅ TRUSTED SOURCE ITA: If source is trusted (torrentio, corsaro) and
         // no Italian detected in filename → force Italian (these providers are always ITA).
         // For Custom torrents, only default to Italian if NO other languages are detected.
         const isCustomSource = /\bCustom\b/i.test(result.source || '') || /\bCustom\b/i.test(result.provider || '');
@@ -2525,6 +2526,7 @@ function parseTorrentTitleLegacy(filename) {
 
     // 6. Estrai lingue (usando i regex AIOStreams che escludono "sub/subtitle")
     result.languages = matchMultiplePatterns(filename, PARSE_REGEX.languages);
+
 
     // 7. Estrai codec
     result.codec = matchPattern(filename, PARSE_REGEX.encodes);
@@ -10072,7 +10074,7 @@ async function handleStream(type, id, config, workerOrigin) {
             const beforeCount = filteredResults.length;
 
             filteredResults = filteredResults.filter(result => {
-                // Trusted sources (corsaro) are assumed Italian — always show.
+                // Trusted sources (corsaro, torrentio) are assumed Italian — always show.
                 // For Custom torrents, check actual detected languages below.
                 const isCustom = /\bCustom\b/i.test(result.source || '') || /\bCustom\b/i.test(result.provider || '');
                 if (contentLanguage === 'italian' && !isCustom &&
