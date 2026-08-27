@@ -43,7 +43,7 @@ function parseSeasonEpisode(title) {
   return null;
 }
 
-const BLOCKED_FILENAME_EXTENSIONS = ['.exe'];
+const BLOCKED_FILENAME_EXTENSIONS = ['.exe', '.srt', '.sub', '.idx', '.vtt', '.ass', '.ssa', '.smi', '.sup', '.nfo', '.txt', '.url', '.zip', '.rar', '.7z'];;
 
 function getLeafName(value) {
   if (typeof value !== 'string') return '';
