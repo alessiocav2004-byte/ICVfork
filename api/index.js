@@ -1244,6 +1244,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
             'PDTV': /pdtv/i,
             'CAM': /\bcam\b|camrip/i,
             'TS': /\bts\b|telesync/i,
+
             'TC': /\btc\b|telecine/i,
             'SCR': /\bscr\b|screener/i
         };
@@ -1293,7 +1294,7 @@ function applyCustomFormatter(stream, result, userConfig, serviceName = 'RD', is
         // Season/Episode formatting — AIOStreams-identical: parse filename with PTT to get
         // arrays of seasons/episodes (supports season packs & multi-episode ranges).
         let pttSE = null;
-        try { pttSE = parseTorrentTitle(filename || ''); } catch (_) {}
+        try { pttSE = parseTorrentTitle(filename || ''); } catch (_) { }
         const pad = (n) => (n == null ? '' : n.toString().padStart(2, '0'));
         let seasons = Array.isArray(pttSE?.seasons) && pttSE.seasons.length
             ? pttSE.seasons.slice()
@@ -1775,12 +1776,11 @@ function isItalian(title, italianMovieTitle = null) {
     return false;
 }
 
-// ✅ HELPER: Check if a source/provider is trusted (corsaro, torrentio, Custom)
-// Torrentio (Rutor), Torrentio (anything) → trusted
-// comet (torrentio), mediafusion (torrentio) → NOT trusted
-// Handles DB prefix emoji: "💾 Torrentio (Rutor)" → strips emoji first
+// ✅ HELPER: Check if a source/provider is trusted (corsaro, Custom)
+// corsaro (IlCorsaroNero) → trusted Italian
+// Custom (manually imported torrents) → trusted
 function isTrustedSource(source, provider) {
-    // Strip emoji/symbols prefix (e.g. "💾 Torrentio (Rutor)" → "Torrentio (Rutor)")
+    // Strip emoji/symbols prefix (e.g. "💾 Corsaro" → "Corsaro")
     const stripPrefix = (str) => (str || '').replace(/^[^a-zA-Z0-9]+/, '').trim().toLowerCase();
     const s = stripPrefix(source);
     const p = stripPrefix(provider);
@@ -1788,12 +1788,6 @@ function isTrustedSource(source, provider) {
     if (/\bCustom\b/i.test(s) || /\bCustom\b/i.test(p)) return true;
     // corsaronero / corsaro
     if (/corsaro/i.test(s) || /corsaro/i.test(p)) return true;
-    // torrentio as MAIN addon (not sub-provider)
-    // "torrentio" or "Torrentio (Rutor)" → main part before '(' is torrentio → trusted
-    // "comet (torrentio)" → main part is comet → NOT trusted
-    const mainSource = s.split('(')[0].trim();
-    const mainProvider = p.split('(')[0].trim();
-    if (/^torrentio$/i.test(mainSource) || /^torrentio$/i.test(mainProvider)) return true;
     return false;
 }
 
@@ -2532,6 +2526,7 @@ function parseTorrentTitleLegacy(filename) {
 
     // 6. Estrai lingue (usando i regex AIOStreams che escludono "sub/subtitle")
     result.languages = matchMultiplePatterns(filename, PARSE_REGEX.languages);
+
 
     // 7. Estrai codec
     result.codec = matchPattern(filename, PARSE_REGEX.encodes);
@@ -3497,9 +3492,9 @@ class Jackettio {
                     const needle = Buffer.from('4:info');
                     let idx = -1;
                     for (let i = 0; i < buf.length - 6; i++) {
-                        if (buf[i] === 0x34 /*4*/ && buf[i+1] === 0x3a /*:*/ &&
-                            buf[i+2] === 0x69 /*i*/ && buf[i+3] === 0x6e /*n*/ &&
-                            buf[i+4] === 0x66 /*f*/ && buf[i+5] === 0x6f /*o*/) {
+                        if (buf[i] === 0x34 /*4*/ && buf[i + 1] === 0x3a /*:*/ &&
+                            buf[i + 2] === 0x69 /*i*/ && buf[i + 3] === 0x6e /*n*/ &&
+                            buf[i + 4] === 0x66 /*f*/ && buf[i + 5] === 0x6f /*o*/) {
                             idx = i;
                             break;
                         }
@@ -8073,7 +8068,7 @@ async function handleStream(type, id, config, workerOrigin) {
                             bitsearch: useBitsearch,
                             dhtindex: useDhtIndex,
                         };
-                        if (DEBUG_MODE) console.log(`🌐 [PublicTrackers] Starting (enabled: ${Object.entries(ptEnabled).filter(([,v])=>v).map(([k])=>k).join(',')})`);
+                        if (DEBUG_MODE) console.log(`🌐 [PublicTrackers] Starting (enabled: ${Object.entries(ptEnabled).filter(([, v]) => v).map(([k]) => k).join(',')})`);
                         const ptResults = await publicTrackers.searchAllPublicTrackers({
                             metadata: ptMetadata,
                             parsedId: ptParsedId,
@@ -10082,7 +10077,7 @@ async function handleStream(type, id, config, workerOrigin) {
                 // Trusted sources (corsaro, torrentio) are assumed Italian — always show.
                 // For Custom torrents, check actual detected languages below.
                 const isCustom = /\bCustom\b/i.test(result.source || '') || /\bCustom\b/i.test(result.provider || '');
-                if (contentLanguage === 'italian' && !isCustom && 
+                if (contentLanguage === 'italian' && !isCustom &&
                     (isTrustedSource(result.source, result.provider) || isTrustedSource(result.externalAddon, null))) {
                     return true;
                 }
@@ -10470,49 +10465,49 @@ async function handleStream(type, id, config, workerOrigin) {
                                         // ✅ AWAIT: Wait for live check results to include in current response
                                         const liveCheckResults = await tbCacheChecker.checkCacheSync(syncItems, _tbLiveKey, syncLimit);
 
-                                    // Save to DB
-                                    const liveResultsToSave = Object.entries(liveCheckResults).map(([hash, data]) => {
-                                        const originalResult = filteredResults.find(r => r.infoHash?.toLowerCase() === hash);
-                                        if (originalResult?.skipDbSave) return null;
-                                        return {
-                                            hash,
-                                            cached: data.cached,
-                                            file_title: data.file_title || null,
-                                            file_size: data.file_size || null
-                                        };
-                                    }).filter(Boolean);
+                                        // Save to DB
+                                        const liveResultsToSave = Object.entries(liveCheckResults).map(([hash, data]) => {
+                                            const originalResult = filteredResults.find(r => r.infoHash?.toLowerCase() === hash);
+                                            if (originalResult?.skipDbSave) return null;
+                                            return {
+                                                hash,
+                                                cached: data.cached,
+                                                file_title: data.file_title || null,
+                                                file_size: data.file_size || null
+                                            };
+                                        }).filter(Boolean);
 
-                                    if (liveResultsToSave.length > 0 && dbEnabled) {
-                                        await dbHelper.updateTbCacheStatus(liveResultsToSave, type);
-                                        console.log(`💾 [DB TB] Saved ${liveResultsToSave.length} live check results`);
-                                    }
+                                        if (liveResultsToSave.length > 0 && dbEnabled) {
+                                            await dbHelper.updateTbCacheStatus(liveResultsToSave, type);
+                                            console.log(`💾 [DB TB] Saved ${liveResultsToSave.length} live check results`);
+                                        }
 
-                                    // ✅ Merge into results for CURRENT response
-                                    Object.assign(torboxCacheResults, liveCheckResults);
-                                    console.log(`✅ [TB Live Check] ${Object.values(liveCheckResults).filter(r => r.cached).length}/${syncItems.length} cached`);
+                                        // ✅ Merge into results for CURRENT response
+                                        Object.assign(torboxCacheResults, liveCheckResults);
+                                        console.log(`✅ [TB Live Check] ${Object.values(liveCheckResults).filter(r => r.cached).length}/${syncItems.length} cached`);
 
-                                    // 🔧 PACK DETECTION: If live check found packs (is_pack: true), add to queue
-                                    if (type === 'series') {
-                                        for (const [hash, data] of Object.entries(liveCheckResults)) {
-                                            if (data.is_pack && data.cached) {
-                                                const originalResult = filteredResults.find(r => r.infoHash?.toLowerCase() === hash);
-                                                if (originalResult && !originalResult.skipDbSave) {
-                                                    backgroundPackItems.push({
-                                                        hash: hash,
-                                                        title: data.torrent_title || originalResult.title || 'Unknown Pack'
-                                                    });
-                                                    console.log(`📦 [Pack Detected TB] ${hash.substring(0, 8)} has ${data.files?.length || 'multiple'} video files -> queued for resolution`);
+                                        // 🔧 PACK DETECTION: If live check found packs (is_pack: true), add to queue
+                                        if (type === 'series') {
+                                            for (const [hash, data] of Object.entries(liveCheckResults)) {
+                                                if (data.is_pack && data.cached) {
+                                                    const originalResult = filteredResults.find(r => r.infoHash?.toLowerCase() === hash);
+                                                    if (originalResult && !originalResult.skipDbSave) {
+                                                        backgroundPackItems.push({
+                                                            hash: hash,
+                                                            title: data.torrent_title || originalResult.title || 'Unknown Pack'
+                                                        });
+                                                        console.log(`📦 [Pack Detected TB] ${hash.substring(0, 8)} has ${data.files?.length || 'multiple'} video files -> queued for resolution`);
+                                                    }
                                                 }
                                             }
                                         }
+                                    } catch (err) {
+                                        console.warn(`⚠️ [TB Cache] Live check failed: ${err.message}`);
+                                        if (/403|Forbidden/i.test(err.message)) { _blockTb(_tbLiveKey); console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`); }
                                     }
-                                } catch (err) {
-                                    console.warn(`⚠️ [TB Cache] Live check failed: ${err.message}`);
-                                    if (/403|Forbidden/i.test(err.message)) { _blockTb(_tbLiveKey); console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`); }
+                                } else {
+                                    if (DEBUG_MODE) console.log(`🔇 [TB Backoff] Skipping live check — key blocked`);
                                 }
-                            } else {
-                                if (DEBUG_MODE) console.log(`🔇 [TB Backoff] Skipping live check — key blocked`);
-                            }
                             }
 
                             // 🔄 SEQUENTIAL BACKGROUND: Accumulate remaining items instead of parallel processing
