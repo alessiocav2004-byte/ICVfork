@@ -33,6 +33,34 @@ const upload = multer({
 const DEFAULT_RD_KEY = process.env.REALDEBRID_API_KEY;
 const DEFAULT_TB_KEY = process.env.TORBOX_API_KEY;
 
+// HELPER: Normalize infoHash from Hex (40 chars) or Base32 (32 chars) to 40-char Hex
+function normalizeInfoHash(hashOrMagnet) {
+    if (!hashOrMagnet || typeof hashOrMagnet !== 'string') return null;
+    let raw = hashOrMagnet.trim();
+    const match = raw.match(/xt=urn:btih:([a-zA-Z0-9]+)/i) || raw.match(/\b([a-zA-Z0-9]{32,40})\b/i);
+    if (match) raw = match[1];
+
+    if (/^[0-9a-fA-F]{40}$/.test(raw)) {
+        return raw.toLowerCase();
+    }
+    if (/^[2-7a-zA-Z]{32}$/.test(raw)) {
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        let bits = "";
+        const clean = raw.toUpperCase();
+        for (let i = 0; i < clean.length; i++) {
+            const val = alphabet.indexOf(clean[i]);
+            if (val === -1) return null;
+            bits += val.toString(2).padStart(5, "0");
+        }
+        let hex = "";
+        for (let i = 0; i + 4 <= bits.length; i += 4) {
+            hex += parseInt(bits.substring(i, i + 4), 2).toString(16);
+        }
+        return hex.toLowerCase();
+    }
+    return null;
+}
+
 // HELPER: Extract display name (dn=) from a magnet link
 function extractDnFromMagnet(magnetLink) {
     if (!magnetLink || typeof magnetLink !== 'string') return null;
@@ -62,7 +90,7 @@ function parseSeasonFromPath(fullPath) {
             folder.match(/(?:^|[^a-zA-Z])[sS](\d{1,2})(?:$|[^a-zA-Z])/);
 
         if (seasonMatch) {
-            // If match is from the second regex group (S01), capturing group is 1. 
+            // If match is from the second regex group (S01), capturing group is 1.
             // If first (Season 01), capturing group is 2.
             // We need to check which match succeeded.
             const val = seasonMatch[2] ? seasonMatch[2] : seasonMatch[1];
@@ -349,25 +377,24 @@ async function fetchTorrentFromCaches(infoHash) {
     // Helper to fetch from one URL
     const fetchOne = async (url) => {
         try {
-            // console.log(`  🌐 Trying: ${url}`); // Too noisy for parallel
             const response = await axios.get(url, {
                 responseType: 'arraybuffer',
-                timeout: 8000, // Reduced timeout for parallel check
+                timeout: 8000,
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
             });
 
-            if (response.status === 200 && response.data.length > 500) {
-                if (response.data[0] === 0x64) {
-                    const base64 = Buffer.from(response.data).toString('base64');
-                    // console.log(`  ✅ [CACHE] Hit: ${new URL(url).hostname}`);
+            if (response.status === 200 && response.data) {
+                const buffer = Buffer.isBuffer(response.data) ? response.data : Buffer.from(response.data);
+                if (buffer.length > 500 && buffer[0] === 0x64) {
+                    const base64 = buffer.toString('base64');
                     return parseTorrentFile(base64);
                 }
             }
             throw new Error('Invalid data');
         } catch (e) {
-            throw new Error(`Failed ${url}`);
+            throw new Error(`Failed ${url}: ${e.message}`);
         }
     };
 
@@ -475,7 +502,7 @@ function parseTorrentFile(base64Data) {
 function detectTorrentSpecs(titleOrPath) {
     if (!titleOrPath) return { audioLanguages: [], subLanguages: [], resolution: 'auto', quality: 'auto', codec: 'auto', visualTags: [], audioTags: [] };
     const str = String(titleOrPath);
-    
+
     // Risoluzione
     let resolution = 'auto';
     if (/2160p?|4k|uhd/i.test(str)) resolution = '2160p';
@@ -679,8 +706,8 @@ function enrichCustomTorrentTitle(originalTitle, specs = {}) {
 
 // GET /scrape/resolve-title - Fast title resolver for raw magnet/hash without dn=
 router.get('/resolve-title', async (req, res) => {
-    const hash = (req.query.hash || '').trim().toLowerCase();
-    if (!hash || hash.length < 32) return res.json({ found: false });
+    const hash = normalizeInfoHash(req.query.hash);
+    if (!hash) return res.json({ found: false });
     try {
         const cached = await fetchTorrentFromCaches(hash);
         if (cached && cached.filename) {
@@ -789,7 +816,7 @@ router.get('/meta', async (req, res) => {
         const otherHasEpisodes = resultOtherType.meta.videos && resultOtherType.meta.videos.length > 0;
 
         if (type === 'movie') {
-            // User asked for Movie. 
+            // User asked for Movie.
             // If "other" (Series) has episodes, it is definitely a Series.
             // (Movies usually have empty videos or trailers, not full episode lists in Cinemeta)
             if (otherHasEpisodes && !userHasEpisodes) {
@@ -864,10 +891,10 @@ router.get('/', (req, res) => {
         }
 
         * { box-sizing: border-box; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; 
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
             padding: 0;
             background-color: var(--bg-dark);
             color: #f8fafc;
@@ -906,9 +933,9 @@ router.get('/', (req, res) => {
 
         .header-section { text-align: center; margin-bottom: 40px; }
 
-        h1 { 
+        h1 {
             font-family: 'Outfit', sans-serif;
-            margin: 0; 
+            margin: 0;
             background: linear-gradient(135deg, white 30%, var(--neon-secondary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -927,22 +954,22 @@ router.get('/', (req, res) => {
         }
 
         .form-group { margin-bottom: 28px; }
-        
-        label { 
-            display: block; 
-            margin-bottom: 10px; 
-            font-weight: 600; 
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
             font-size: 0.85rem;
             color: #cbd5e1;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        input, select { 
-            width: 100%; 
-            padding: 16px 20px; 
-            border: 1px solid var(--border-low); 
-            border-radius: 16px; 
+        input, select {
+            width: 100%;
+            padding: 16px 20px;
+            border: 1px solid var(--border-low);
+            border-radius: 16px;
             background: rgba(0, 0, 0, 0.3);
             font-size: 1rem;
             font-family: inherit;
@@ -954,14 +981,14 @@ router.get('/', (req, res) => {
             outline: none;
             border-color: var(--neon-secondary);
             background: rgba(0, 0, 0, 0.5);
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15),
                         inset 0 0 10px rgba(6, 182, 212, 0.05);
         }
 
-        .or-divider { 
-            text-align: center; 
-            margin: 30px 0; 
-            color: #475569; 
+        .or-divider {
+            text-align: center;
+            margin: 30px 0;
+            color: #475569;
             font-size: 0.8rem;
             font-weight: 800;
             position: relative;
@@ -977,14 +1004,14 @@ router.get('/', (req, res) => {
         .or-divider::before { left: 0; }
         .or-divider::after { right: 0; }
 
-        .btn-glow { 
-            width: 100%; 
-            padding: 18px; 
+        .btn-glow {
+            width: 100%;
+            padding: 18px;
             background: linear-gradient(135deg, var(--neon-primary) 0%, #7e22ce 100%);
-            color: white; 
-            border: none; 
-            border-radius: 18px; 
-            cursor: pointer; 
+            color: white;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
             font-size: 1.2rem;
             font-weight: 600;
             font-family: 'Outfit', sans-serif;
@@ -995,16 +1022,16 @@ router.get('/', (req, res) => {
             overflow: hidden;
         }
 
-        .btn-glow:hover { 
+        .btn-glow:hover {
             transform: scale(1.02);
             box-shadow: 0 0 35px rgba(168, 85, 247, 0.6);
             filter: brightness(1.2);
         }
 
         .btn-glow:active { transform: scale(0.98); }
-        
-        .btn-glow:disabled { 
-            background: #334155; 
+
+        .btn-glow:disabled {
+            background: #334155;
             box-shadow: none;
             cursor: not-allowed;
             animation: none !important;
@@ -1022,36 +1049,36 @@ router.get('/', (req, res) => {
             animation: energy-pulse 2s infinite ease-in-out;
         }
 
-        #result { 
-            margin-top: 30px; 
-            padding: 20px; 
-            border-radius: 20px; 
-            display: none; 
-            white-space: pre-wrap; 
-            word-break: break-all; 
-            max-height: 250px; 
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 20px;
+            display: none;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 250px;
             overflow-y: auto;
             font-family: 'Google Sans Code', monospace;
             font-size: 0.85rem;
             border: 1px solid transparent;
         }
 
-        .success { 
-            background: rgba(20, 83, 45, 0.2); 
-            color: #4ade80; 
+        .success {
+            background: rgba(20, 83, 45, 0.2);
+            color: #4ade80;
             border-color: rgba(74, 222, 128, 0.2) !important;
             box-shadow: 0 0 20px rgba(74, 222, 128, 0.1);
         }
-        .error { 
-            background: rgba(127, 29, 29, 0.2); 
-            color: #f87171; 
+        .error {
+            background: rgba(127, 29, 29, 0.2);
+            color: #f87171;
             border-color: rgba(248, 113, 113, 0.2) !important;
         }
-        
-        #debug { 
-            margin-top: 20px; 
-            font-size: 0.8rem; 
-            color: #64748b; 
+
+        #debug {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #64748b;
             text-align: center;
         }
 
@@ -1077,7 +1104,7 @@ router.get('/', (req, res) => {
             animation: fadeIn 0.5s ease;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        
+
         .preview-poster {
             width: 160px; /* 200% Bigger */
             height: 240px;
@@ -1089,14 +1116,14 @@ router.get('/', (req, res) => {
         .preview-info { flex: 1; width: 100%; }
         .preview-info h3 { margin: 0 0 8px 0; font-size: 1.4rem; color: white; font-family: 'Outfit', sans-serif; }
         .preview-info p { margin: 0; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; }
-        .preview-tag { 
-            display: inline-block; 
-            background: var(--neon-secondary); 
-            color: #000; 
-            padding: 4px 10px; 
-            border-radius: 4px; 
-            font-size: 0.85rem; 
-            font-weight: bold; 
+        .preview-tag {
+            display: inline-block;
+            background: var(--neon-secondary);
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
             margin-top: 10px;
         }
 
@@ -1197,6 +1224,94 @@ router.get('/', (req, res) => {
             border-radius: 12px;
         }
 
+        /* 📦 Movie Pack Mapping Styling */
+        .pack-movie-card {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pack-movie-card:hover {
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.08);
+        }
+        .pack-movie-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .pack-movie-name {
+            font-size: 0.88rem;
+            color: #f1f5f9;
+            font-weight: 500;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        .pack-movie-size {
+            font-size: 0.78rem;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 3px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .pack-movie-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .pack-movie-input {
+            flex: 1;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(2, 6, 23, 0.7);
+            color: #f8fafc;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .pack-movie-input:focus {
+            border-color: var(--neon-secondary);
+        }
+        .pack-movie-preview {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 10px;
+        }
+        .pack-movie-poster {
+            width: 36px;
+            height: 52px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .pack-movie-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+        .pack-movie-title {
+            font-size: 0.85rem;
+            color: #f8fafc;
+            font-weight: 600;
+        }
+        .pack-movie-meta {
+            font-size: 0.75rem;
+            color: #86efac;
+        }
+
         /* 🎛️ Media Specs & Tracks Styling */
         .specs-box {
             margin-bottom: 24px;
@@ -1289,7 +1404,7 @@ router.get('/', (req, res) => {
             <h1>ICV Scrape</h1>
             <div class="subtitle">Importazione Torrent</div>
         </div>
-        
+
         <div class="form-group">
             <label>Metodo di Importazione</label>
             <select id="modeSelector">
@@ -1319,7 +1434,7 @@ router.get('/', (req, res) => {
                 </div>
 
                 <label id="labelId">ID IMDb o TMDB</label>
-                
+
                 <!-- ID INPUT MODE -->
                 <div id="idInputContainer" style="position: relative; display: flex; align-items: center;">
                     <input type="text" id="imdbId" placeholder="Es: tt1234567 o 550" style="padding-right: 90px;">
@@ -1334,12 +1449,12 @@ router.get('/', (req, res) => {
                     </div>
                     <!-- Results Dropdown -->
                     <div id="searchResults" style="
-                        margin-top: 10px; 
-                        max-height: 250px; 
-                        overflow-y: auto; 
-                        background: rgba(15, 23, 42, 0.95); 
+                        margin-top: 10px;
+                        max-height: 250px;
+                        overflow-y: auto;
+                        background: rgba(15, 23, 42, 0.95);
                         border: 1px solid var(--border-low);
-                        border-radius: 12px; 
+                        border-radius: 12px;
                         display:none;
                         position: absolute;
                         width: 100%;
@@ -1517,6 +1632,20 @@ router.get('/', (req, res) => {
             <div id="episodesTable" class="mapping-table"></div>
             <button id="saveMappingBtn" class="btn-glow" disabled>Salva Mappatura</button>
         </div>
+
+        <!-- 📦 MOVIE PACK MAPPING SECTION -->
+        <div id="moviePackMappingSection" class="mapping-section" style="display: none; border-color: rgba(6, 182, 212, 0.4); margin-top: 20px;">
+            <div class="mapping-title" style="color: var(--neon-secondary); display: flex; align-items: center; justify-content: space-between;">
+                <span>📦 Mappatura Film nel Pack</span>
+                <span id="packFilesCountBadge" style="font-size: 0.8rem; font-weight: normal; color: #94a3b8;">0 file</span>
+            </div>
+            <div id="packFilesStatus" class="mapping-status" style="margin-bottom: 14px;">Inserisci l'ID IMDb (o cerca per titolo) per ciascun film del pack:</div>
+            <div id="packFilesList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;"></div>
+            <div style="display: flex; gap: 10px;">
+                <button id="savePackMappingBtn" type="button" class="btn-glow pulse-active" style="flex: 1;">💾 Salva & Importa Pack Film</button>
+            </div>
+        </div>
+
         <div id="debug">In attesa...</div>
     </div>
 
@@ -1579,6 +1708,11 @@ router.get('/', (req, res) => {
         const autoMatchBtn = document.getElementById('autoMatchBtn');
         const saveMappingBtn = document.getElementById('saveMappingBtn');
         const manualMapToggle = document.getElementById('manualMapToggle');
+        const moviePackMappingSection = document.getElementById('moviePackMappingSection');
+        const packFilesList = document.getElementById('packFilesList');
+        const packFilesCountBadge = document.getElementById('packFilesCountBadge');
+        const packFilesStatus = document.getElementById('packFilesStatus');
+        const savePackMappingBtn = document.getElementById('savePackMappingBtn');
 
         // Initial validation state
         let isValidated = false;
@@ -1795,9 +1929,11 @@ router.get('/', (req, res) => {
             });
         }
 
-        // ✅ Update button text based on manual mapping toggle
+        // ✅ Update button text based on mode and selection
         function updateSubmitButtonText() {
-            if (manualMapToggle.checked && typeSelect.value === 'series') {
+            if (typeSelect.value === 'pack') {
+                submitBtn.innerText = '📦 Inizia Mappatura Pack';
+            } else if (manualMapToggle.checked && typeSelect.value === 'series') {
                 submitBtn.innerText = 'Inizia Collegamento Puntate';
             } else {
                 submitBtn.innerText = 'Avvia Importazione';
@@ -1818,18 +1954,20 @@ router.get('/', (req, res) => {
         function checkPackMode() {
             const isPack = typeSelect.value === 'pack';
             const imdbGroup = document.getElementById('imdbId').parentNode.parentNode; // Form group
-            
-                if (isPack) {
+
+            if (isPack) {
                 // Disable ID, look for magnet/file
                 imdbInput.disabled = true;
                 checkBtn.disabled = true;
-                imdbInput.placeholder = "NON RICHIESTO per Pack (Match su Titoli)";
+                imdbInput.placeholder = "NON RICHIESTO per Pack (Mappatura su file)";
                 imdbInput.style.opacity = '0.5';
-                
+
                 // Disable Search Tabs in Pack Mode
                 document.getElementById('tabSearch').style.pointerEvents = 'none';
                 document.getElementById('tabSearch').style.opacity = '0.3';
                 document.getElementById('tabId').click(); // Force ID tab
+
+                updateSubmitButtonText();
 
                 // Enable Submit if file/magnet exists
                 const hasFile = document.getElementById('magnetLink').value.trim() || document.getElementById('torrentFile').files.length > 0;
@@ -1848,10 +1986,12 @@ router.get('/', (req, res) => {
                 checkBtn.disabled = false;
                 imdbInput.placeholder = "Es: tt1234567 o 550";
                 imdbInput.style.opacity = '1';
-                
+
                 // Re-enable tabs
                 document.getElementById('tabSearch').style.pointerEvents = 'auto';
                 document.getElementById('tabSearch').style.opacity = '1';
+
+                updateSubmitButtonText();
 
                 // Reset submit unless validated
                 if (!isValidated) {
@@ -1861,7 +2001,7 @@ router.get('/', (req, res) => {
                 }
             }
         }
-        
+
         // --- SEARCH LOGIC ---
         const tabId = document.getElementById('tabId');
         const tabSearch = document.getElementById('tabSearch');
@@ -1889,9 +2029,9 @@ router.get('/', (req, res) => {
             const q = document.getElementById('searchTerm').value.trim();
             const typeRaw = typeSelect.value;
             const type = typeRaw === 'pack' ? 'movie' : typeRaw; // Search as movie for packs
-            
+
             if(q.length < 2) return;
-            
+
             const resDiv = document.getElementById('searchResults');
             resDiv.style.display = 'block';
             resDiv.innerHTML = '<div style="padding:15px; text-align:center; color:#94a3b8;">⏳ Ricerca in corso...</div>';
@@ -1900,16 +2040,16 @@ router.get('/', (req, res) => {
                 // Use absolute path /scrape/search because relative 'search' might hit root /search if trailing slash missing
                 const res = await fetch(\`/scrape/search?q=\${encodeURIComponent(q)}&type=\${type}\`);
                 const data = await res.json();
-                
+
                 if(data.results && data.results.length > 0) {
                     resDiv.innerHTML = data.results.map(r => \`
                         <div class="search-item" onclick="selectResult('\${r.imdb_id || r.id}')" style="
-                            padding:12px; 
-                            border-bottom:1px solid rgba(255,255,255,0.05); 
-                            cursor:pointer; 
-                            display:flex; 
-                            align-items:center; 
-                            gap:15px; 
+                            padding:12px;
+                            border-bottom:1px solid rgba(255,255,255,0.05);
+                            cursor:pointer;
+                            display:flex;
+                            align-items:center;
+                            gap:15px;
                             transition: background 0.2s;
                         " onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                             <img src="\${r.poster}" style="width:35px; height:52px; object-fit:cover; border-radius:4px; background:#1e293b;" onerror="this.style.display='none'">
@@ -1929,8 +2069,8 @@ router.get('/', (req, res) => {
         });
 
         // Enter key for search
-        document.getElementById('searchTerm').addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') document.getElementById('searchBtn').click(); 
+        document.getElementById('searchTerm').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('searchBtn').click();
         });
 
         window.selectResult = (id) => {
@@ -1945,39 +2085,54 @@ router.get('/', (req, res) => {
         typeSelect.addEventListener('change', () => {
              // Reset validation logic when switching types
              if(typeSelect.value !== 'pack') {
-                 if(imdbInput.value) { isValidated = false; submitBtn.disabled = true; }
+                 if(imdbInput.value) { isValidated = false; }
              }
              checkPackMode();
-             validateDebridKeys(); // Validate keys on type change too
              updateSubmitButtonText();
+             updateSubmitButtonState();
         });
 
-        // Validation for Debrid Keys
-        function validateDebridKeys() {
-            const mode = modeSelector.value;
-            const rd = document.getElementById('rdKey').value.trim();
-            const tb = document.getElementById('tbKey').value.trim();
-            
-            if (mode === 'debrid' && !rd && !tb) {
+        // Validation & State updater for Submit Button
+        function updateSubmitButtonState() {
+            const isPack = typeSelect.value === 'pack';
+            const magnetVal = document.getElementById('magnetLink').value.trim();
+            const fileInput = document.getElementById('torrentFile');
+            const hasFile = magnetVal.length > 0 || (fileInput.files && fileInput.files.length > 0);
+
+            if (isPack) {
+                if (hasFile) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                    submitBtn.classList.add('pulse-active');
+                    submitBtn.title = "";
+                } else {
+                    submitBtn.disabled = true;
+                    submitBtn.style.opacity = '0.5';
+                    submitBtn.style.cursor = 'not-allowed';
+                    submitBtn.classList.remove('pulse-active');
+                    submitBtn.title = "Inserisci un Magnet Link o carica un file .torrent";
+                }
+                return;
+            }
+
+            if (isValidated && hasFile) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.classList.add('pulse-active');
+                submitBtn.title = "";
+            } else {
                 submitBtn.disabled = true;
-                submitBtn.title = "Inserisci almeno una chiave API (RD o TorBox)";
-                return false;
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+                submitBtn.classList.remove('pulse-active');
+                if (!isValidated) submitBtn.title = "Verifica prima l'ID IMDb/TMDB";
+                else if (!hasFile) submitBtn.title = "Inserisci un Magnet Link o carica un file .torrent";
             }
-            
-            // Only re-enable if other validations pass (checked by checkPackMode or metadata check)
-            // But strict check: if debrid & no keys -> BLOCK
-            // If keys ok, we don't automatically enable, we let other checks decide or we enable if already validated
-            if (isValidated) {
-                 submitBtn.disabled = false;
-                 submitBtn.title = "";
-                 
-                 // ✅ FORCE VISUAL ENABLE
-                 submitBtn.style.opacity = '1';
-                 submitBtn.style.cursor = 'pointer';
-                 submitBtn.classList.add('pulse-active');
-            }
-            return true;
         }
+
+
 
         function escapeHtml(value) {
             return String(value)
@@ -2125,10 +2280,10 @@ router.get('/', (req, res) => {
             await loadSeasons(tmdbId);
         }
 
-        // Add listeners for keys
-        document.getElementById('rdKey').addEventListener('input', validateDebridKeys);
-        document.getElementById('tbKey').addEventListener('input', validateDebridKeys);
-        modeSelector.addEventListener('change', validateDebridKeys);
+        // Add listeners for keys and mode
+        document.getElementById('rdKey').addEventListener('input', updateSubmitButtonState);
+        document.getElementById('tbKey').addEventListener('input', updateSubmitButtonState);
+        modeSelector.addEventListener('change', updateSubmitButtonState);
 
         episodesTable.addEventListener('change', (event) => {
             if (event.target && event.target.classList.contains('mapping-select')) {
@@ -2346,7 +2501,223 @@ router.get('/', (req, res) => {
             }
         });
 
-        let resolveHashTimer = null;
+        // 📦 MOVIE PACK MAPPING LOGIC
+        let pendingPackPreview = null;
+
+        function cleanMovieFileName(filename) {
+            if (!filename) return '';
+            const parts = filename.split('/');
+            let name = parts[parts.length - 1] || '';
+            name = name.replace(/\\.(mkv|mp4|avi|mov|wmv|flv|webm)$/i, '');
+            return name.replace(/[._]/g, ' ').trim();
+        }
+
+        async function verifyPackMovieRow(card, fileId) {
+            const input = card.querySelector('.pack-movie-input');
+            const preview = document.getElementById('packPreview_' + fileId);
+            const query = input.value.trim();
+            if (!query) {
+                preview.style.display = 'none';
+                card.dataset.imdbId = '';
+                return;
+            }
+
+            preview.style.display = 'flex';
+            preview.innerHTML = '<span style="font-size:0.8rem; color:#cbd5e1;">Ricerca in corso...</span>';
+
+            try {
+                // If starts with tt or is numeric ID, check /meta
+                if (query.toLowerCase().startsWith('tt') || /^\d+$/.test(query)) {
+                    const res = await fetch(\`/scrape/meta?id=\${encodeURIComponent(query)}&type=movie\`);
+                    const d = await res.json();
+                    if (d && (d.title || d.imdb_id)) {
+                        const imdb = d.imdb_id || d.imdbId || query;
+                        card.dataset.imdbId = imdb;
+                        preview.innerHTML = \`
+                            \${d.poster ? \`<img src="\${d.poster}" class="pack-movie-poster">\` : ''}
+                            <div class="pack-movie-info">
+                                <div class="pack-movie-title">\${d.title || 'Film'}</div>
+                                <div class="pack-movie-meta">\${d.year || ''} • <span style="background:rgba(34,197,94,0.2); color:#4ade80; padding:1px 6px; border-radius:4px; font-weight:600;">✓ \${imdb}</span></div>
+                            </div>
+                        \`;
+                        return;
+                    }
+                }
+
+                // Otherwise search TMDB by title
+                const res = await fetch(\`/scrape/search?q=\${encodeURIComponent(query)}&type=movie\`);
+                const d = await res.json();
+                if (d.results && d.results.length > 0) {
+                    const first = d.results[0];
+                    let imdb = null;
+                    let poster = first.poster_path ? \`https://image.tmdb.org/t/p/w92\${first.poster_path}\` : '';
+                    let title = first.title || first.name || '';
+                    let year = (first.release_date || '').substring(0, 4);
+
+                    try {
+                        const metaRes = await fetch(\`/scrape/meta?id=\${first.id}&type=movie\`);
+                        const metaData = await metaRes.json();
+                        if (metaData) {
+                            imdb = metaData.imdb_id || metaData.imdbId || null;
+                            if (metaData.poster) poster = metaData.poster;
+                            if (metaData.title) title = metaData.title;
+                            if (metaData.year) year = metaData.year;
+                        }
+                    } catch (_) {}
+
+                    const resolvedId = imdb || String(first.id);
+                    card.dataset.imdbId = resolvedId;
+                    input.value = resolvedId;
+
+                    preview.innerHTML = \`
+                        \${poster ? \`<img src="\${poster}" class="pack-movie-poster">\` : ''}
+                        <div class="pack-movie-info">
+                            <div class="pack-movie-title">\${title}</div>
+                            <div class="pack-movie-meta">\${year} • <span style="background:rgba(34,197,94,0.2); color:#4ade80; padding:1px 6px; border-radius:4px; font-weight:600;">✓ \${resolvedId}</span></div>
+                        </div>
+                    \`;
+                } else {
+                    preview.innerHTML = '<span style="font-size:0.8rem; color:#f87171;">⚠️ Nessun film trovato. Prova con ID IMDb es: tt1234567</span>';
+                }
+            } catch (err) {
+                preview.innerHTML = '<span style="font-size:0.8rem; color:#f87171;">Errore di ricerca metadata.</span>';
+            }
+        }
+
+        function initMoviePackMappingUI(videoFiles, torrentName, previewContext) {
+            pendingPackPreview = previewContext;
+            packFilesList.innerHTML = '';
+            packFilesCountBadge.innerText = \`\${videoFiles.length} file video\`;
+            moviePackMappingSection.style.display = 'block';
+
+            videoFiles.forEach((file, index) => {
+                const cleanName = cleanMovieFileName(file.path || file.title || '');
+                const sizeGb = ((file.bytes || file.size || 0) / (1024 * 1024 * 1024)).toFixed(2);
+                const sizeMb = ((file.bytes || file.size || 0) / (1024 * 1024)).toFixed(0);
+                const sizeLabel = (parseFloat(sizeGb) >= 1) ? \`\${sizeGb} GB\` : \`\${sizeMb} MB\`;
+
+                const card = document.createElement('div');
+                card.className = 'pack-movie-card';
+                card.dataset.fileIndex = file.id !== undefined ? file.id : index;
+                card.dataset.filePath = file.path || file.title || '';
+                card.dataset.fileSize = file.bytes || file.size || 0;
+                card.dataset.imdbId = '';
+
+                card.innerHTML = \`
+                    <div class="pack-movie-header">
+                        <div class="pack-movie-name">📁 <b>#\${file.id !== undefined ? file.id : index + 1}</b> \${file.path || file.title || ''}</div>
+                        <div class="pack-movie-size">\${sizeLabel}</div>
+                    </div>
+                    <div class="pack-movie-input-row">
+                        <input type="text" class="pack-movie-input" placeholder="ID IMDb (es. tt2313197) o Cerca Titolo..." value="">
+                        <button type="button" class="btn-glow btn-small pack-search-btn">🔍 Cerca</button>
+                    </div>
+                    <div class="pack-movie-preview" id="packPreview_\${file.id !== undefined ? file.id : index}"></div>
+                \`;
+
+                const input = card.querySelector('.pack-movie-input');
+                const btn = card.querySelector('.pack-search-btn');
+
+                btn.addEventListener('click', () => verifyPackMovieRow(card, file.id !== undefined ? file.id : index));
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        verifyPackMovieRow(card, file.id !== undefined ? file.id : index);
+                    }
+                });
+
+                packFilesList.appendChild(card);
+            });
+
+            moviePackMappingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        savePackMappingBtn.addEventListener('click', async () => {
+            if (!pendingPackPreview) return;
+            const btn = savePackMappingBtn;
+            const resDiv = document.getElementById('result');
+            const dbg = document.getElementById('debug');
+
+            btn.disabled = true;
+            btn.innerText = 'Salvataggio in corso...';
+            dbg.innerText = 'Importazione Pack con Mappatura...';
+
+            const packMappings = [];
+            for (const card of packFilesList.querySelectorAll('.pack-movie-card')) {
+                const fileIndex = card.dataset.fileIndex;
+                const filePath = card.dataset.filePath;
+                const fileSize = card.dataset.fileSize;
+                const inputVal = card.querySelector('.pack-movie-input').value.trim();
+                const imdbId = card.dataset.imdbId || (inputVal.toLowerCase().startsWith('tt') ? inputVal : null);
+                packMappings.push({
+                    file_index: parseInt(fileIndex, 10),
+                    file_path: filePath,
+                    file_size: parseInt(fileSize, 10) || 0,
+                    imdb_id: imdbId || null
+                });
+            }
+
+            // Ask contributor name
+            const contributor = await askContributorName();
+
+            const formData = new FormData();
+            formData.append('type', 'pack');
+            formData.append('forcePackMode', 'true');
+            formData.append('method', pendingPackPreview.mode || 'debrid');
+            if (pendingPackPreview.rdKey) formData.append('rdKey', pendingPackPreview.rdKey);
+            if (pendingPackPreview.tbKey) formData.append('tbKey', pendingPackPreview.tbKey);
+            if (pendingPackPreview.seedersVal) formData.append('seeders', pendingPackPreview.seedersVal);
+            if (contributor) formData.append('contributor', contributor);
+
+            if (pendingPackPreview.torrentBase64) {
+                formData.append('torrentFileBase64', pendingPackPreview.torrentBase64);
+            } else {
+                formData.append('magnetLink', pendingPackPreview.magnetLink);
+            }
+
+            formData.append('packMappings', JSON.stringify(packMappings));
+
+            // Custom media specs
+            const specs = getSelectedSpecs();
+            formData.append('audioLanguages', JSON.stringify(specs.audioLanguages));
+            formData.append('subLanguages', JSON.stringify(specs.subLanguages));
+            formData.append('resolution', specs.resolution);
+            formData.append('quality', specs.quality);
+            formData.append('codec', specs.codec);
+            formData.append('visualTags', JSON.stringify(specs.visualTags));
+            formData.append('audioTags', JSON.stringify(specs.audioTags));
+
+            try {
+                const response = await fetch('/scrape/add', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                resDiv.style.display = 'block';
+
+                if (response.ok && data.status === 'success') {
+                    const mappedCount = packMappings.filter(m => m.imdb_id).length;
+                    resDiv.className = 'success';
+                    resDiv.innerHTML = \`🎉 <b>Pack Multi-Film Importato con Successo!</b><br>
+                    <small>📦 Salvati <b>\${packMappings.length} file</b> nella tabella pack_files (di cui <b>\${mappedCount}</b> con ID IMDb associato).</small>\`;
+                    dbg.innerText = 'Completato con successo!';
+                    moviePackMappingSection.style.display = 'none';
+                    resDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    resDiv.className = 'error';
+                    resDiv.innerText = 'Errore: ' + (data.error || 'Salvataggio fallito');
+                    dbg.innerText = 'Errore durante il salvataggio.';
+                }
+            } catch (err) {
+                resDiv.style.display = 'block';
+                resDiv.className = 'error';
+                resDiv.innerText = 'Errore di rete: ' + err.message;
+                dbg.innerText = 'Errore di rete.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '💾 Salva & Importa Pack Film';
+            }
+        });
         function onMagnetOrFileChanged() {
             checkPackMode();
             const magnetVal = document.getElementById('magnetLink').value.trim();
@@ -2362,7 +2733,7 @@ router.get('/', (req, res) => {
                         autoDetectSpecs(match[1]);
                     }
                 } else {
-                    const hashMatch = magnetVal.match(/xt=urn:btih:([a-fA-F0-9]{32,40})/i) || magnetVal.match(/\b([a-fA-F0-9]{40})\b/);
+                    const hashMatch = magnetVal.match(/xt=urn:btih:([a-zA-Z0-9]{32,40})/i) || magnetVal.match(/\b([a-zA-Z0-9]{32,40})\b/);
                     if (hashMatch) {
                         const hash = hashMatch[1];
                         clearTimeout(resolveHashTimer);
@@ -2383,14 +2754,20 @@ router.get('/', (req, res) => {
         }
 
         // Add listeners to Inputs to trigger Pack check & Specs auto-detect
-        document.getElementById('magnetLink').addEventListener('input', onMagnetOrFileChanged);
-        document.getElementById('torrentFile').addEventListener('change', onMagnetOrFileChanged);
+        const magnetEl = document.getElementById('magnetLink');
+        magnetEl.addEventListener('input', onMagnetOrFileChanged);
+        magnetEl.addEventListener('change', onMagnetOrFileChanged);
+        magnetEl.addEventListener('keyup', onMagnetOrFileChanged);
+        magnetEl.addEventListener('paste', () => setTimeout(onMagnetOrFileChanged, 50));
+
+        const torrentFileEl = document.getElementById('torrentFile');
+        torrentFileEl.addEventListener('change', onMagnetOrFileChanged);
 
         // METADATA CHECK LOGIC
         async function fetchMetadata() {
             const id = imdbInput.value.trim();
             const type = typeSelect.value;
-            
+
             if (id.length < 3) return;
 
             checkBtn.innerText = '⏳';
@@ -2420,7 +2797,7 @@ router.get('/', (req, res) => {
                             \${data.warning ? '<div style="color: #fca5a5; font-size: 0.8rem; margin-top:5px;">⚠️ ' + data.warning + '</div>' : ''}
                         </div>
                     \`;
-                    
+
                     if (data.imdb_id !== id) {
                         imdbInput.value = data.imdb_id;
                     }
@@ -2430,18 +2807,13 @@ router.get('/', (req, res) => {
                         currentTmdbId = data.tmdb_id;
                     }
 
-                    // ENABLE IMPORT - Check Debrid Keys First!
                     isValidated = true;
-                    
-                    if (validateDebridKeys()) {
-                        submitBtn.disabled = false;
-                        submitBtn.style.opacity = '1';
-                        submitBtn.style.cursor = 'pointer';
-                    }
+                    updateSubmitButtonState();
 
                 } else {
                     previewDiv.innerHTML = '<div style="color:#f87171;">⚠️ Nessun risultato trovato. Verifica ID.</div>';
                     isValidated = false;
+                    updateSubmitButtonState();
                 }
             } catch (e) {
                 previewDiv.style.display = 'none';
@@ -2458,6 +2830,7 @@ router.get('/', (req, res) => {
 
         modeSelector.addEventListener('change', () => {
             debridKeys.style.display = (modeSelector.value === 'nodebrid') ? 'none' : 'block';
+            updateSubmitButtonState();
         });
 
         document.getElementById('submitBtn').addEventListener('click', async function() {
@@ -2504,7 +2877,58 @@ router.get('/', (req, res) => {
             }
 
             try {
-                if (isManualMappingMode) {
+                if (typeVal === 'pack') {
+                    // 📦 MOVIE PACK FLOW: Preview files and show per-movie mapping UI
+                    dbg.innerText = 'Recupero file del pack...';
+                    const formData = new FormData();
+                    formData.append('method', mode);
+                    if (rdKey) formData.append('rdKey', rdKey);
+                    if (tbKey) formData.append('tbKey', tbKey);
+                    if (torrentBase64) {
+                        formData.append('torrentFileBase64', torrentBase64);
+                    } else {
+                        formData.append('magnetLink', magnetLink);
+                    }
+
+                    const response = await fetch('/scrape/preview-files', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    resDiv.style.display = 'block';
+
+                    if (response.ok && data.videoFiles && data.videoFiles.length > 0) {
+                        resDiv.className = 'success';
+                        resDiv.innerHTML = \`📦 <b>Trovati \${data.videoFiles.length} file video nel Pack</b><br><small>\${data.torrentName} — Inserisci gli ID IMDb o cerca i titoli qui sotto, poi clicca <b>Salva & Importa Pack Film</b>.</small>\`;
+                        dbg.innerText = 'File recuperati. Completa la mappatura e salva.';
+
+                        // Auto-select detected specs
+                        if (data.detectedSpecs) {
+                            if (specs.audioLanguages.length === 0 && data.detectedSpecs.audioLanguages) {
+                                data.detectedSpecs.audioLanguages.forEach(l => {
+                                    document.querySelector(\`#audioLangChips .chip-btn[data-val="\${l}"]\`)?.classList.add('active');
+                                });
+                            }
+                        }
+
+                        initMoviePackMappingUI(data.videoFiles, data.torrentName, {
+                            infoHash: data.infoHash,
+                            torrentName: data.torrentName,
+                            totalSize: data.totalSize,
+                            magnetLink,
+                            torrentBase64,
+                            mode,
+                            rdKey,
+                            tbKey,
+                            seedersVal
+                        });
+                    } else {
+                        resDiv.className = 'error';
+                        resDiv.innerText = 'Errore: ' + (data.error || 'Nessun file video trovato nel torrent');
+                        dbg.innerText = 'Problema riscontrato.';
+                    }
+                } else if (isManualMappingMode) {
                     // ✅ MANUAL MAPPING: Preview files only (NO DB import)
                     dbg.innerText = 'Recupero file dal torrent...';
                     const formData = new FormData();
@@ -2847,12 +3271,11 @@ router.post('/preview-files', upload.any(), async (req, res) => {
                 return res.status(400).json({ error: "File torrent corrotto: " + parseErr.message });
             }
         } else {
-            const match = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/);
-            infoHash = match ? match[1].toLowerCase() : magnetLink.toLowerCase();
+            infoHash = normalizeInfoHash(magnetLink);
             torrentName = extractDnFromMagnet(magnetLink);
         }
 
-        if (!infoHash || infoHash.length < 40) {
+        if (!infoHash) {
             return res.status(400).json({ error: "Hash non valido" });
         }
 
@@ -2878,24 +3301,37 @@ router.post('/preview-files', upload.any(), async (req, res) => {
             data = { files: localFiles, filename: torrentName };
             providerUsed = "Local .torrent";
         } else {
-            if (!userRdKey && !userTbKey) {
-                const cachedTorrent = await fetchTorrentFromCaches(infoHash);
-                if (cachedTorrent) {
-                    data = { files: cachedTorrent.files, filename: cachedTorrent.filename };
-                    providerUsed = "Torrent Cache";
-                }
+            // 1. Try public cache first (itorrents, bitsearch, etc.)
+            const cachedTorrent = await fetchTorrentFromCaches(infoHash);
+            if (cachedTorrent) {
+                data = { files: cachedTorrent.files, filename: cachedTorrent.filename };
+                providerUsed = "Torrent Cache";
             }
+            // 2. Try TB cache (fast, checkcached only)
+            if (!data && userTbKey) {
+                data = await fetchFilesFromTorboxCache(infoHash, userTbKey);
+                if (data) providerUsed = "Torbox Cache";
+            }
+            // 3. Try RD
             if (!data && userRdKey) {
                 try {
                     data = await fetchFilesFromRealDebrid(infoHash, userRdKey);
-                    providerUsed = "Real-Debrid";
+                    if (data) providerUsed = "Real-Debrid";
                 } catch (e) { console.warn("RD preview failed:", e.message); }
             }
+            // 4. Try TB create (fallback)
             if (!data && userTbKey) {
                 try {
-                    data = await fetchFilesFromTorbox(infoHash, userTbKey);
-                    providerUsed = "Torbox";
+                    data = await fetchFilesFromTorboxCreate(infoHash, userTbKey);
+                    if (data) providerUsed = "Torbox";
                 } catch (e) { console.warn("TB preview failed:", e.message); }
+            }
+            // 5. Try DHT / WebTorrent fallback
+            if (!data) {
+                try {
+                    data = await fetchTorrentFromDHT(infoHash, magnetLink);
+                    if (data) providerUsed = "DHT";
+                } catch (e) { console.warn("DHT preview failed:", e.message); }
             }
         }
 
@@ -3021,8 +3457,16 @@ router.post('/add', upload.any(), async (req, res) => {
             quality,
             codec,
             visualTags,
-            audioTags
+            audioTags,
+            packMappings // 📦 Movie pack file mappings
         } = req.body;
+
+        let parsedPackMappings = null;
+        if (packMappings) {
+            try {
+                parsedPackMappings = typeof packMappings === 'string' ? JSON.parse(packMappings) : packMappings;
+            } catch (_) {}
+        }
 
         // ✅ HANDLE PACK MODE:
         // If type is 'pack', we treat it as 'movie' but enforce Force Pack Mode and allow NULL ID.
@@ -3073,13 +3517,12 @@ router.post('/add', upload.any(), async (req, res) => {
                 return res.status(400).json({ error: "Failed to parse torrent file: " + parseErr.message });
             }
         } else {
-            const infoHashMatch = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/);
-            infoHash = infoHashMatch ? infoHashMatch[1].toLowerCase() : magnetLink.toLowerCase();
+            infoHash = normalizeInfoHash(magnetLink);
             torrentName = extractDnFromMagnet(magnetLink);
             if (torrentName) console.log(`🏷️ [MANUAL] Extracted name from magnet dn=: ${torrentName}`);
         }
 
-        if (!infoHash || infoHash.length < 40) {
+        if (!infoHash) {
             return res.status(400).json({ error: "Invalid magnet/hash or corrupt torrent file" });
         }
 
@@ -3187,7 +3630,14 @@ router.post('/add', upload.any(), async (req, res) => {
 
         // 3. Prepare Torrent Entry
         const totalSize = data.files.reduce((acc, f) => acc + (f.bytes || 0), 0);
-        let torrentTitle = data.filename || torrentName || `Imported - ${infoHash.substr(0, 8)} `;
+        let preferredName = torrentName || data.filename;
+        if (preferredName && /^[a-fA-F0-9]{32,40}/.test(preferredName)) {
+            const alternative = (preferredName === torrentName) ? data.filename : torrentName;
+            if (alternative && !(/^[a-fA-F0-9]{32,40}/.test(alternative))) {
+                preferredName = alternative;
+            }
+        }
+        let torrentTitle = preferredName || `Imported - ${infoHash.substr(0, 8)} `;
 
         // ✅ ENRICH CUSTOM TORRENT TITLE WITH USER-SELECTED MEDIA SPECS
         torrentTitle = enrichCustomTorrentTitle(torrentTitle, {
@@ -3321,9 +3771,9 @@ router.post('/add', upload.any(), async (req, res) => {
         }
 
         // 6. Insert Files
-        // ✅ ALIGNED WITH NORMAL FLOW: 
+        // ✅ ALIGNED WITH NORMAL FLOW:
         // - Series/pack serie → files table (insertEpisodeFiles)
-        // - Pack film (multi-movie) → pack_files table (insertPackFiles) 
+        // - Pack film (multi-movie) → pack_files table (insertPackFiles)
         const isMultiMoviePack = (type === 'movie' && (data.files.length > 1 || forcePackMode === 'true'));
 
         if (filesToInsert.length > 0) {
@@ -3331,16 +3781,27 @@ router.post('/add', upload.any(), async (req, res) => {
                 // 🗂️ MANUAL MAPPING: Skip auto-parsed file insertion — /scrape/map will handle it
                 console.log(`🗂️ [MANUAL] ManualMapping=true → skipping insertEpisodeFiles (${filesToInsert.length} files). User mappings via /scrape/map.`);
             } else if (isMultiMoviePack) {
-                // 📦 PACK FILM: Use pack_files table (same as normal enrichment flow)
-                const packFilesData = filesToInsert.map(f => ({
-                    pack_hash: infoHash.toLowerCase(),
-                    imdb_id: null, // Will be matched later when user searches specific movie
-                    file_index: f.file_index,
-                    file_path: f.title,
-                    file_size: f.size || 0
-                }));
+                // 📦 PACK FILM: Use pack_files table (with explicit user mappings if provided)
+                let packFilesData;
+                if (Array.isArray(parsedPackMappings) && parsedPackMappings.length > 0) {
+                    packFilesData = parsedPackMappings.map(m => ({
+                        pack_hash: infoHash.toLowerCase(),
+                        imdb_id: (m.imdb_id && typeof m.imdb_id === 'string' && m.imdb_id.trim()) ? m.imdb_id.trim() : null,
+                        file_index: parseInt(m.file_index, 10),
+                        file_path: m.file_path,
+                        file_size: m.file_size || 0
+                    }));
+                } else {
+                    packFilesData = filesToInsert.map(f => ({
+                        pack_hash: infoHash.toLowerCase(),
+                        imdb_id: null, // Will be matched later when user searches specific movie
+                        file_index: f.file_index,
+                        file_path: f.title,
+                        file_size: f.size || 0
+                    }));
+                }
                 await dbHelper.insertPackFiles(packFilesData);
-                console.log(`📦 [MANUAL] Saved ${packFilesData.length} files to pack_files table`);
+                console.log(`📦 [MANUAL] Saved ${packFilesData.length} files to pack_files table (${packFilesData.filter(p => p.imdb_id).length} with explicit IMDb IDs)`);
             } else {
                 // 📺 SERIES or SINGLE MOVIE: Use files table
                 await dbHelper.insertEpisodeFiles(filesToInsert);
@@ -3423,8 +3884,7 @@ router.post('/scrape', async (req, res) => {
             const parsed = parseTorrentFile(torrentFileBase64);
             infoHash = parsed.infoHash;
         } else if (magnetLink) {
-            const match = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/);
-            infoHash = match ? match[1] : null;
+            infoHash = normalizeInfoHash(magnetLink);
         }
 
         if (!infoHash) return res.status(400).json({ error: "Invalid magnet or torrent file" });
