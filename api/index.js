@@ -11688,6 +11688,8 @@ async function handleStream(type, id, config, workerOrigin) {
                             originalTitle: originalTitle || mediaDetails.title,
                             type: type,
                             year: mediaDetails.year,
+                            season: season,
+                            episode: episode,
                             searchQueries: searchQueries || []
                         }),
                         signal: AbortSignal.timeout(5000)
