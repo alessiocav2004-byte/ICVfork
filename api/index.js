@@ -11634,8 +11634,9 @@ async function handleStream(type, id, config, workerOrigin) {
 
             const lightServerUrl = process.env.LIGHT_ENRICHMENT_SERVER_URL;
             const exttoServerUrl = process.env.EXTO_ENRICHMENT_SERVER_URL;
-
-            if (enrichmentServers.length === 0 && !lightServerUrl) {
+            const webtorServerUrl = process.env.WEBTOR_ENRICHMENT_SERVER_URL || process.env.LIGHT_ENRICHMENT_SERVER_URL_2;
+            
+            if (enrichmentServers.length === 0 && !lightServerUrl && !webtorServerUrl) {
                 if (DEBUG_MODE) console.warn('⚠️ [Enrichment] No enrichment servers configured, skipping webhook');
             } else {
                 const targets = [];
@@ -11648,6 +11649,11 @@ async function handleStream(type, id, config, workerOrigin) {
                 // 1b. Always include the ExtTo enrichment server if configured
                 if (exttoServerUrl) {
                     targets.push(exttoServerUrl);
+                }
+
+                // 1c. Always include the WebTor enrichment server if configured
+                if (webtorServerUrl) {
+                    targets.push(webtorServerUrl);
                 }
 
                 // 2. Select one standard server using the round-robin logic
