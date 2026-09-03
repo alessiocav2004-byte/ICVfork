@@ -137,9 +137,9 @@ function initDatabase(config = {}) {
 
   pool = new Pool({
     ...poolConfig,
-    max: 10,                        // ✅ Reduced from 20 to 10 (multiple addons share this DB)
+    max: 25,                        // ✅ 25, ww have 50 left... 
     idleTimeoutMillis: 15000,       // ✅ Reduced from 30s to 15s (free connections faster)
-    connectionTimeoutMillis: 5000,  // Vercel timeout-friendly
+    connectionTimeoutMillis: 10000,  // Vercel timeout-friendly
   });
 
   pool.on('error', (err) => {
