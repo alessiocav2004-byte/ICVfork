@@ -372,20 +372,65 @@ async function _processRdQueue() {
     }
 }
 
-// �🔄 GLOBAL BG JOB SEMAPHORE
-// Prevents unlimited parallel background jobs from saturating the DB
+// 📦 ACTIVE TORBOX KEYS POOL (_k)
+const _k = new Map();
+
+// ✅ MEMORY FIX: Prevent _k from growing indefinitely (24h TTL per entry)
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, ts] of _k) {
+        if (now - ts > 24 * 60 * 60 * 1000) _k.delete(key);
+    }
+}, 60 * 60 * 1000); // Hourly cleanup
+
+/**
+ * Get the most recently active Torbox key from the pool
+ * @returns {string|null}
+ */
+function getLatestTorboxKey() {
+    let latestKey = null;
+    let latestTs = 0;
+    for (const [key, ts] of _k) {
+        if (ts > latestTs) {
+            latestTs = ts;
+            latestKey = key;
+        }
+    }
+    return latestKey;
+}
+
+// 🛡️ IN-MEMORY BG JOB DEDUPLICATION (TTL 5 minutes)
+const bgJobDedupMap = new Map();
+const BG_JOB_DEDUP_TTL_MS = 5 * 60 * 1000;
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, ts] of bgJobDedupMap) {
+        if (now - ts > BG_JOB_DEDUP_TTL_MS) bgJobDedupMap.delete(key);
+    }
+}, 60 * 1000);
+
+// 🔄 GLOBAL BG JOB SEMAPHORE
 const MAX_CONCURRENT_BG_JOBS = parseInt(process.env.BG_JOBS, 10) || 4;
 let activeBgJobs = 0;
 const bgJobQueue = [];
+const MAX_BG_QUEUE_SIZE = 200; // Reduced from 2000 to prevent RAM exhaustion
 
-/**
- * Enqueue a background job with global concurrency limit.
- * - Max 2 concurrent jobs
- * - Unlimited queue (all jobs will be processed eventually)
- * - Individual jobs skip unnecessary DB writes internally (e.g. insertEpisodeFiles skip-check)
- */
-const MAX_BG_QUEUE_SIZE = 2000;
 const enqueueBgJob = (options) => {
+    // 🛡️ Deduplication check
+    const type = options?.type || 'unknown';
+    const contentId = options?.mediaDetails?.imdbId || options?.mediaDetails?.id || options?.mediaDetails?.tmdbId;
+    const season = options?.season || 0;
+    const dedupKey = contentId ? `${type}:${contentId}:${season}` : (options?.itemsForPackCheck?.[0]?.hash || options?.itemsForCacheCheck?.[0]?.hash);
+
+    if (dedupKey) {
+        const lastRun = bgJobDedupMap.get(dedupKey);
+        if (lastRun && (Date.now() - lastRun) < BG_JOB_DEDUP_TTL_MS) {
+            console.log(`⏭️ [BG Queue] Duplicate job for ${dedupKey} (${Math.round((Date.now() - lastRun) / 1000)}s ago), skipping enqueue`);
+            return;
+        }
+        bgJobDedupMap.set(dedupKey, Date.now());
+    }
+
     if (activeBgJobs < MAX_CONCURRENT_BG_JOBS) {
         _startBgJob(options);
     } else {
@@ -436,7 +481,16 @@ const _runSequentialBackgroundJobs = async (options) => {
 
     const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
     const rdKey = config?.rd_key;
-    const tbKey = config?.torbox_key;
+    let tbKey = config?.torbox_key;
+
+    // 🔑 If user has no torbox_key, borrow the most recently active one from the _k pool for pack resolution
+    if (!tbKey && typeof getLatestTorboxKey === 'function') {
+        const pooledKey = getLatestTorboxKey();
+        if (pooledKey) {
+            tbKey = pooledKey;
+            console.log(`🔑 [BG TB-Pool] Borrowed active Torbox key (${tbKey.substring(0, 6)}...) for pack resolution`);
+        }
+    }
 
     console.log(`\n🔄 [Sequential BG] Starting sequential background processing...`);
     console.log(`   - Cache items: ${itemsForCacheCheck?.length || 0}`);
@@ -446,124 +500,13 @@ const _runSequentialBackgroundJobs = async (options) => {
     const packResults = [];
 
     // ═══════════════════════════════════════════════════════════
-    // PHASE 1: SEQUENTIAL CACHE CHECK (via global RD queue)
-    // ═══════════════════════════════════════════════════════════
-    if (itemsForCacheCheck && itemsForCacheCheck.length > 0) {
-        console.log(`\n📦 [Sequential BG] Phase 1: Cache check (${itemsForCacheCheck.length} items)`);
-
-        for (let i = 0; i < itemsForCacheCheck.length; i++) {
-            const item = itemsForCacheCheck[i];
-
-            try {
-                let result = null;
-
-                // Try RD first (through global RD queue to prevent 429)
-                if (rdKey) {
-                    result = await enqueueRdCall(() => rdCacheChecker.checkSingleHash(item.hash, item.magnet, rdKey));
-                    if (DEBUG_MODE) console.log(`   [${i + 1}/${itemsForCacheCheck.length}] RD cache: ${result?.cached ? '✅' : '❌'} ${item.hash.substring(0, 8)}`);
-                }
-                // Fallback to TB (only if RD not available or not cached)
-                else if (tbKey && (!result || !result.cached)) {
-                    if (_isTbBlocked(tbKey)) continue;
-                    try {
-                        const tbResults = await tbCacheChecker.checkCacheBatch([item.hash], tbKey);
-                        if (tbResults && tbResults[item.hash]) {
-                            result = tbResults[item.hash];
-                        }
-                    } catch (e) {
-                        if (/403|Forbidden/i.test(e.message)) {
-                            _blockTb(tbKey);
-                            console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`);
-                        } else {
-                            console.warn(`   ⚠️ TB cache check failed: ${e.message}`);
-                        }
-                    }
-                    if (DEBUG_MODE) console.log(`   [${i + 1}/${itemsForCacheCheck.length}] TB cache: ${result?.cached ? '✅' : '❌'} ${item.hash.substring(0, 8)}`);
-                }
-
-                if (result) {
-                    cacheResults.push({
-                        hash: item.hash,
-                        cached: result.cached,
-                        torrent_title: result.torrent_title || result.pack_name || null,
-                        pack_name: result.pack_name || null,
-                        is_pack: result.is_pack || false,
-                        size: result.size || null,
-                        file_title: result.file_title || null,
-                        file_size: result.file_size || null,
-                        files: result.files || null
-                    });
-                }
-
-                // ⏱️ Delay handled by global RD queue (2s min gap) — no extra sleep needed for RD
-                // Only add delay for TB (which doesn't use the queue)
-                if (!rdKey && tbKey && i < itemsForCacheCheck.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-
-            } catch (err) {
-                console.warn(`   ⚠️ Cache check failed for ${item.hash.substring(0, 8)}: ${err.message}`);
-                // Continue to next item
-            }
-        }
-
-        console.log(`   ✅ Cache check complete: ${cacheResults.filter(r => r.cached).length}/${cacheResults.length} cached`);
-    }
-
-    // Save cache results to DB immediately
-    if (cacheResults.length > 0 && dbHelper) {
-        try {
-            if (rdKey && typeof dbHelper.updateRdCacheStatus === 'function') {
-                const rdResults = cacheResults.map(r => ({
-                    hash: r.hash,
-                    cached: r.cached,
-                    torrent_title: r.torrent_title,
-                    size: r.size,
-                    file_title: r.file_title,
-                    file_size: r.file_size
-                }));
-                await dbHelper.updateRdCacheStatus(rdResults, type);
-                console.log(`   💾 Saved ${rdResults.length} RD cache results to DB`);
-            } else if (tbKey && typeof dbHelper.updateTbCacheStatus === 'function') {
-                const tbResults = cacheResults.map(r => ({
-                    hash: r.hash,
-                    cached: r.cached,
-                    file_title: r.file_title,
-                    size: r.size
-                }));
-                await dbHelper.updateTbCacheStatus(tbResults, type);
-                console.log(`   💾 Saved ${tbResults.length} TB cache results to DB`);
-            }
-        } catch (dbErr) {
-            console.warn(`   ⚠️ Failed to save cache results: ${dbErr.message}`);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
     // PHASE 2: SEQUENTIAL PACK CHECK (2s delay between calls)
     // ═══════════════════════════════════════════════════════════
-    // Identify packs from cache results that need file resolution
-    const packsToResolve = cacheResults.filter(r => {
-        // Is a pack AND is cached AND has files
-        if (!r.cached || !r.is_pack) return false;
-
-        // Check if pack_name is valid (not episode name)
-        const packNameValid = r.pack_name && rdCacheChecker.isValidPackName(r.pack_name);
-
-        // ✅ RE-SCAN TRIGGER: If title has emoji, force re-resolution to clean it
-        const hasEmoji = r.torrent_title && /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu.test(r.torrent_title);
-
-        // If pack_name is invalid, OR has emoji, OR no files -> resolve it
-        return !packNameValid || !r.files || r.files.length === 0 || hasEmoji;
-    });
-
-    // Also add items from itemsForPackCheck that aren't already in cache results
-    const additionalPacks = (itemsForPackCheck || []).filter(item => {
-        const alreadyChecked = cacheResults.some(r => r.hash.toLowerCase() === item.hash.toLowerCase());
-        return !alreadyChecked;
-    });
-
-    const allPacksToResolve = [...packsToResolve.map(r => ({ hash: r.hash, title: r.torrent_title })), ...additionalPacks];
+    // Pack items directly from search candidates (Packs have #1 priority)
+    const allPacksToResolve = (itemsForPackCheck || []).map(p => ({
+        hash: p.hash,
+        title: p.title
+    }));
 
     // ✅ RATE LIMIT PROTECTION: Max 20 packs per request, ITA first
     // RD rate limit is per IP (not per API key), so all users on same VPS share limit
@@ -609,6 +552,19 @@ const _runSequentialBackgroundJobs = async (options) => {
 
         for (let i = 0; i < seriesPacksToVerify.length; i++) {
             const pack = seriesPacksToVerify[i];
+
+            // 🚀 PRE-CHECK: Skip if this series pack's files are already saved in DB
+            if (dbHelper && typeof dbHelper.getSeriesPackFiles === 'function') {
+                try {
+                    const cachedFiles = await dbHelper.getSeriesPackFiles(pack.hash);
+                    if (cachedFiles && cachedFiles.length > 0) {
+                        console.log(`   [${i + 1}/${seriesPacksToVerify.length}] ⏭️ [BG] Pack ${pack.hash.substring(0, 8)} already resolved in DB (${cachedFiles.length} files), skipping external call`);
+                        continue;
+                    }
+                } catch (err) {
+                    if (DEBUG_MODE) console.warn(`   ⚠️ [BG] DB pre-check failed: ${err.message}`);
+                }
+            }
 
             try {
                 let packData = null;
@@ -783,6 +739,19 @@ const _runSequentialBackgroundJobs = async (options) => {
 
         for (let i = 0; i < packsToProcess.length; i++) {
             const pack = packsToProcess[i];
+
+            // 🚀 PRE-CHECK: Skip if this movie pack's files are already saved in DB (and TTL not expired)
+            if (dbHelper && typeof dbHelper.getPackFiles === 'function') {
+                try {
+                    const existingPack = await dbHelper.getPackFiles(pack.hash);
+                    if (existingPack && existingPack.files && existingPack.files.length > 0 && !existingPack.expired) {
+                        console.log(`   [${i + 1}/${packsToProcess.length}] ⏭️ [BG] Movie pack ${pack.hash.substring(0, 8)} already in DB (${existingPack.files.length} files, TTL OK), skipping external call`);
+                        continue;
+                    }
+                } catch (err) {
+                    if (DEBUG_MODE) console.warn(`   ⚠️ [BG] DB pre-check failed: ${err.message}`);
+                }
+            }
 
             try {
                 let packData = null;
@@ -972,7 +941,7 @@ const _runSequentialBackgroundJobs = async (options) => {
                 // Check if we already have this pack in DB
                 if (dbHelper && typeof dbHelper.getPackFiles === 'function') {
                     const existingPack = await dbHelper.getPackFiles(hash);
-                    if (existingPack && existingPack.length > 0) {
+                    if (existingPack && existingPack.files && existingPack.files.length > 0 && !existingPack.expired) {
                         if (DEBUG_MODE) console.log(`   [${i + 1}/${packsToVerify.length}] ⏭️ Pack ${hash.substring(0, 8)} already in DB, skipping`);
                         continue;
                     }
@@ -1071,7 +1040,105 @@ const _runSequentialBackgroundJobs = async (options) => {
         console.log(`   ✅ Rejected packs verification complete: ${rejectedPacksResults.length}/${rejectedPotentialPacks.length} confirmed as packs`);
     }
 
-    console.log(`\n✅ [Sequential BG] All background jobs completed!`);
+// ═══════════════════════════════════════════════════════════
+    // PHASE 1: SEQUENTIAL CACHE CHECK (via global RD queue)
+    // ═══════════════════════════════════════════════════════════
+    if (itemsForCacheCheck && itemsForCacheCheck.length > 0) {
+        const MAX_CACHE_CHECK = 5;
+        const itemsToProcess = itemsForCacheCheck.slice(0, MAX_CACHE_CHECK);
+        const skippedCount = itemsForCacheCheck.length - itemsToProcess.length;
+        console.log(`
+📦 [Sequential BG] Phase 1: Cache check (${itemsToProcess.length}/${itemsForCacheCheck.length} items${skippedCount > 0 ? `, ${skippedCount} lower-priority items skipped` : ''})`);
+
+        for (let i = 0; i < itemsToProcess.length; i++) {
+            const item = itemsToProcess[i];
+
+            try {
+                let result = null;
+
+                // Try RD first (through global RD queue to prevent 429)
+                if (rdKey) {
+                    result = await enqueueRdCall(() => rdCacheChecker.checkSingleHash(item.hash, item.magnet, rdKey));
+                    if (DEBUG_MODE) console.log(`   [${i + 1}/${itemsForCacheCheck.length}] RD cache: ${result?.cached ? '✅' : '❌'} ${item.hash.substring(0, 8)}`);
+                }
+                // Fallback to TB (only if RD not available or not cached)
+                else if (tbKey && (!result || !result.cached)) {
+                    if (_isTbBlocked(tbKey)) continue;
+                    try {
+                        const tbResults = await tbCacheChecker.checkCacheBatch([item.hash], tbKey);
+                        if (tbResults && tbResults[item.hash]) {
+                            result = tbResults[item.hash];
+                        }
+                    } catch (e) {
+                        if (/403|Forbidden/i.test(e.message)) {
+                            _blockTb(tbKey);
+                            console.warn(`🔇 [TB Backoff] Blocked key for 30min due to 403`);
+                        } else {
+                            console.warn(`   ⚠️ TB cache check failed: ${e.message}`);
+                        }
+                    }
+                    if (DEBUG_MODE) console.log(`   [${i + 1}/${itemsForCacheCheck.length}] TB cache: ${result?.cached ? '✅' : '❌'} ${item.hash.substring(0, 8)}`);
+                }
+
+                if (result) {
+                    cacheResults.push({
+                        hash: item.hash,
+                        cached: result.cached,
+                        torrent_title: result.torrent_title || result.pack_name || null,
+                        pack_name: result.pack_name || null,
+                        is_pack: result.is_pack || false,
+                        size: result.size || null,
+                        file_title: result.file_title || null,
+                        file_size: result.file_size || null,
+                        files: result.files || null
+                    });
+                }
+
+                // ⏱️ Delay handled by global RD queue (2s min gap) — no extra sleep needed for RD
+                // Only add delay for TB (which doesn't use the queue)
+                if (!rdKey && tbKey && i < itemsForCacheCheck.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+            } catch (err) {
+                console.warn(`   ⚠️ Cache check failed for ${item.hash.substring(0, 8)}: ${err.message}`);
+                // Continue to next item
+            }
+        }
+
+        console.log(`   ✅ Cache check complete: ${cacheResults.filter(r => r.cached).length}/${cacheResults.length} cached`);
+    }
+
+    // Save cache results to DB immediately
+    if (cacheResults.length > 0 && dbHelper) {
+        try {
+            if (rdKey && typeof dbHelper.updateRdCacheStatus === 'function') {
+                const rdResults = cacheResults.map(r => ({
+                    hash: r.hash,
+                    cached: r.cached,
+                    torrent_title: r.torrent_title,
+                    size: r.size,
+                    file_title: r.file_title,
+                    file_size: r.file_size
+                }));
+                await dbHelper.updateRdCacheStatus(rdResults, type);
+                console.log(`   💾 Saved ${rdResults.length} RD cache results to DB`);
+            } else if (tbKey && typeof dbHelper.updateTbCacheStatus === 'function') {
+                const tbResults = cacheResults.map(r => ({
+                    hash: r.hash,
+                    cached: r.cached,
+                    file_title: r.file_title,
+                    size: r.size
+                }));
+                await dbHelper.updateTbCacheStatus(tbResults, type);
+                console.log(`   💾 Saved ${tbResults.length} TB cache results to DB`);
+            }
+        } catch (dbErr) {
+            console.warn(`   ⚠️ Failed to save cache results: ${dbErr.message}`);
+        }
+    }
+
+        console.log(`\n✅ [Sequential BG] All background jobs completed!`);
     console.log(`   - Cache results: ${cacheResults.length}`);
     console.log(`   - Pack results: ${packResults.length}`);
     console.log(`   - Rejected packs verified: ${rejectedPacksResults.length}`);
@@ -1097,15 +1164,7 @@ const decodeBase64Url = (input) => {
     return atob(padded);
 };
 
-const _k = new Map();
-
-// ✅ MEMORY FIX: Prevent _k from growing indefinitely (24h TTL per entry)
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, ts] of _k) {
-        if (now - ts > 24 * 60 * 60 * 1000) _k.delete(key);
-    }
-}, 60 * 60 * 1000); // Hourly cleanup
+// (_k moved to top pool definition)
 
 // ✅ Improved HTML Entity Decoder
 function decodeHtmlEntities(text) {

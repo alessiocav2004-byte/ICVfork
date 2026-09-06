@@ -449,20 +449,7 @@ async function fetchTorrentFromPublicCaches(infoHash) {
  * @returns {Promise<{files: Array, filename: string, source: string}|null>}
  */
 async function fetchFilesFromAnySource(infoHash, config) {
-    // 1. Try Real-Debrid first (most reliable)
-    if (config.rd_key) {
-        try {
-            const rdResult = await fetchFilesFromRealDebrid(infoHash, config.rd_key);
-            if (rdResult && rdResult.files && rdResult.files.length > 0) {
-                return { files: rdResult.files, filename: rdResult.filename, source: 'RealDebrid' };
-            }
-        } catch (err) {
-            // Rate limit or error - try next source
-            if (DEBUG_MODE) console.log(`⚠️ [PACK-HANDLER] RD failed for ${infoHash.substring(0, 8)}: ${err.message}`);
-        }
-    }
-
-    // 2. Try Torbox
+    // 1. Try Torbox first (FASTEST: 1 GET in ~250ms, no rate limit/ban danger)
     if (config.torbox_key) {
         try {
             const tbResult = await fetchFilesFromTorbox(infoHash, config.torbox_key);
@@ -474,7 +461,7 @@ async function fetchFilesFromAnySource(infoHash, config) {
         }
     }
 
-    // 3. Fallback to public torrent caches (no debrid needed)
+    // 2. Fallback to public torrent caches (~380ms, no debrid consumption)
     try {
         const cacheResult = await fetchTorrentFromPublicCaches(infoHash);
         if (cacheResult && cacheResult.files && cacheResult.files.length > 0) {
@@ -482,6 +469,18 @@ async function fetchFilesFromAnySource(infoHash, config) {
         }
     } catch (err) {
         if (DEBUG_MODE) console.log(`⚠️ [PACK-HANDLER] Public cache failed for ${infoHash.substring(0, 8)}: ${err.message}`);
+    }
+
+    // 3. Fallback to Real-Debrid as last resort (slow: ~3.5s - 5s, adds/deletes magnet)
+    if (config.rd_key) {
+        try {
+            const rdResult = await fetchFilesFromRealDebrid(infoHash, config.rd_key);
+            if (rdResult && rdResult.files && rdResult.files.length > 0) {
+                return { files: rdResult.files, filename: rdResult.filename, source: 'RealDebrid' };
+            }
+        } catch (err) {
+            if (DEBUG_MODE) console.log(`⚠️ [PACK-HANDLER] RD failed for ${infoHash.substring(0, 8)}: ${err.message}`);
+        }
     }
 
     return null;
@@ -946,11 +945,7 @@ async function resolveMoviePackFile(infoHash, config, movieImdbId, targetTitles,
     if (videoFiles.length === 0) {
         let fetchedData = null;
         try {
-            if (config.rd_key) {
-                fetchedData = await fetchFilesFromRealDebrid(infoHash, config.rd_key);
-            } else if (config.torbox_key) {
-                fetchedData = await fetchFilesFromTorbox(infoHash, config.torbox_key);
-            }
+            fetchedData = await fetchFilesFromAnySource(infoHash, config);
         } catch (e) {
             console.warn(`⚠️ [PACK-HANDLER] Failed to fetch files: ${e.message}`);
             // ✅ FIX: If rate limited (429), rethrow so caller keeps the pack instead of excluding
