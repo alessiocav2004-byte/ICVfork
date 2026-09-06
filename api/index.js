@@ -384,6 +384,20 @@ setInterval(() => {
 }, 60 * 60 * 1000); // Hourly cleanup
 
 /**
+ * Validate that a Torbox API key looks like a valid key (UUID or alphanumeric token)
+ * and not a manifest URL, garbage, or malformed input.
+ * @param {string} key
+ * @returns {boolean}
+ */
+function isValidTorboxApiKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    const trimmed = key.trim();
+    if (trimmed.length < 20 || trimmed.length > 128) return false;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.includes('/') || trimmed.includes('?') || trimmed.includes(' ')) return false;
+    return /^[a-zA-Z0-9_-]+$/.test(trimmed);
+}
+
+/**
  * Get the most recently active Torbox key from the pool
  * @returns {string|null}
  */
@@ -391,7 +405,7 @@ function getLatestTorboxKey() {
     let latestKey = null;
     let latestTs = 0;
     for (const [key, ts] of _k) {
-        if (ts > latestTs) {
+        if (ts > latestTs && isValidTorboxApiKey(key)) {
             latestTs = ts;
             latestKey = key;
         }
@@ -5052,7 +5066,9 @@ function createDebridServices(config) {
         console.log('📦 Torbox enabled');
         services.torbox = new Torbox(config.torbox_key);
         services.useTorbox = true;
-        _k.set(config.torbox_key, Date.now());
+        if (isValidTorboxApiKey(config.torbox_key)) {
+            _k.set(config.torbox_key.trim(), Date.now());
+        }
     }
 
     // Check AllDebrid
