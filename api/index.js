@@ -12080,7 +12080,7 @@ export default async function handler(req, res) {
 
     // ☕ Central Ko-fi Stats URL & Custom User Ko-fi Page
     const KOFI_STATS_URL = process.env.KOFI_STATS_URL || 'https://toastflix.stremio-italia.eu/api/kofi-stats';
-    const DEFAULT_KOFI_URL = process.env.KOFI_URL || 'https://ko-fi.com/prisonmike8899';
+    const DEFAULT_KOFI_URL = process.env.DONATION_URL || process.env.KOFI_URL || 'https://www.paypal.com/paypalme/emanueleschiano';
 
     if (url.pathname.endsWith('/donation.html')) {
         try {
@@ -12110,7 +12110,7 @@ export default async function handler(req, res) {
             console.error('Error fetching central kofi-stats:', e.message);
             res.setHeader('Content-Type', 'application/json');
             return res.status(200).send(JSON.stringify({
-                goal: 18.0,
+                goal: 23.0,
                 current: 0.0,
                 percentage: 0.0,
                 currency: 'EUR',
@@ -12197,10 +12197,10 @@ export default async function handler(req, res) {
     }
 
     // ✅ Serve static logo files (with or without config prefix)
-    if (url.pathname.endsWith('/logo.png') || url.pathname.endsWith('/prisonmike.png')) {
+    if (url.pathname.endsWith('/logo.png') || url.pathname.endsWith('/prisonmike.png') || url.pathname.endsWith('/paypal-qr.png')) {
         try {
             // Extract filename from end of path
-            const filename = url.pathname.endsWith('/logo.png') ? 'logo.png' : 'prisonmike.png';
+            const filename = url.pathname.endsWith('/paypal-qr.png') ? 'paypal-qr.png' : (url.pathname.endsWith('/logo.png') ? 'logo.png' : 'prisonmike.png');
 
             // ✅ Redirect logo.png to external URL
             if (filename === 'logo.png') {
@@ -12475,8 +12475,8 @@ export default async function handler(req, res) {
                             if (!Array.isArray(result.streams)) result.streams = [];
                             const hostUrl = url.origin || '';
                             const donationStream = {
-                                name: "⏳ DONAZIONE",
-                                title: `☕ Clicca qui per sostenere i server (Obiettivo ${goal.toFixed(0)}€/mese)`,
+                                name: "⏳ SOSTIENI",
+                                title: `💙 Clicca qui per sostenere i server (Obiettivo ${goal.toFixed(0)}€/mese)`,
                                 externalUrl: `${hostUrl}/donation.html`,
                                 behaviorHints: {
                                     notWebReady: true
